@@ -165,6 +165,45 @@
     }
     .strat-coins-input:focus { border-color: #29ffb8; }
 
+    /* ── Coin Tagger ── */
+    .strat-coins-wrap { position: relative; }
+    .coins-tagger {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem;
+      background: #0c1017; border: 1px solid #1e2535; border-radius: 6px;
+      padding: 0.22rem 0.5rem; min-width: 200px; max-width: 380px;
+      cursor: text; transition: border-color 0.15s;
+    }
+    .coins-tagger:focus-within { border-color: #29ffb8; }
+    .ct-chip {
+      display: inline-flex; align-items: center; gap: 0.22rem;
+      background: #1a3a2e; border: 1px solid rgba(41,255,184,0.25);
+      border-radius: 4px; color: #29ffb8; font-size: 0.74rem; font-weight: 700;
+      padding: 0.1rem 0.35rem; white-space: nowrap; line-height: 1.4;
+    }
+    .ct-chip-x {
+      background: none; border: none; color: #29ffb8; cursor: pointer;
+      font-size: 0.72rem; padding: 0; line-height: 1; opacity: 0.55;
+      transition: opacity 0.1s;
+    }
+    .ct-chip-x:hover { opacity: 1; }
+    .ct-type {
+      background: none; border: none; outline: none; color: #e5e9f2;
+      font-family: inherit; font-size: 0.82rem; min-width: 80px; flex: 1;
+      padding: 0.12rem 0.1rem;
+    }
+    .ct-type::placeholder { color: #4a5568; }
+    .ct-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0;
+      background: #0c1017; border: 1px solid #1e2535; border-radius: 7px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.45); z-index: 500;
+      min-width: 170px; max-height: 220px; overflow-y: auto; display: none;
+    }
+    .ct-dd-item {
+      padding: 0.4rem 0.75rem; font-size: 0.82rem; font-weight: 600;
+      color: #c8d0e0; cursor: pointer; transition: background 0.1s;
+    }
+    .ct-dd-item:hover, .ct-dd-item.ct-active { background: #131b28; color: #29ffb8; }
+
     /* ── 3-Column builder ── */
     .strat-builder {
       display: flex;
@@ -588,7 +627,8 @@
       .strat-canvas       { order: 1; overflow-y: visible; min-height: auto; }
       .mobile-lib-panel   { display: flex !important; order: 2; }
       .strat-output       { order: 3; flex: none; width: 100%; border-left: none; border-top: 1px solid #1a2030; overflow-y: visible; }
-      .strat-coins-input  { width: 100%; }
+      .strat-coins-wrap  { width: 100%; }
+      .coins-tagger      { max-width: 100%; }
       .strat-btn-full     { font-size: 0.95rem; padding: 0.65rem; }
       #summaryDeskTitle   { display: none !important; }
       /* Summary accordion on mobile */
@@ -727,7 +767,13 @@
     <!-- Config bar -->
     <div class="strat-configbar">
       <span class="strat-cfg-label">Coins</span>
-      <input id="stratCoins" class="strat-coins-input" type="text" placeholder="BTCUSDT, ETHUSDT, SOLUSDT (comma separated)">
+      <div class="strat-coins-wrap">
+        <div class="coins-tagger" id="coinsTagger">
+          <input class="ct-type" id="ctType" type="text" placeholder="Add coin…" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="ct-dropdown" id="ctDropdown"></div>
+      </div>
+      <input type="hidden" id="stratCoins">
       <span class="strat-cfg-label">Timeframe</span>
       <select id="stratTf" class="strat-tf-sel">
         <option value="1m">1m</option>
@@ -891,6 +937,123 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/strategy.js"></script>
+  <script>
+  (function() {
+    const SUGGESTIONS = [
+      'BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT','DOGEUSDT','ADAUSDT',
+      'AVAXUSDT','TRXUSDT','DOTUSDT','MATICUSDT','LINKUSDT','LTCUSDT','UNIUSDT',
+      'XLMUSDT','ATOMUSDT','ETCUSDT','NEARUSDT','APTUSDT','ARBUSDT','OPUSDT',
+      'INJUSDT','SUIUSDT','SEIUSDT','TONUSDT','WLDUSDT','FTMUSDT','SANDUSDT',
+      'MANAUSDT','AAVEUSDT','SNXUSDT','CRVUSDT','LDOUSDT','RNDRUSDT','FETUSDT',
+      'AGIXUSDT','GALAUSDT','AXSUSDT','GMTUSDT','STXUSDT','ENAUSDT','JUPUSDT',
+      'PYTHUSDT','TIAUSDT','COMPUSDT','MKRUSDT','1000PEPEUSDT','1000SHIBUSDT',
+      'WIFUSDT','BOMEUSDT','ORDIUSDT','TAOUSDT','EIGENUSDT','SCRUSDT','MOVEUSDT',
+    ];
+
+    let _coins = [];
+    let _ddIdx  = -1;
+
+    function syncHidden() {
+      document.getElementById('stratCoins').value = _coins.join(',');
+    }
+
+    function renderChips() {
+      const tagger = document.getElementById('coinsTagger');
+      tagger.querySelectorAll('.ct-chip').forEach(el => el.remove());
+      const input = document.getElementById('ctType');
+      _coins.forEach((c, i) => {
+        const chip = document.createElement('div');
+        chip.className = 'ct-chip';
+        chip.innerHTML = c + ' <button class="ct-chip-x" tabindex="-1">✕</button>';
+        chip.querySelector('button').addEventListener('mousedown', e => {
+          e.preventDefault();
+          _coins.splice(i, 1);
+          renderChips();
+          syncHidden();
+          if (typeof updateOutput === 'function') updateOutput();
+        });
+        tagger.insertBefore(chip, input);
+      });
+    }
+
+    function showDropdown(matches) {
+      const dd = document.getElementById('ctDropdown');
+      if (!matches.length) { dd.style.display = 'none'; return; }
+      dd.innerHTML = matches.map(c => `<div class="ct-dd-item" data-coin="${c}">${c}</div>`).join('');
+      dd.querySelectorAll('.ct-dd-item').forEach(el => {
+        el.addEventListener('mousedown', e => { e.preventDefault(); addCoin(el.dataset.coin); });
+      });
+      _ddIdx = -1;
+      dd.style.display = 'block';
+    }
+
+    function hideDropdown() {
+      document.getElementById('ctDropdown').style.display = 'none';
+      _ddIdx = -1;
+    }
+
+    function addCoin(raw) {
+      const c = raw.toUpperCase().trim();
+      if (!c || _coins.includes(c)) { document.getElementById('ctType').value = ''; hideDropdown(); return; }
+      _coins.push(c);
+      renderChips();
+      syncHidden();
+      document.getElementById('ctType').value = '';
+      hideDropdown();
+      if (typeof updateOutput === 'function') updateOutput();
+    }
+
+    // Public API used by strategy.js
+    window.setCoinsTaggerCoins = function(arr) {
+      _coins = (arr || []).map(c => String(c).trim().toUpperCase()).filter(Boolean);
+      renderChips();
+      syncHidden();
+    };
+    window.getCoinsTaggerCoins = function() { return _coins.slice(); };
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const input   = document.getElementById('ctType');
+      const tagger  = document.getElementById('coinsTagger');
+
+      tagger.addEventListener('click', () => input.focus());
+
+      input.addEventListener('input', function() {
+        const q = this.value.trim().toUpperCase();
+        if (!q) { hideDropdown(); return; }
+        let matches = SUGGESTIONS.filter(c => c.startsWith(q) && !_coins.includes(c));
+        if (!matches.length) matches = SUGGESTIONS.filter(c => c.includes(q) && !_coins.includes(c));
+        // Allow custom coin not in list
+        if (!_coins.includes(q) && q.length >= 3 && !matches.includes(q)) matches.unshift(q);
+        showDropdown(matches.slice(0, 10));
+      });
+
+      input.addEventListener('keydown', function(e) {
+        const dd    = document.getElementById('ctDropdown');
+        const items = dd.querySelectorAll('.ct-dd-item');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          _ddIdx = Math.min(_ddIdx + 1, items.length - 1);
+          items.forEach((el, i) => el.classList.toggle('ct-active', i === _ddIdx));
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          _ddIdx = Math.max(_ddIdx - 1, 0);
+          items.forEach((el, i) => el.classList.toggle('ct-active', i === _ddIdx));
+        } else if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          if (_ddIdx >= 0 && items[_ddIdx]) addCoin(items[_ddIdx].dataset.coin);
+          else if (this.value.trim()) addCoin(this.value.trim());
+        } else if (e.key === 'Backspace' && !this.value && _coins.length) {
+          _coins.pop(); renderChips(); syncHidden();
+          if (typeof updateOutput === 'function') updateOutput();
+        } else if (e.key === 'Escape') {
+          hideDropdown();
+        }
+      });
+
+      input.addEventListener('blur', () => setTimeout(hideDropdown, 150));
+    });
+  })();
+  </script>
 
   <!-- Mobile Zone Picker (bottom sheet) -->
   <div class="mobile-zone-bg" id="mobileZonePicker">

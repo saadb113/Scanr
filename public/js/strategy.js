@@ -1148,7 +1148,8 @@ function stratNew() {
     exitConditions: [],
   };
   $('stratName').value = 'Untitled Strategy';
-  $('stratCoins').value = '';
+  if (window.setCoinsTaggerCoins) window.setCoinsTaggerCoins([]);
+  else $('stratCoins').value = '';
   $('stratTf').value = '5m';
   $('stratMaxTrades').value = 3;
   $('stratDeleteBtn').style.display = 'none';
@@ -1156,6 +1157,7 @@ function stratNew() {
   renderCanvas();
   updateOutput();
 }
+
 
 async function stratDelete() {
   if (!_currentStrategyId) return;
@@ -1229,7 +1231,8 @@ async function stratLoad(id) {
 function applyStrategy(s) {
   _currentStrategyId = s._id;
   $('stratName').value = s.name || 'My Strategy';
-  $('stratCoins').value = (s.coins || []).join(', ');
+  if (window.setCoinsTaggerCoins) window.setCoinsTaggerCoins(s.coins || []);
+  else $('stratCoins').value = (s.coins || []).join(', ');
   $('stratTf').value = s.timeframe || '5m';
   $('stratMaxTrades').value = s.maxTradesPerDay || 3;
 
