@@ -769,6 +769,55 @@ app.post('/api/bybit-store', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/bybit/test', async (req, res) => {
+    try {
+        const doc = await BybitStore.findOne({ userId: req.appUserId }).lean();
+        const env = doc?.activeEnv || 'mainnet';
+        const cred = doc?.[env];
+        if (!cred?.apiKey || !cred?.apiSecret) return res.json({ ok: false, error: 'No API credentials saved.' });
+        const result = await dashBybitReq({ ...cred, env }, 'GET', '/v5/account/wallet-balance', { accountType: 'UNIFIED' });
+        if (result.retCode === 0) {
+            const equity = result.result?.list?.[0]?.totalEquity;
+            res.json({ ok: true, equity, env });
+        } else {
+            res.json({ ok: false, error: result.retMsg, env });
+        }
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+app.post('/api/bybit/proxy', async (req, res) => {
+    try {
+        const doc = await BybitStore.findOne({ userId: req.appUserId }).lean();
+        const env = doc?.activeEnv || 'mainnet';
+        const cred = doc?.[env];
+        if (!cred?.apiKey || !cred?.apiSecret) return res.status(400).json({ retCode: -1, retMsg: 'No API credentials saved.' });
+        const { path, body } = req.body;
+        if (!path) return res.status(400).json({ retCode: -1, retMsg: 'Missing path.' });
+        const crypto = require('crypto');
+        const base = env === 'testnet' ? 'https://api-demo.bybit.com' : 'https://api.bybit.com';
+        const ts = Date.now().toString();
+        const recv = '20000';
+        const bodyStr = JSON.stringify(body || {});
+        const sign = crypto.createHmac('sha256', cred.apiSecret)
+            .update(ts + cred.apiKey + recv + bodyStr)
+            .digest('hex');
+        const r = await fetch(base + path, {
+            method: 'POST',
+            headers: {
+                'X-BAPI-API-KEY':     cred.apiKey,
+                'X-BAPI-SIGN':        sign,
+                'X-BAPI-SIGN-TYPE':   '2',
+                'X-BAPI-TIMESTAMP':   ts,
+                'X-BAPI-RECV-WINDOW': recv,
+                'Content-Type':       'application/json',
+            },
+            body: bodyStr,
+        });
+        const data = await r.json();
+        res.json(data);
+    } catch (e) { res.status(500).json({ retCode: -1, retMsg: e.message }); }
+});
+
 // ── PnL Calendar ───────────────────────────────────────────────
 app.get('/api/pnl-calendar', async (req, res) => {
     try {
