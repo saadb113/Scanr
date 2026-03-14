@@ -103,50 +103,61 @@ function getTrend(candles) {
 }
 
 // ── Bybit API (server-side) ──────────────────────────────────
-function bybitSign(params, secret) {
-    const sorted = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');
-    return crypto.createHmac('sha256', secret).update(sorted).digest('hex');
-}
-
 function bybitRequest(apiKey, apiSecret, env, method, endpoint, params = {}) {
     return new Promise((resolve, reject) => {
-        const base = env === 'mainnet' ? 'api.bybit.com' : 'api-testnet.bybit.com';
-        const ts   = Date.now().toString();
+        const hostname = env === 'mainnet' ? 'api.bybit.com' : 'api-demo.bybit.com';
+        const ts         = Date.now().toString();
         const recvWindow = '5000';
         let path, bodyStr = '';
 
         if (method === 'GET') {
-            const allParams = { ...params, api_key: apiKey, timestamp: ts, recv_window: recvWindow };
-            allParams.sign = bybitSign(allParams, apiSecret);
-            const qs = new URLSearchParams(allParams).toString();
-            path = `${endpoint}?${qs}`;
-        } else {
-            const allParams = { ...params, api_key: apiKey, timestamp: ts, recv_window: recvWindow };
-            allParams.sign = bybitSign(allParams, apiSecret);
-            bodyStr = JSON.stringify(allParams);
-            path = endpoint;
-        }
-
-        const options = {
-            hostname: base, port: 443, path,
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-BAPI-API-KEY': apiKey,
-                'X-BAPI-TIMESTAMP': ts,
-                'X-BAPI-RECV-WINDOW': recvWindow,
-            },
-        };
-        const req = https.request(options, res => {
-            let data = '';
-            res.on('data', d => data += d);
-            res.on('end', () => {
-                try { resolve(JSON.parse(data)); } catch (e) { reject(e); }
+            const qs = new URLSearchParams(params).toString();
+            const signStr = ts + apiKey + recvWindow + qs;
+            const sign = crypto.createHmac('sha256', apiSecret).update(signStr).digest('hex');
+            path = `${endpoint}${qs ? '?' + qs : ''}`;
+            const options = {
+                hostname, port: 443, path, method,
+                headers: {
+                    'X-BAPI-API-KEY': apiKey, 'X-BAPI-SIGN': sign,
+                    'X-BAPI-TIMESTAMP': ts, 'X-BAPI-RECV-WINDOW': recvWindow,
+                },
+            };
+            const req = https.request(options, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => {
+                    if (data.trimStart().startsWith('<')) return reject(new Error(`Bybit returned HTML (HTTP ${res.statusCode}) — possible rate limit or block`));
+                    try { resolve(JSON.parse(data)); } catch (e) { reject(new Error(`Bybit parse error: ${data.slice(0, 80)}`)); }
+                });
             });
-        });
-        req.on('error', reject);
-        if (bodyStr) req.write(bodyStr);
-        req.end();
+            req.on('error', reject);
+            req.end();
+        } else {
+            bodyStr = JSON.stringify(params);
+            const signStr = ts + apiKey + recvWindow + bodyStr;
+            const sign = crypto.createHmac('sha256', apiSecret).update(signStr).digest('hex');
+            path = endpoint;
+            const options = {
+                hostname, port: 443, path, method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-BAPI-API-KEY': apiKey, 'X-BAPI-SIGN': sign,
+                    'X-BAPI-SIGN-TYPE': '2', 'X-BAPI-TIMESTAMP': ts,
+                    'X-BAPI-RECV-WINDOW': recvWindow,
+                },
+            };
+            const req = https.request(options, res => {
+                let data = '';
+                res.on('data', d => data += d);
+                res.on('end', () => {
+                    if (data.trimStart().startsWith('<')) return reject(new Error(`Bybit returned HTML (HTTP ${res.statusCode}) — possible rate limit or block`));
+                    try { resolve(JSON.parse(data)); } catch (e) { reject(new Error(`Bybit parse error: ${data.slice(0, 80)}`)); }
+                });
+            });
+            req.on('error', reject);
+            req.write(bodyStr);
+            req.end();
+        }
     });
 }
 
@@ -161,13 +172,14 @@ function fetchBybitKlines(symbol, interval, limit = 100) {
             let data = '';
             res.on('data', d => data += d);
             res.on('end', () => {
+                if (data.trimStart().startsWith('<')) return reject(new Error(`Bybit kline returned HTML (HTTP ${res.statusCode}) — possible rate limit or block`));
                 try {
                     const j = JSON.parse(data);
                     const candles = (j.result?.list || []).reverse().map(c => ({
                         time: +c[0], open: +c[1], high: +c[2], low: +c[3], close: +c[4], volume: +c[5],
                     }));
                     resolve(candles);
-                } catch (e) { reject(e); }
+                } catch (e) { reject(new Error(`Bybit kline parse error: ${data.slice(0, 80)}`)); }
             });
         });
         req.on('error', reject);
@@ -363,21 +375,18 @@ async function placeOrder(userId, symbol, side, price, atr, actions, store) {
     // Two-pass SL/TP calculation to handle RR dependencies
     let slDist = null, tpDist = null;
 
-    // First pass: compute point-offset values directly
-    if (slBlock && slBlock.params.type === 'points') {
-        slDist = +(slBlock.params.value ?? 0.5);
-    }
-    if (tpBlock && tpBlock.params.type === 'points') {
-        tpDist = +(tpBlock.params.value ?? 1.0);
-    }
+    // First pass: point-offset values
+    if (slBlock && slBlock.params.type === 'points') slDist = +(slBlock.params.value ?? 0.5);
+    if (tpBlock && tpBlock.params.type === 'points') tpDist = +(tpBlock.params.value ?? 1.0);
 
-    // Second pass: compute RR-based values using already-known distance
-    if (slBlock && slBlock.params.type === 'rr' && tpDist != null) {
-        slDist = tpDist / +(slBlock.params.value ?? 2);
-    }
-    if (tpBlock && tpBlock.params.type === 'rr' && slDist != null) {
-        tpDist = slDist * +(tpBlock.params.value ?? 2);
-    }
+    // Second pass: RR-based using already-known distance
+    if (slBlock && slBlock.params.type === 'rr' && tpDist != null) slDist = tpDist / +(slBlock.params.value ?? 2);
+    if (tpBlock && tpBlock.params.type === 'rr' && slDist != null) tpDist = slDist * +(tpBlock.params.value ?? 2);
+
+    // Third pass: break circular RR (both set to rr with no anchor) — use ATR as base
+    if (slBlock && slDist == null && atr > 0) slDist = atr;
+    if (tpBlock && tpDist == null && slDist != null && tpBlock.params.type === 'rr') tpDist = slDist * +(tpBlock.params.value ?? 2);
+    if (slBlock && slDist == null && tpDist != null && slBlock.params.type === 'rr') slDist = tpDist / +(slBlock.params.value ?? 2);
 
     const sl = slDist != null ? (side === 'Buy' ? price - slDist : price + slDist) : null;
     const tp = tpDist != null ? (side === 'Buy' ? price + tpDist : price - tpDist) : null;
@@ -441,6 +450,8 @@ async function runScanCycle(userId) {
 
     try {
         const strategy = await Strategy.findById(bot.strategyId).lean();
+        // Bug 1+2: bail if startBot replaced this bot while we were awaiting
+        if (bots.get(userId) !== bot) return;
         if (!strategy || !strategy.isActive) { await stopBot(userId); return; }
 
         const blocks  = strategy.blocks || { filters: [], ifBlocks: [], exitConditions: [] };
@@ -611,6 +622,9 @@ async function pollCandle(userId) {
     if (!bot) return;
     try {
         const strategy = await Strategy.findById(bot.strategyId).lean();
+        // Bug 1+2: if startBot replaced this bot while we were awaiting, exit quietly
+        // instead of calling stopBot() which would kill the new bot.
+        if (bots.get(userId) !== bot) return;
         if (!strategy || !strategy.isActive) { await stopBot(userId); return; }
 
         const tf       = strategy.timeframe || '5m';
@@ -632,24 +646,31 @@ async function pollCandle(userId) {
     }
 }
 
+const starting = new Set(); // guard against concurrent startBot calls
+
 async function startBot(userId, strategyId) {
-    await stopBot(userId);
+    if (starting.has(userId)) return { ok: true };
+    starting.add(userId);
+    try {
+        await stopBot(userId);
+        await Strategy.findByIdAndUpdate(strategyId, { isActive: true });
 
-    await Strategy.updateMany({ userId }, { isActive: false });
-    await Strategy.findByIdAndUpdate(strategyId, { isActive: true });
+        const strategy = await Strategy.findById(strategyId).lean();
 
-    const strategy = await Strategy.findById(strategyId).lean();
+        const bot = {
+            strategyId, status: 'idle', lastScan: null, lastCandleTs: null,
+            timerId: setInterval(() => pollCandle(userId), 30000),
+        };
+        bots.set(userId, bot);
+        addLog(userId, 'info', `Bot started — strategy: "${strategy?.name}" | coins: ${(strategy?.coins || []).join(', ') || 'default'} | if-blocks: ${(strategy?.blocks?.ifBlocks || []).length}`);
+        addLog(userId, 'info', `Loaded blocks: ${JSON.stringify(strategy?.blocks)}`);
 
-    const bot = {
-        strategyId, status: 'idle', lastScan: null, lastCandleTs: null,
-        timerId: setInterval(() => pollCandle(userId), 30000),
-    };
-    bots.set(userId, bot);
-    addLog(userId, 'info', `Bot started — strategy: ${strategy?.name} — continuous candle monitoring`);
-
-    // Run immediately on first candle check
-    pollCandle(userId);
-    return { ok: true };
+        // Run immediately on first candle check
+        pollCandle(userId);
+        return { ok: true };
+    } finally {
+        starting.delete(userId);
+    }
 }
 
 async function stopBot(userId) {
