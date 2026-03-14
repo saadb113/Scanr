@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080b11;--bg-card:#0d1117;--bg-raised:#121820;--bg-input:#0a0f16;
+  --border:#1c2435;--border-mid:#243044;
+  --text-primary:#dde4f0;--text-secondary:#9aa3b5;--text-muted:#5a6478;
+  --green:#00e5a0;--red:#ff4d6a;--amber:#f5a623;--blue:#4da8ff;--purple:#a78bfa;
+  --green-dim:#051a10;--red-dim:#1a0509;--amber-dim:#1a1100;
+  --font-ui:'Space Grotesk',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --sidebar-w:220px;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text-primary);font-family:var(--font-ui);font-size:clamp(13px,1vw,18px);line-height:1.5;-webkit-font-smoothing:antialiased}
+html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#edf1f8;--border:#cdd5e3;--border-mid:#b4bfcf;--text-primary:#1a2335;--text-secondary:#445068;--text-muted:#7080a0}
+
+/* ── Outer layout ── */
+.db-layout{display:flex;min-height:calc(100vh - 52px);align-items:flex-start}
+
+/* ── Sidebar ── */
+.db-sidebar{
+  width:var(--sidebar-w);min-width:var(--sidebar-w);
+  position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;
+  padding:1rem 0.75rem 2rem;display:flex;flex-direction:column;gap:0.85rem;
+  border-right:1px solid var(--border);
+}
+
+/* Sidebar streaks */
+.sb-streaks{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:0.85rem 1rem}
+.sb-streaks-title{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:0.55rem}
+.sb-streak-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem}
+.sb-streak-row:last-child{margin-bottom:0}
+.sb-streak-label{font-size:0.75rem;color:var(--text-secondary)}
+.sb-streak-val{font-size:1.1rem;font-weight:800;font-family:var(--font-mono);color:var(--green)}
+.sb-streak-val.zero{color:var(--text-muted)}
+.sb-streak-best{font-size:0.68rem;color:var(--text-muted);margin-top:0.15rem;text-align:right}
+
+/* Sidebar quick actions */
+.sb-actions-title{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);padding-left:0.1rem}
+.sb-action-btn{
+  display:flex;align-items:center;gap:0.55rem;width:100%;
+  background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:0.55rem 0.75rem;cursor:pointer;text-decoration:none;transition:border-color .15s,background .15s;
+  font-family:inherit;font-size:0.82rem;font-weight:600;color:var(--text-secondary);
+}
+.sb-action-btn:hover{border-color:var(--border-mid);background:var(--bg-raised);color:var(--text-primary)}
+.sb-action-icon{font-size:1rem;line-height:1;flex-shrink:0}
+.sb-action-btn.agent-btn{border-color:rgba(245,166,35,0.25);animation:agentPulse 2.5s ease-in-out infinite}
+.sb-action-btn.agent-btn,.sb-action-btn.agent-btn *{color:var(--amber)}
+@keyframes agentPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,0)}50%{box-shadow:0 0 12px 2px rgba(245,166,35,0.18)}}
+
+/* ── Main content ── */
+.db-main{flex:1;min-width:0;padding:1rem 1.25rem 3rem}
+
+/* Section headers */
+.db-section-title{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:0.65rem}
+
+/* Account overview grid */
+.db-welcome{font-size:2.3rem;font-weight:800;color:var(--text-primary);margin-bottom:1.1rem;letter-spacing:-0.2px}
+.db-welcome span{color:var(--green)}
+.db-overview-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin-bottom:1rem}
+@media(max-width:600px){.db-overview-grid{grid-template-columns:1fr}}
+
+.db-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem}
+.db-card-label{font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:0.45rem}
+.db-balance-val{font-size:1.9rem;font-weight:800;color:var(--green);font-family:var(--font-mono);letter-spacing:-0.5px;line-height:1}
+.db-balance-mode{display:inline-block;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;padding:0.15rem 0.4rem;border-radius:4px;margin-top:0.4rem;margin-left:2px}
+.db-balance-mode.live{background:#051a10;color:var(--green);border:1px solid #0a3320}
+.db-balance-mode.demo{background:#1a1100;color:var(--amber);border:1px solid #3a2400}
+.db-refresh-btn{background:none;border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:0.72rem;padding:0.18rem 0.45rem;cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s;margin-top:0.55rem;display:block}
+.db-refresh-btn:hover{color:var(--text-primary);border-color:var(--border-mid)}
+.db-pos-empty{color:var(--text-muted);font-size:0.88rem;padding:0.4rem 0}
+.db-pos-sym{font-size:1.4rem;font-weight:800;color:var(--text-primary);letter-spacing:-0.3px}
+.db-pos-badge{display:inline-block;font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;padding:0.18rem 0.45rem;border-radius:4px;margin-left:0.4rem;vertical-align:middle}
+.db-pos-badge.long{background:var(--green-dim);color:var(--green);border:1px solid #0a3320}
+.db-pos-badge.short{background:var(--red-dim);color:var(--red);border:1px solid #3a0510}
+.db-pos-row{display:flex;gap:1.5rem;margin-top:0.5rem;flex-wrap:wrap}
+.db-pos-stat label{display:block;font-size:0.65rem;color:var(--text-muted);margin-bottom:0.1rem;text-transform:uppercase;letter-spacing:0.4px}
+.db-pos-stat span{font-family:var(--font-mono);font-size:0.9rem;font-weight:700}
+.db-pnl-val{font-size:1.1rem;font-weight:800;font-family:var(--font-mono);margin-top:0.45rem}
+.db-manage-btn{display:inline-block;margin-top:0.6rem;background:var(--bg-raised);border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:0.25rem 0.7rem;font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-decoration:none;transition:color .15s,border-color .15s}
+.db-manage-btn:hover{color:var(--text-primary);border-color:var(--green)}
+
+/* ── Tabbed section ── */
+.db-tabs-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1rem}
+.db-tab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--bg-raised)}
+.db-tab-btn{
+  padding:0.55rem 1rem;font-size:0.78rem;font-weight:700;color:var(--text-muted);cursor:pointer;
+  border:none;background:none;border-bottom:2px solid transparent;font-family:inherit;
+  transition:color .15s;white-space:nowrap;
+}
+.db-tab-btn.active{color:var(--green);border-bottom-color:var(--green)}
+.db-tab-pane{display:none;padding:0.75rem 1rem}
+.db-tab-pane.active{display:block}
+.db-tab-empty{color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0;text-align:center}
+.db-tab-loading{text-align:center;padding:1.5rem;color:var(--text-muted);font-size:0.82rem}
+
+/* Tab table */
+.db-tab-table{width:100%;border-collapse:collapse;font-size:0.8rem}
+.db-tab-table th{text-align:left;padding:0.3rem 0.5rem;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);border-bottom:1px solid var(--border)}
+.db-tab-table td{padding:0.4rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text-secondary)}
+.db-tab-table tr:last-child td{border-bottom:none}
+.db-tab-table tr:hover td{background:var(--bg-raised)}
+.mono{font-family:var(--font-mono)}
+
+/* ── Watchlist ── */
+.db-watchlist-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.db-wl-empty{padding:1.5rem;text-align:center;color:var(--text-muted);font-size:0.88rem}
+.db-wl-row{display:grid;grid-template-columns:1fr auto auto auto auto auto;align-items:center;gap:0.5rem;padding:0.6rem 0.85rem;border-bottom:1px solid var(--border);transition:background .1s}
+.db-wl-row:last-child{border-bottom:none}
+.db-wl-row:hover{background:var(--bg-raised)}
+.db-wl-sym{font-weight:800;font-size:0.9rem;color:var(--text-primary)}
+.db-wl-price{font-family:var(--font-mono);font-size:0.85rem;color:var(--text-secondary)}
+.db-wl-rsi{font-family:var(--font-mono);font-size:0.8rem;font-weight:700;min-width:52px;text-align:right}
+.rsi-low{color:var(--green)}.rsi-high{color:var(--red)}.rsi-mid{color:var(--text-secondary)}
+.db-wl-chg{font-family:var(--font-mono);font-size:0.8rem;font-weight:700;min-width:56px;text-align:right}
+.chg-pos{color:var(--green)}.chg-neg{color:var(--red)}
+.db-wl-pos{display:flex;align-items:center;gap:0.3rem;min-width:110px}
+.db-pos-pill{font-size:0.62rem;font-weight:800;text-transform:uppercase;letter-spacing:0.4px;padding:0.13rem 0.35rem;border-radius:4px;background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,166,35,0.25);white-space:nowrap}
+.db-wl-pnl{font-family:var(--font-mono);font-size:0.75rem;font-weight:700}
+.db-view-btn{background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:0.72rem;font-weight:700;padding:0.18rem 0.5rem;cursor:pointer;font-family:inherit;white-space:nowrap;transition:color .15s,border-color .15s;text-decoration:none}
+.db-view-btn:hover{color:var(--green);border-color:var(--green)}
+.db-loading{text-align:center;padding:2rem;color:var(--text-muted);font-size:0.85rem}
+.db-loading::after{content:'';display:inline-block;width:12px;height:12px;border:2px solid var(--border-mid);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;margin-left:0.5rem;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Pnl colors */
+.pos-pnl{font-family:var(--font-mono);font-size:0.82rem;font-weight:700}
+.pos-pnl.profit{color:var(--green)}.pos-pnl.loss{color:var(--red)}
+
+@media(max-width:860px){
+  .db-sidebar{
+    position:fixed;left:-240px;top:48px;height:calc(100vh - 48px);
+    width:220px;z-index:190;transition:left 0.25s ease;
+    background:var(--bg-card);border-right:1px solid var(--border);
+    overflow-y:auto;padding:1rem 0.75rem 2rem;
+    display:flex;flex-direction:column;gap:0.85rem;
+  }
+  .db-sidebar.open{left:0}
+  .db-sb-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:189}
+  .db-sb-overlay.open{display:block}
+  .db-sb-ham{
+    display:inline-flex;align-items:center;gap:0.4rem;
+    background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-sm);
+    color:var(--text-secondary);font-size:0.82rem;font-weight:700;
+    padding:0.3rem 0.75rem;cursor:pointer;font-family:inherit;margin-bottom:0.85rem;
+  }
+  .db-sb-ham:hover{color:var(--text-primary);border-color:var(--border-mid)}
+  .db-layout{flex-direction:column}
+  .db-main{padding:0.75rem 1rem 2rem; width : 100%}
+  .db-wl-row{grid-template-columns:1fr auto auto auto}
+  .db-wl-pos,.db-wl-rsi{display:none}
+  .db-welcome {
+    font-size: 1.8rem;
+  }
+}
+@media(min-width:861px){
+  .db-sb-ham{display:none}
+  .db-sb-overlay{display:none!important}
+}
+</style>
+</head>
+<body>
+<script src="/js/nav.js"></script>
+
+<div class="db-sb-overlay" id="dbSbOverlay" onclick="dbToggleSidebar()"></div>
+<div class="db-layout">
+
+  <!-- ── Sidebar ── -->
+  <div class="db-sidebar" id="dbSidebar">
+
+    <!-- Streaks -->
+    <div class="sb-streaks">
+      <div class="sb-streaks-title">🔥 Streaks</div>
+      <div class="sb-streak-row">
+        <span class="sb-streak-label">Current</span>
+        <span class="sb-streak-val" id="sbCurrentStreak">—</span>
+      </div>
+      <div class="sb-streak-best" id="sbBestStreak" style="margin-bottom:0.5rem">Best: —</div>
+      <div class="sb-streak-row">
+        <span class="sb-streak-label" style="font-size:0.68rem;color:var(--text-muted)">Green days</span>
+        <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--green)" id="sbGreenStreak">—</span>
+      </div>
+      <div class="sb-streak-row">
+        <span class="sb-streak-label" style="font-size:0.68rem;color:var(--text-muted)">Rule streak</span>
+        <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--blue)" id="sbRuleStreak">—</span>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="sb-actions-title">Quick Actions</div>
+    <a class="sb-action-btn" href="/scanner">
+      <span class="sb-action-icon">📊</span>Scanner
+    </a>
+    <a class="sb-action-btn" href="/setups">
+      <span class="sb-action-icon">🔍</span>Scan Setups
+    </a>
+    <a class="sb-action-btn" href="/terminal">
+      <span class="sb-action-icon">⚡</span>Trade
+    </a>
+    <a class="sb-action-btn" href="/challenge">
+      <span class="sb-action-icon">🏆</span>Prop Firm Challenge
+    </a>
+    <a class="sb-action-btn agent-btn" href="/agent">
+      <span class="sb-action-icon">🤖</span>AI Agent (Beta)
+    </a>
+
+  </div>
+
+  <!-- ── Main content ── -->
+  <div class="db-main">
+    <button class="db-sb-ham" id="dbSbHam" onclick="dbToggleSidebar()">&#9776; Menu</button>
+
+    <!-- Welcome heading -->
+    <div class="db-welcome">Welcome, <span id="dbWelcomeName">there</span> 👋</div>
+
+    <!-- Account Overview -->
+    <div class="db-section-title">Account Overview</div>
+    <div class="db-overview-grid">
+
+      <div class="db-card" id="balanceCard">
+        <div class="db-card-label">Available Balance</div>
+        <div class="db-balance-val" id="balanceVal">—</div>
+        <div><span class="db-balance-mode" id="balanceMode">—</span></div>
+        <button class="db-refresh-btn" onclick="loadSummary()">↻ Refresh</button>
+      </div>
+
+      <div class="db-card" id="posCard">
+        <div class="db-card-label">Open Position</div>
+        <div id="posContent"><div class="db-pos-empty">Loading…</div></div>
+      </div>
+
+    </div>
+
+    <!-- Tabbed section -->
+    <div class="db-tabs-card">
+      <div class="db-tab-bar">
+        <button class="db-tab-btn active" data-tab="spot" onclick="dbSwitchTab('spot')">💰 Spot Assets</button>
+        <button class="db-tab-btn" data-tab="futures" onclick="dbSwitchTab('futures')">📊 Futures Positions</button>
+        <button class="db-tab-btn" data-tab="orders" onclick="dbSwitchTab('orders')">📋 Orders</button>
+      </div>
+
+      <div id="db-tab-spot" class="db-tab-pane active">
+        <div class="db-tab-loading">Loading…</div>
+      </div>
+      <div id="db-tab-futures" class="db-tab-pane">
+        <div class="db-tab-loading">Loading…</div>
+      </div>
+      <div id="db-tab-orders" class="db-tab-pane">
+        <div class="db-tab-loading">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Watchlist -->
+    <div class="db-section-title">Watchlist</div>
+    <div class="db-watchlist-card">
+      <div id="watchlistBody"><div class="db-loading">Loading watchlist</div></div>
+    </div>
+
+  </div><!-- .db-main -->
+</div><!-- .db-layout -->
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ── Sidebar toggle (mobile) ──────────────────────────────────────
+function dbToggleSidebar() {
+  document.getElementById('dbSidebar') && document.getElementById('dbSidebar').classList.toggle('open');
+  document.getElementById('dbSbOverlay').classList.toggle('open');
+}
+
+const fmt = (n, dec=2) => Number(n).toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const fmtPnl = n => { const v=parseFloat(n)||0; return (v>=0?'+$':'-$')+Math.abs(v).toFixed(2); };
+
+// ── Balance ────────────────────────────────────────────────────
+function renderBalance(bal) {
+  document.getElementById('balanceVal').textContent = '$' + fmt(bal.available);
+  const m = document.getElementById('balanceMode');
+  m.textContent = bal.mode === 'testnet' ? 'Demo' : 'Live';
+  m.className = 'db-balance-mode ' + (bal.mode === 'testnet' ? 'demo' : 'live');
+}
+
+// ── Position ───────────────────────────────────────────────────
+function renderPosition(pos) {
+  const el = document.getElementById('posContent');
+  if (!pos) { el.innerHTML = '<div class="db-pos-empty">No Open Position</div>'; return; }
+  const pnl = parseFloat(pos.unrealizedPnl)||0, pct = parseFloat(pos.pnlPercent)||0;
+  const dir = (pos.side||'').toLowerCase();
+  el.innerHTML = `
+    <div>
+      <span class="db-pos-sym">${pos.symbol.replace('USDT','')}</span>
+      <span class="db-pos-badge ${dir==='buy'||dir==='long'?'long':'short'}">${dir==='buy'?'LONG':dir==='sell'?'SHORT':dir.toUpperCase()}</span>
+    </div>
+    <div class="db-pos-row">
+      <div class="db-pos-stat"><label>Entry</label><span>$${fmt(pos.entryPrice,4)}</span></div>
+      <div class="db-pos-stat"><label>Mark</label><span>$${fmt(pos.markPrice,4)}</span></div>
+    </div>
+    <div class="db-pnl-val" style="color:${pnl>=0?'var(--green)':'var(--red)'}">${fmtPnl(pnl)} <span style="font-size:0.78rem;opacity:0.8">(${pnl>=0?'+':''}${pct.toFixed(2)}%)</span></div>
+    <a class="db-manage-btn" href="/terminal">Manage →</a>
+  `;
+}
+
+// ── Watchlist ──────────────────────────────────────────────────
+function renderWatchlist(items) {
+  const el = document.getElementById('watchlistBody');
+  if (!items||!items.length) { el.innerHTML='<div class="db-wl-empty">No coins in watchlist.</div>'; return; }
+  el.innerHTML = items.map(c => {
+    const rsiCls = c.rsi<35?'rsi-low':c.rsi>65?'rsi-high':'rsi-mid';
+    const chgCls = c.change24h>=0?'chg-pos':'chg-neg';
+    const posHtml = c.hasPosition
+      ? `<span class="db-pos-pill">● IN POSITION</span><span class="db-wl-pnl" style="color:${(c.positionPnl||0)>=0?'var(--green)':'var(--red)'}">${fmtPnl(c.positionPnl)}</span>`
+      : '';
+    return `<div class="db-wl-row">
+      <div class="db-wl-sym">${c.symbol.replace('USDT','')}<span style="font-size:0.65rem;color:var(--text-muted);margin-left:3px">USDT</span></div>
+      <div class="db-wl-price">$${c.price<1?c.price.toFixed(5):fmt(c.price,2)}</div>
+      <div class="db-wl-rsi ${rsiCls}">RSI ${c.rsi}</div>
+      <div class="db-wl-chg ${chgCls}">${(c.change24h>=0?'+':'')+c.change24h.toFixed(2)}%</div>
+      <div class="db-wl-pos">${posHtml}</div>
+      <a class="db-view-btn" href="/scanner">View</a>
+    </div>`;
+  }).join('');
+}
+
+// ── Load summary ───────────────────────────────────────────────
+async function loadSummary() {
+  try {
+    const r = await fetch('/api/dashboard/summary');
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    renderBalance(d.balance);
+    renderPosition(d.openPosition);
+    renderWatchlist(d.watchlist);
+  } catch(e) {
+    document.getElementById('watchlistBody').innerHTML =
+      `<div class="db-wl-empty" style="color:var(--red)">Failed to load: ${e.message}</div>`;
+  }
+}
+
+// ── Tabs ───────────────────────────────────────────────────────
+let _tabLoaded = {};
+function dbSwitchTab(tab) {
+  document.querySelectorAll('.db-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.db-tab-pane').forEach(p => p.classList.toggle('active', p.id==='db-tab-'+tab));
+  if (!_tabLoaded[tab]) { _tabLoaded[tab] = true; dbLoadTab(tab); }
+}
+
+async function dbLoadTab(tab) {
+  const pane = document.getElementById('db-tab-'+tab);
+  pane.innerHTML = '<div class="db-tab-loading">Loading…</div>';
+  try {
+    if (tab === 'spot') {
+      const d = await fetch('/api/dashboard/spot-assets').then(r => r.json());
+      const coins = d.coins || [];
+      if (!coins.length) { pane.innerHTML = '<div class="db-tab-empty">No spot assets found</div>'; return; }
+      const total = coins.reduce((s,c) => s+parseFloat(c.usdValue||0), 0);
+      pane.innerHTML = `<table class="db-tab-table"><thead><tr>
+        <th>Asset</th><th>Wallet Balance</th><th>Available</th><th>USD Value</th>
+      </tr></thead><tbody>
+        ${coins.map(c => {
+          const bal   = parseFloat(c.walletBalance||0);
+          const avail = parseFloat(c.availableToWithdraw||c.availableToBorrow||c.free||0);
+          const usd   = parseFloat(c.usdValue||0);
+          return `<tr>
+            <td style="font-weight:700;color:var(--text-primary)">${c.coin}</td>
+            <td class="mono">${bal.toFixed(6)}</td>
+            <td class="mono" style="color:var(--green)">${avail.toFixed(6)}</td>
+            <td class="mono" style="color:var(--blue)">$${usd.toFixed(2)}</td>
+          </tr>`;
+        }).join('')}
+        <tr style="font-weight:700">
+          <td colspan="3" style="color:var(--text-muted)">Total</td>
+          <td class="mono" style="color:var(--green)">$${total.toFixed(2)}</td>
+        </tr>
+      </tbody></table>`;
+    } else if (tab === 'futures') {
+      const d = await fetch('/api/dashboard/futures-positions').then(r => r.json());
+      const positions = d.positions || [];
+      if (!positions.length) { pane.innerHTML = '<div class="db-tab-empty">No open futures positions</div>'; return; }
+      pane.innerHTML = `<table class="db-tab-table"><thead><tr>
+        <th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>PnL</th><th>Lev</th>
+      </tr></thead><tbody>
+        ${positions.map(p => {
+          const pnl = parseFloat(p.unrealisedPnl||0);
+          const pnlCls = pnl>=0?'profit':'loss';
+          const side  = p.side==='Buy'?'LONG':'SHORT';
+          const sc    = p.side==='Buy'?'var(--green)':'var(--red)';
+          return `<tr>
+            <td style="font-weight:700;color:var(--text-primary)">${p.symbol.replace('USDT','')}</td>
+            <td style="font-weight:700;color:${sc}">${side}</td>
+            <td class="mono">${parseFloat(p.size).toFixed(4)}</td>
+            <td class="mono">$${parseFloat(p.avgPrice).toFixed(2)}</td>
+            <td class="mono">$${parseFloat(p.markPrice).toFixed(2)}</td>
+            <td class="mono pos-pnl ${pnlCls}">${fmtPnl(pnl)}</td>
+            <td class="mono">${p.leverage}x</td>
+          </tr>`;
+        }).join('')}
+      </tbody></table>`;
+    } else if (tab === 'orders') {
+      const d = await fetch('/api/dashboard/orders').then(r => r.json());
+      const orders = d.orders || [];
+      if (!orders.length) { pane.innerHTML = '<div class="db-tab-empty">No open orders</div>'; return; }
+      pane.innerHTML = `<table class="db-tab-table"><thead><tr>
+        <th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th>
+      </tr></thead><tbody>
+        ${orders.map(o => {
+          const sc = o.side==='Buy'?'var(--green)':'var(--red)';
+          return `<tr>
+            <td style="font-weight:700;color:var(--text-primary)">${o.symbol.replace('USDT','')}</td>
+            <td style="font-weight:700;color:${sc}">${o.side==='Buy'?'BUY':'SELL'}</td>
+            <td>${o.orderType}</td>
+            <td class="mono">${parseFloat(o.qty).toFixed(4)}</td>
+            <td class="mono">$${parseFloat(o.price||0).toFixed(2)||'—'}</td>
+            <td style="font-size:0.72rem;color:var(--text-muted)">${o.orderStatus}</td>
+          </tr>`;
+        }).join('')}
+      </tbody></table>`;
+    }
+  } catch(e) { pane.innerHTML = `<div class="db-tab-empty" style="color:var(--red)">Error: ${e.message}</div>`; }
+}
+
+// ── Streaks ────────────────────────────────────────────────────
+fetch('/api/streak').then(r => r.json()).then(d => {
+  if (!d.ok) return;
+  const cv = document.getElementById('sbCurrentStreak');
+  cv.textContent = d.currentStreak ?? d.ruleStreak ?? 0;
+  if ((d.currentStreak||0) === 0) cv.classList.add('zero'); else cv.classList.remove('zero');
+  document.getElementById('sbBestStreak').textContent = 'Best: ' + (d.bestStreak || d.bestRuleStreak || 0) + ' days';
+  document.getElementById('sbGreenStreak').textContent = d.greenStreak ?? 0;
+  document.getElementById('sbRuleStreak').textContent  = d.ruleStreak  ?? 0;
+}).catch(() => {});
+
+// ── Init ──────────────────────────────────────────────────────
+fetch('/api/auth/me')
+    .then(r => r.ok ? r.json() : null)
+    .then(u => { if (u && u.firstName) document.getElementById('dbWelcomeName').textContent = u.firstName; })
+    .catch(() => {});
+loadSummary();
+dbLoadTab('spot'); // pre-load first tab
+setInterval(loadSummary, 10000);
+</script>
+<script src="/js/session-check.js"></script>
+</body>
+</html>

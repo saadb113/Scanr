@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trade — Monty</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+  <style>
+    .bybit-terminal {
+      position: static !important;
+      display: flex !important;
+      flex-direction: column;
+      z-index: auto !important;
+      min-height: calc(100vh - 52px);
+      width: 100%;
+    }
+
+    /* ── Top two-column layout ── */
+    .byt-top-layout {
+      display: flex;
+      flex: 1 0 auto;
+      min-height: 0;
+      border-bottom: 1px solid #1a2030;
+    }
+
+    .byt-chart-col {
+      flex: 0 0 65%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #1a2030;
+    }
+
+    #bytTvChartWrap {
+      flex: 1;
+      min-height: 550px;
+    }
+
+    /* ── Order sidebar (right) ── */
+    .byt-order-sidebar {
+      flex: 0 0 35%;
+      min-width: 0;
+      overflow-y: auto;
+      padding: 0.85rem 1rem;
+      background: #0d1117;
+    }
+
+    /* ── Bottom tabs section ── */
+    .byt-bottom-section {
+      display: flex;
+      flex-direction: column;
+      background: #090c12;
+    }
+
+    .byt-bottom-section .byt-tabs {
+      border-bottom: 1px solid #1a2030;
+      flex-shrink: 0;
+    }
+
+    .byt-bottom-section .byt-page {
+      padding: 0.85rem 1.2rem;
+      min-height: 200px;
+    }
+
+    /* ── AI TF selector buttons ── */
+    .byt-ai-tf-sel {
+      width:100%;margin-bottom:0.5rem;background:#0f1319;color:#e5e9f2;
+      border:1px solid #252d3d;border-radius:6px;padding:0.35rem 0.5rem;
+      font-size:12px;font-family:inherit;cursor:pointer;outline:none;
+    }
+    .byt-ai-tf-sel:focus { border-color:rgba(168,85,247,0.5); }
+
+    /* ── Responsive ── */
+    @media (max-width: 860px) {
+      .byt-top-layout { flex-direction: column; }
+      .byt-chart-col  { flex: none; border-right: none; border-bottom: 1px solid #1a2030; }
+      .byt-order-sidebar { flex: none; }
+    }
+  </style>
+</head>
+<body>
+<script src="/js/nav.js"></script>
+
+<div id="bybitTerminal" class="bybit-terminal">
+
+  <!-- Global notification bar -->
+  <div id="bytMsg" style="display:none;position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:9999;padding:0.4rem 1rem;border-radius:8px;font-size:13px;font-weight:700;background:#0d1117;border:1px solid #252d3d;min-width:200px;text-align:center;pointer-events:none"></div>
+
+  <!-- Header -->
+  <div class="byt-header">
+    <div style="display:flex;align-items:center;gap:0.75rem">
+      <span style="font-size:1.05rem;font-weight:800;color:#f59e0b">⚡ Bybit Terminal</span>
+      <span id="bytSymLabel" style="font-size:0.92rem;color:#6b7897;font-weight:600"></span>
+      <span id="bytLiveBadge" style="display:none;font-size:12px;padding:0.15rem 0.5rem;border-radius:4px;font-weight:700;background:#052e16;color:#4ade80;border:1px solid #166534">● LIVE</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.6rem">
+      <button onclick="bybitTerminalClose()" style="background:none;border:none;color:#6b7897;font-size:1.6rem;cursor:pointer;line-height:1;padding:0 0.3rem">&times;</button>
+    </div>
+  </div>
+
+  <!-- Balance strip -->
+  <div id="bytBalanceStrip" style="display:flex;align-items:center;gap:1.2rem;padding:0.4rem 1.2rem;background:#0d1117;border-bottom:1px solid #1a2030;font-size:12px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:0.4rem">
+      <span style="color:#6b7897">Equity</span>
+      <span id="bytBalEquity" style="color:#e5e9f2;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.4rem">
+      <span style="color:#6b7897">Available</span>
+      <span id="bytBalAvail" style="color:#22c55e;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.4rem">
+      <span style="color:#6b7897">Margin</span>
+      <span id="bytBalMargin" style="color:#f59e0b;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.4rem">
+      <span style="color:#6b7897">UPnL</span>
+      <span id="bytBalUPnl" style="font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    </div>
+    <button onclick="bytFetchBalance()" style="margin-left:auto;background:none;border:1px solid #252d3d;color:#6b7897;border-radius:4px;padding:0.15rem 0.5rem;font-size:12px;cursor:pointer;font-family:inherit">⟳</button>
+  </div>
+
+  <!-- ── TOP: Chart + Order Form ── -->
+  <div class="byt-top-layout">
+
+    <!-- Left: Chart -->
+    <div class="byt-chart-col">
+      <!-- Symbol search above chart (full chart-column width) -->
+      <div style="padding:6px 8px;border-bottom:1px solid #1a2030;background:#0d1117;position:relative">
+        <input id="bytSymbol" class="byt-input" placeholder="Search symbol… e.g. SOL" style="text-transform:uppercase;font-size:1rem;font-weight:700;background:#0f1319" autocomplete="off" oninput="bytSymSearch(this.value)" onkeydown="bytSymKeydown(event)">
+        <div id="bytSymDropdown" style="display:none;position:absolute;top:100%;left:8px;right:8px;background:#0d1018;border:1px solid #252d3d;border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,0.5)"></div>
+        <div id="bytSymInfo" style="font-size:12px;color:#4a5568;margin-top:0.25rem;min-height:14px"></div>
+      </div>
+
+      <!-- TradingView chart -->
+      <div id="bytTvChartWrap" style="flex:1;min-height:0"></div>
+    </div>
+
+    <!-- Right: Order form sidebar -->
+    <div class="byt-order-sidebar">
+      <div style="display:flex;gap:0.25rem;margin-bottom:0.75rem;background:#090c12;border-radius:8px;padding:0.2rem;border:1px solid #1a2030">
+        <button id="bytCatFutures" onclick="bytSetCategory('linear')" style="flex:1;padding:0.3rem 0.5rem;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#f59e0b;color:#000;transition:all 0.15s">📈 Futures</button>
+        <button id="bytCatSpot"    onclick="bytSetCategory('spot')"   style="flex:1;padding:0.3rem 0.5rem;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:none;color:#6b7897;transition:all 0.15s">💱 Spot</button>
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-bottom:0.85rem">
+        <button id="bytBuyBtn" class="byt-dir-btn long active" onclick="bytSetDir('Buy')">▲ LONG</button>
+        <button id="bytSellBtn" class="byt-dir-btn short" onclick="bytSetDir('Sell')">▼ SHORT</button>
+      </div>
+
+
+      <div id="bytLevField">
+        <div class="byt-field">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
+            <label style="margin-bottom:0">Leverage</label>
+            <span id="bytMaxLevLabel" style="font-size:12px;color:#4a5568"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <input type="range" id="bytLevSlider" min="1" max="125" value="10" style="flex:1;accent-color:#f59e0b" oninput="bytLevSliderChange(this.value)">
+            <input type="number" id="bytLevInput" min="1" max="125" value="10" style="width:52px;background:#0f1319;border:1px solid #252d3d;border-radius:6px;padding:0.3rem 0.4rem;color:#f59e0b;font-weight:700;font-size:14px;font-family:inherit;outline:none;text-align:center" oninput="bytLevInputChange(this.value)">
+            <span style="color:#f59e0b;font-weight:700;font-size:14px">x</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="byt-field">
+        <label>Order Type</label>
+        <select id="bytOrderType" class="byt-input" onchange="bytOrderTypeChange()">
+          <option value="Limit">Limit</option>
+          <option value="Market">Market</option>
+        </select>
+      </div>
+
+      <div class="byt-field" id="bytEntryField">
+        <label>Entry Price</label>
+        <input id="bytEntry" class="byt-input" type="number" placeholder="0.00" step="any">
+      </div>
+
+      <div class="byt-field">
+        <div style="display:flex;gap:0;margin-bottom:0.4rem;border:1px solid #252d3d;border-radius:7px;overflow:hidden">
+          <button class="byt-qty-mode active" data-mode="qty"    onclick="bytSetQtyMode('qty')"    style="flex:1;padding:0.3rem;border:none;background:#1a1f2e;color:#f59e0b;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">QTY</button>
+          <button class="byt-qty-mode"        data-mode="cost"   onclick="bytSetQtyMode('cost')"   style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">COST $</button>
+          <button class="byt-qty-mode"        data-mode="margin" onclick="bytSetQtyMode('margin')" style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">MARGIN $</button>
+          <button class="byt-qty-mode"        data-mode="risk"   onclick="bytSetQtyMode('risk')"   style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">RISK %</button>
+        </div>
+        <div id="bytQtyRow_qty">
+          <input id="bytQty" class="byt-input" type="number" placeholder="Contracts e.g. 0.5" step="any" oninput="bytUpdateSummary()">
+        </div>
+        <div id="bytQtyRow_cost" style="display:none">
+          <input id="bytQtyCost" class="byt-input" type="number" placeholder="Total order value in USDT" step="any" oninput="bytCalcFromCost()">
+        </div>
+        <div id="bytQtyRow_margin" style="display:none">
+          <input id="bytQtyMargin" class="byt-input" type="number" placeholder="Margin amount in USDT" step="any" oninput="bytCalcFromMargin()">
+        </div>
+        <div id="bytQtyRow_risk" style="display:none;gap:0.4rem;align-items:center">
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <input type="range" id="bytQtyRiskSlider" min="0.1" max="10" step="0.1" value="1" style="flex:1;accent-color:#f59e0b" oninput="el('bytQtyRiskVal').textContent=parseFloat(this.value).toFixed(1)+'%';bytCalcFromRisk()">
+            <span id="bytQtyRiskVal" style="color:#f59e0b;font-weight:700;font-size:14px;min-width:38px;text-align:right">1.0%</span>
+          </div>
+          <div id="bytQtyRiskNote" style="font-size:12px;color:#4a5568;margin-top:0.2rem"></div>
+        </div>
+        <div id="bytQtyHint" style="font-size:12px;color:#4a5568;margin-top:0.3rem;min-height:14px"></div>
+      </div>
+
+      <div id="bytSlTpGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+        <div class="byt-field">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
+            <label style="margin-bottom:0">Stop Loss</label>
+            <div style="display:flex;border:1px solid #7f1d1d;border-radius:5px;overflow:hidden">
+              <button id="bytSLModePrice" onclick="bytSetSlMode('price')" style="padding:0.15rem 0.45rem;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:#7f1d1d;color:#fca5a5;transition:all 0.15s">$Price</button>
+              <button id="bytSLModePnl"   onclick="bytSetSlMode('pnl')"   style="padding:0.15rem 0.45rem;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:#6b7897;transition:all 0.15s">PnL$</button>
+            </div>
+          </div>
+          <input id="bytSL"    class="byt-input" type="number" placeholder="Price" step="any" style="border-color:#7f1d1d">
+          <input id="bytSLPnl" class="byt-input" type="number" placeholder="Loss e.g. -20" step="any" style="border-color:#7f1d1d;display:none;margin-top:0.3rem">
+          <div id="bytSLPnlHint" style="font-size:12px;color:#f87171;margin-top:0.2rem;min-height:13px;font-family:var(--font-mono)"></div>
+        </div>
+        <div class="byt-field">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
+            <label style="margin-bottom:0">Take Profit</label>
+            <div style="display:flex;border:1px solid #14532d;border-radius:5px;overflow:hidden">
+              <button id="bytTPModePrice" onclick="bytSetTpMode('price')" style="padding:0.15rem 0.45rem;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:#14532d;color:#86efac;transition:all 0.15s">$Price</button>
+              <button id="bytTPModePnl"   onclick="bytSetTpMode('pnl')"   style="padding:0.15rem 0.45rem;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:#6b7897;transition:all 0.15s">PnL$</button>
+            </div>
+          </div>
+          <input id="bytTP"    class="byt-input" type="number" placeholder="Price" step="any" style="border-color:#14532d">
+          <input id="bytTPPnl" class="byt-input" type="number" placeholder="Profit e.g. 50" step="any" style="border-color:#14532d;display:none;margin-top:0.3rem">
+          <div id="bytTPPnlHint" style="font-size:12px;color:#4ade80;margin-top:0.2rem;min-height:13px;font-family:var(--font-mono)"></div>
+        </div>
+      </div>
+
+      <div id="bytMarginModeField">
+        <div class="byt-field">
+          <label>Margin Mode</label>
+          <select id="bytMarginMode" class="byt-input">
+            <option value="ISOLATED">Isolated</option>
+            <option value="CROSS">Cross</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="bytApModeWrap">
+        <div style="margin-bottom:0.65rem">
+          <div class="ap-mode-toggle" style="width:100%">
+            <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')" style="flex:1">✋ Manual</button>
+            <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')" style="flex:1">🤖 Autopilot</button>
+          </div>
+          <div id="apModeHint" style="display:none;font-size:12px;color:#a855f7;margin-top:0.35rem;padding:0.35rem 0.5rem;background:rgba(124,58,237,0.08);border-radius:5px;border:1px solid rgba(124,58,237,0.2);line-height:1.5">
+            🤖 Order will be placed and autopilot will automatically monitor SL/TP milestones. Requires both SL and TP.
+          </div>
+        </div>
+      </div>
+
+      <button id="bytPlaceBtn" onclick="bytPlaceOrder()" class="byt-place-btn">
+        <span id="bytPlaceBtnLabel">▲ Place LONG Order</span>
+      </button>
+      <div id="bytOrderMsg" style="display:none;font-size:13px;font-weight:600;margin-top:0.5rem;padding:0.5rem 0.75rem;border-radius:7px;text-align:center"></div>
+
+      <!-- ── AI Analysis ── -->
+      <div style="border-top:1px solid #1a2030;margin-top:0.85rem;padding-top:0.75rem">
+        <div style="font-size:11px;font-weight:700;color:#6b7897;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem">🤖 AI Analysis</div>
+    
+      <select style="" id="bytAITfSel" class="byt-ai-tf-sel" onchange="bytSetAITf(this.value)">
+      <option value="1">1m</option>
+      <option value="3">3m</option>
+      <option value="5">5m</option>
+      <option value="15">15m</option>
+      <option value="30">30m</option>
+      <option value="45">45m</option>
+      <option value="60" selected>1h</option>
+      <option value="240">4h</option>
+      <option value="D">1d</option>
+      <option value="W">1w</option>
+      <option value="M">1M</option>
+    </select>
+     <button id="bytAIBtn" onclick="bytRunAI()" style="width:100%;padding:0.55rem;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.35);border-radius:8px;color:#a855f7;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">
+      🤖 Analyze with AI
+    </button>
+        </div>
+    </div>
+  </div>
+
+
+
+  <div style="padding: 2rem; width : 100%; border-top:1px solid #1a2030;margin-top:0.85rem;padding-top:0.75rem">
+   
+    <div id="bytAIInfo" style="font-size:11px;color:#4a5568;margin-top:0.3rem;text-align:center">— select a coin first</div>
+    <div id="bytAIPanel" style="display:none;margin-top:0.55rem;background:#0a0d14;border:1px solid #1a2030;border-radius:8px;padding:0.65rem"></div>
+  </div>
+
+  <!-- ── BOTTOM: Tabs ── -->
+  <div class="byt-bottom-section">
+    <div class="byt-tabs">
+      <button class="byt-tab active" data-byttab="positions" onclick="bytSwitchTab('positions')">📊 Positions <span id="bytPosCount" class="byt-badge">0</span></button>
+      <button class="byt-tab" data-byttab="orders"    onclick="bytSwitchTab('orders')">📋 Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
+      <button class="byt-tab" data-byttab="assets"    onclick="bytSwitchTab('assets')">💰 Assets</button>
+      <button class="byt-tab" data-byttab="autopilot" onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none">🤖 Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
+      <button class="byt-tab" data-byttab="pricealerts" onclick="bytSwitchTab('pricealerts');bytLoadPriceAlerts()">💰 Price Alerts <span id="bytAlertCount" class="byt-badge">0</span></button>
+    </div>
+
+    <!-- TAB: Positions -->
+    <div id="byt-positions" class="byt-page active">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+        <div style="font-size:0.87rem;color:#6b7897">Live positions — auto-refreshes every 5s</div>
+        <button onclick="bytLoadPositions()" style="background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:6px;padding:0.3rem 0.75rem;font-size:12px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      </div>
+      <div id="bytPositionsList">
+        <div class="byt-empty">No open positions</div>
+      </div>
+    </div>
+
+    <!-- TAB: Open Orders -->
+    <div id="byt-orders" class="byt-page">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+        <div style="font-size:0.87rem;color:#6b7897">Pending limit orders</div>
+        <button onclick="bytLoadOrders()" style="background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:6px;padding:0.3rem 0.75rem;font-size:12px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      </div>
+      <div id="bytOrdersList">
+        <div class="byt-empty">No open orders</div>
+      </div>
+    </div>
+
+    <!-- TAB: Assets -->
+    <div id="byt-assets" class="byt-page">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+        <div style="font-size:0.87rem;color:#6b7897">Bybit wallet balances</div>
+        <button onclick="bytLoadAssets()" style="background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:6px;padding:0.3rem 0.75rem;font-size:12px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      </div>
+      <div id="bytAssetsList">
+        <div class="byt-empty">No assets found</div>
+      </div>
+    </div>
+
+    <!-- TAB: Autopilot -->
+    <div id="byt-autopilot" class="byt-page">
+      <div style="max-width:700px">
+
+        <!-- SL Mode config card -->
+        <div class="byt-summary-card" style="margin-bottom:0.85rem">
+          <div style="font-size:0.82rem;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            SL Mode — Trade Rules
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.85rem">
+            <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:0.55rem 0.75rem;border-left:3px solid #22c55e;font-size:12px;color:var(--text-secondary);line-height:1.7">
+              <span style="color:#22c55e;font-weight:700">↑ TP Direction:</span>
+              Price reaches <strong style="color:var(--text-primary)">50%</strong> toward TP →
+              SL moves to <strong style="color:var(--text-primary)">half initial risk</strong> &nbsp;·&nbsp;
+              Price reaches <strong style="color:var(--text-primary)">60%</strong> toward TP →
+              SL moves to <strong style="color:#fbbf24">entry (breakeven)</strong>
+            </div>
+            <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:0.55rem 0.75rem;border-left:3px solid #ef4444;font-size:12px;color:var(--text-secondary);line-height:1.7">
+              <span style="color:#ef4444;font-weight:700">↓ SL Direction:</span>
+              Price drops <strong style="color:var(--text-primary)">60%</strong> toward SL (without hitting TP milestones) →
+              TP moves to <strong style="color:#fbbf24">entry (breakeven close)</strong>
+            </div>
+          </div>
+
+          <div style="border-top:1px solid var(--border-dim);padding-top:0.75rem">
+            <div class="byt-field" style="margin-bottom:0.6rem">
+              <label>Monitor Position (Symbol)</label>
+              <select id="apSymbolSelect" class="byt-input">
+                <option value="">— Select open position —</option>
+              </select>
+            </div>
+            <div id="apPositionPreview" style="display:none;margin-bottom:0.65rem">
+              <div class="ap-grid" id="apPreviewGrid"></div>
+            </div>
+            <button class="ap-start-btn" id="apStartBtn" onclick="apStart()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start Autopilot SL Mode
+            </button>
+          </div>
+        </div>
+
+        <!-- Active autopilot monitor -->
+        <div id="apMonitor" style="display:none">
+          <div class="ap-status-bar">
+            <div class="ap-pulse monitoring" id="apPulseDot"></div>
+            <span style="font-size:13px;font-weight:700;color:var(--text-primary)" id="apStatusText">Monitoring…</span>
+            <span style="font-size:12px;color:var(--text-secondary)" id="apLivePrice">—</span>
+            <span style="margin-left:auto;font-size:12px;color:var(--text-muted)" id="apWsStatus">Connecting…</span>
+          </div>
+
+          <div class="ap-trade-card" id="apTradeCard">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
+              <div style="display:flex;align-items:center;gap:0.5rem">
+                <span style="font-weight:800;font-size:1.00rem;color:var(--text-primary)" id="apCardSym">—</span>
+                <span class="byt-pos-side" id="apCardSide">—</span>
+                <span style="font-size:12px;color:var(--text-muted)" id="apCardLev">—</span>
+              </div>
+              <div style="font-size:13px;font-weight:700;font-family:var(--font-mono)" id="apCardPnl">—</div>
+            </div>
+
+            <div class="ap-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0.55rem">
+              <div class="ap-stat">
+                <div class="ap-stat-label">Entry</div>
+                <div class="ap-stat-val" id="apCardEntry">—</div>
+              </div>
+              <div class="ap-stat" style="border-color:rgba(255,77,106,0.3)">
+                <div class="ap-stat-label">Stop Loss</div>
+                <div class="ap-stat-val" style="color:#ef4444" id="apCardSL">—</div>
+              </div>
+              <div class="ap-stat" style="border-color:rgba(0,229,160,0.3)">
+                <div class="ap-stat-label">Take Profit</div>
+                <div class="ap-stat-val" style="color:#22c55e" id="apCardTP">—</div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:0.4rem">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:0.2rem">
+                <span>TP Progress</span>
+                <span id="apTpPct">0%</span>
+              </div>
+              <div class="ap-progress-track">
+                <div class="ap-progress-fill toward-tp" id="apTpBar" style="width:0%"></div>
+                <div class="ap-milestone" style="left:50%"><div class="ap-milestone-label">50%</div></div>
+                <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
+              </div>
+            </div>
+            <div style="margin-bottom:0.65rem">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:0.2rem">
+                <span>SL Drawdown</span>
+                <span id="apSlPct">0%</span>
+              </div>
+              <div class="ap-progress-track">
+                <div class="ap-progress-fill toward-sl" id="apSlBar" style="width:0%"></div>
+                <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:0.65rem" id="apMilestones">
+              <div class="ap-stat" id="apMs1" style="flex:1;min-width:120px">
+                <div class="ap-stat-label">TP 50% → Half SL</div>
+                <div class="ap-stat-val" style="color:var(--text-muted);font-size:12px" id="apMs1Val">Waiting…</div>
+              </div>
+              <div class="ap-stat" id="apMs2" style="flex:1;min-width:120px">
+                <div class="ap-stat-label">TP 60% → Breakeven</div>
+                <div class="ap-stat-val" style="color:var(--text-muted);font-size:12px" id="apMs2Val">Waiting…</div>
+              </div>
+              <div class="ap-stat" id="apMs3" style="flex:1;min-width:120px">
+                <div class="ap-stat-label">SL 60% → BE Close</div>
+                <div class="ap-stat-val" style="color:var(--text-muted);font-size:12px" id="apMs3Val">Waiting…</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.3rem">Action Log</div>
+          <div class="ap-log" id="apLog">
+            <div class="ap-log-row"><span class="ap-log-time">--:--:--</span><span class="ap-log-msg">Autopilot ready.</span></div>
+          </div>
+
+          <div style="margin-top:0.75rem">
+            <button class="ap-stop-btn" onclick="apStop()">⬛ Stop Autopilot</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB: Price Alerts -->
+    <div id="byt-pricealerts" class="byt-page">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;align-items:end;margin-bottom:1rem;flex-wrap:wrap">
+        <div>
+          <label style="font-size:11px;color:#6b7897;font-weight:600;display:block;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.4px">Symbol</label>
+          <input id="paSymbol" class="byt-input" placeholder="e.g. BTCUSDT" style="text-transform:uppercase" autocomplete="off">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#6b7897;font-weight:600;display:block;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.4px">Target Price</label>
+          <input id="paPrice" class="byt-input" type="number" step="any" placeholder="0.00">
+        </div>
+        <div>
+          <label style="font-size:11px;color:#6b7897;font-weight:600;display:block;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.4px">Direction</label>
+          <div style="display:flex;gap:0.25rem">
+            <button id="paDirAbove" onclick="bytSetAlertDir('above')" style="flex:1;padding:0.38rem 0.5rem;border:1px solid #29ffb8;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#052e16;color:#29ffb8">📈 Above</button>
+            <button id="paDirBelow" onclick="bytSetAlertDir('below')" style="flex:1;padding:0.38rem 0.5rem;border:1px solid #252d3d;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#0f1319;color:#6b7897">📉 Below</button>
+          </div>
+        </div>
+        <button onclick="bytSetPriceAlert()" style="background:linear-gradient(135deg,#0d4429,#29ffb8);color:#000;border:none;border-radius:8px;padding:0.42rem 1rem;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap">Set Alert</button>
+      </div>
+      <div id="paErrMsg" style="display:none;font-size:12px;color:#f87171;margin-bottom:0.5rem;font-weight:600"></div>
+      <div id="paAlertsList" style="display:flex;flex-direction:column;gap:0.4rem">
+        <div class="byt-empty">No active price alerts</div>
+      </div>
+    </div>
+
+  </div><!-- /byt-bottom-section -->
+
+</div><!-- /bybitTerminal -->
+
+<!-- Bybit Modify Modal -->
+<div id="bytModifyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;justify-content:center;align-items:center">
+  <div style="background:#13171f;border:1px solid #252d3d;border-radius:14px;padding:1.5rem;width:min(420px,95vw);display:flex;flex-direction:column;gap:0.75rem">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:700;color:#e5e9f2" id="bytModifyTitle">Modify Position</div>
+      <button onclick="el('bytModifyModal').style.display='none'" style="background:none;border:none;color:#6b7897;font-size:1.4rem;cursor:pointer">&times;</button>
+    </div>
+    <div class="byt-field"><label>Stop Loss</label><input id="bytModSL" class="byt-input" type="number" step="any" placeholder="Leave blank to keep current"></div>
+    <div class="byt-field"><label>Take Profit</label><input id="bytModTP" class="byt-input" type="number" step="any" placeholder="Leave blank to keep current"></div>
+    <input type="hidden" id="bytModSym">
+    <input type="hidden" id="bytModSide">
+    <button onclick="bytSubmitModify()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">Update Position</button>
+    <div id="bytModifyMsg" style="display:none;font-size:13px;font-weight:600;text-align:center;padding:0.4rem;border-radius:6px"></div>
+  </div>
+</div>
+
+<!-- Bybit Modify Order Modal -->
+<div id="bytModOrdModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;justify-content:center;align-items:center">
+  <div style="background:#13171f;border:1px solid #252d3d;border-radius:14px;padding:1.5rem;width:min(420px,95vw);display:flex;flex-direction:column;gap:0.75rem">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:700;color:#e5e9f2">Modify Order</div>
+      <button onclick="el('bytModOrdModal').style.display='none'" style="background:none;border:none;color:#6b7897;font-size:1.4rem;cursor:pointer">&times;</button>
+    </div>
+    <div class="byt-field"><label>New Price</label><input id="bytModOrdPrice" class="byt-input" type="number" step="any"></div>
+    <div class="byt-field"><label>New Qty</label><input id="bytModOrdQty" class="byt-input" type="number" step="any"></div>
+    <div class="byt-field"><label>New SL</label><input id="bytModOrdSL" class="byt-input" type="number" step="any" placeholder="Optional"></div>
+    <div class="byt-field"><label>New TP</label><input id="bytModOrdTP" class="byt-input" type="number" step="any" placeholder="Optional"></div>
+    <input type="hidden" id="bytModOrdId">
+    <input type="hidden" id="bytModOrdSym">
+    <button onclick="bytSubmitModifyOrder()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">Update Order</button>
+    <div id="bytModOrdMsg" style="display:none;font-size:13px;font-weight:600;text-align:center;padding:0.4rem;border-radius:6px"></div>
+  </div>
+</div>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+  let _bytTvWidget = null;
+  let _bytTvSym   = null;
+
+  function bytInitTvWidget(sym) {
+    _bytTvSym = sym;
+    const wrap = document.getElementById('bytTvChartWrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div id="bytTvWidgetInner" style="width:100%;height:550px"></div>';
+    if (typeof TradingView === 'undefined') return;
+    const isDark = !document.documentElement.classList.contains('light-mode');
+    _bytTvWidget = new TradingView.widget({
+      container_id:       'bytTvWidgetInner',
+      symbol:             'BYBIT:' + sym,
+      interval:           '5',
+      theme:              isDark ? 'dark' : 'light',
+      style:              '1',
+      width:              '100%',
+      height:             550,
+      allow_symbol_change: true,
+      locale:             'en',
+      toolbar_bg:         isDark ? '#0d1117' : '#f0f3fa',
+      hide_side_toolbar:  false,
+      withdateranges:     true
+    });
+    window.tvWidget = _bytTvWidget;
+  }
+
+  function updateChartSymbol(symbol) {
+    if (!symbol) return;
+    symbol = symbol.toUpperCase();
+    if (!symbol.endsWith('USDT')) symbol = symbol + 'USDT';
+    window.currentSymbol = symbol;
+    bytInitTvWidget(symbol);
+    bytUpdateAIInfo();
+  }
+
+  // Called from app.js when symbol is confirmed (hook into bytSetSymbol flow)
+  function bytOnSymbolConfirmed(sym) {
+    try {
+      if (sym && sym !== _bytTvSym) bytInitTvWidget(sym.toUpperCase());
+    } catch(_) {}
+  }
+
+
+  // Init on load + watch symbol label for changes
+  document.addEventListener('DOMContentLoaded', function() {
+    // Load default TV chart on startup
+    bytInitTvWidget('BTCUSDT');
+
+    // When app.js updates the symbol label, sync TV chart and read-only sidebar label
+    const symLabel = document.getElementById('bytSymLabel');
+    if (symLabel && window.MutationObserver) {
+      new MutationObserver(function() {
+        const txt = (symLabel.textContent || '').trim();
+        if (txt && txt !== _bytTvSym) bytOnSymbolConfirmed(txt);
+        const roEl = document.getElementById('bytSymReadOnly');
+        if (roEl) roEl.textContent = txt || '—';
+      }).observe(symLabel, { childList: true, subtree: true, characterData: true });
+    }
+
+    // Symbol input above chart — debounce on input, immediate on Enter
+    const symInput = document.getElementById('bytSymbol');
+    if (symInput) {
+      let _symDebounce = null;
+      symInput.addEventListener('input', function() {
+        clearTimeout(_symDebounce);
+        _symDebounce = setTimeout(() => {
+          const v = this.value.trim().toUpperCase();
+          if (v.length >= 2) updateChartSymbol(v);
+        }, 500);
+      });
+      symInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          clearTimeout(_symDebounce);
+          const v = this.value.trim().toUpperCase();
+          if (v) updateChartSymbol(v);
+        }
+      });
+    }
+  });
+
+  // ── AI Analysis ──────────────────────────────────────────────
+  let _bytAITf = '60';
+
+  function bytSetAITf(tf) {
+    _bytAITf = tf;
+    bytUpdateAIInfo();
+  }
+
+  function bytUpdateAIInfo() {
+    const sym = (window.currentSymbol || '').replace('USDT','') || '—';
+    const tfLabel = {'1':'1m','3':'3m','5':'5m','15':'15m','30':'30m','45':'45m','60':'1h','240':'4h','D':'1d','W':'1w','M':'1M'}[_bytAITf] || _bytAITf;
+    const el = document.getElementById('bytAIInfo');
+    if (el) el.textContent = sym !== '—' ? `${sym} · ${tfLabel}` : '— select a coin first';
+  }
+
+  async function bytRunAI() {
+    const rawSym = window.currentSymbol || document.getElementById('bytSymbol')?.value.trim().toUpperCase() || '';
+    if (!rawSym) { alert('Select a symbol first'); return; }
+    const fullSym = rawSym.endsWith('USDT') ? rawSym : rawSym + 'USDT';
+    const tf = _bytAITf;
+    const tfLabel = {'1':'1m','3':'3m','5':'5m','15':'15m','30':'30m','45':'45m','60':'1h','240':'4h','D':'1d','W':'1w','M':'1M'}[tf] || tf;
+    const btn   = document.getElementById('bytAIBtn');
+    const panel = document.getElementById('bytAIPanel');
+    const info  = document.getElementById('bytAIInfo');
+
+    btn.disabled = true; btn.textContent = '⏳ Analyzing…';
+    if (info) info.textContent = `${fullSym.replace('USDT','')} · ${tfLabel}`;
+    panel.style.display = 'block';
+    panel.innerHTML = '<div style="text-align:center;padding:0.75rem;color:#6b7897;font-size:12px">Fetching klines…</div>';
+
+    try {
+      const bybitBase = 'https://api.bybit.com';
+      const klRes = await fetch(`${bybitBase}/v5/market/kline?category=linear&symbol=${fullSym}&interval=${tf}&limit=100`);
+      const klData = await klRes.json();
+      if (klData.retCode !== 0 || !klData.result?.list?.length) throw new Error('Failed to fetch klines for ' + fullSym);
+
+      const ohlcv  = klData.result.list.slice().reverse().map(c => [+c[1],+c[2],+c[3],+c[4],+c[5]]);
+      const closes = ohlcv.map(c => c[3]);
+      const price  = closes[closes.length - 1];
+
+      // RSI(14)
+      function calcRSI(arr, p=14) {
+        const out = new Array(arr.length).fill(null);
+        if (arr.length < p+1) return out;
+        let g=0, l=0;
+        for (let i=1;i<=p;i++) { const d=arr[i]-arr[i-1]; if(d>0)g+=d; else l-=d; }
+        let ag=g/p, al=l/p;
+        out[p] = al===0?100:100-100/(1+ag/al);
+        for (let i=p+1;i<arr.length;i++) {
+          const d=arr[i]-arr[i-1]; ag=(ag*(p-1)+Math.max(d,0))/p; al=(al*(p-1)+Math.max(-d,0))/p;
+          out[i] = al===0?100:100-100/(1+ag/al);
+        }
+        return out;
+      }
+      function calcEMA(v, p) {
+        const k=2/(p+1), e=v.map(()=>null), f=v.findIndex(x=>x!=null);
+        if (f<0) return e; e[f]=v[f];
+        for (let i=f+1;i<v.length;i++) e[i]=v[i]*k+e[i-1]*(1-k);
+        return e;
+      }
+      function calcMACD(c,f=12,s=26,sig=9) {
+        const ef=calcEMA(c,f),es=calcEMA(c,s);
+        const ml=c.map((_,i)=>ef[i]!=null&&es[i]!=null?ef[i]-es[i]:null);
+        const sl=calcEMA(ml,sig);
+        return {macd:ml,signal:sl,hist:ml.map((m,i)=>m!=null&&sl[i]!=null?m-sl[i]:null)};
+      }
+      const rsiAll = calcRSI(closes);
+      const {macd:macdAll, signal:signalAll} = calcMACD(closes);
+      const n = 50;
+      const dp = price>=1000?2:price>=1?4:6;
+      const candleTable = ohlcv.slice(-n).map((c,i) => {
+        const ri = rsiAll.length - n + i, mi = macdAll.length - n + i;
+        return `${i+1}\t${c[0].toFixed(dp)}\t${c[1].toFixed(dp)}\t${c[2].toFixed(dp)}\t${c[3].toFixed(dp)}\t${rsiAll[ri]!=null?rsiAll[ri].toFixed(2):'-'}\t${macdAll[mi]!=null?macdAll[mi].toFixed(6):'-'}\t${signalAll[mi]!=null?signalAll[mi].toFixed(6):'-'}`;
+      }).join('\n');
+      const lastRSI  = rsiAll.filter(v=>v!=null).at(-1) || 0;
+      const lastMACD = macdAll.filter(v=>v!=null).at(-1) || 0;
+      const lastSig  = signalAll.filter(v=>v!=null).at(-1) || 0;
+
+      const prompt = `You are an expert crypto futures technical analyst. Analyze ${fullSym} on the ${tfLabel} timeframe.
+Symbol: ${fullSym} | TF: ${tfLabel} | Price: ${price} | RSI(14): ${lastRSI.toFixed(2)} | MACD: ${lastMACD.toFixed(6)} | Signal: ${lastSig.toFixed(6)}
+
+Last ${n} candles (# Open High Low Close RSI MACD Signal):
+${candleTable}
+
+Respond ONLY in this exact JSON (no markdown):
+{"direction":"LONG or SHORT or NEUTRAL","entry":<number>,"tp":<number>,"sl":<number>,"rr":"<e.g. 1:2.3>","confidence":"LOW or MEDIUM or HIGH","reasoning":"<3-5 sentences>"}`;
+
+      panel.innerHTML = '<div style="text-align:center;padding:0.75rem;color:#a855f7;font-size:12px">🤖 Asking AI…</div>';
+      const aiRes = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const aiData = await aiRes.json();
+      if (!aiRes.ok) throw new Error(aiData.error || `Server error ${aiRes.status}`);
+      const raw = aiData.result || '';
+      let r;
+      try { r = JSON.parse(raw.replace(/```json|```/gi,'').trim()); } catch(e) { throw new Error('Could not parse AI response'); }
+
+      const dir = (r.direction||'NEUTRAL').toUpperCase();
+      const dc = dir==='LONG'?'#22c55e':dir==='SHORT'?'#ef4444':'#9aa3b5';
+      const cc = r.confidence==='HIGH'?'#22c55e':r.confidence==='MEDIUM'?'#f59e0b':'#ef4444';
+      panel.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
+          <span style="font-weight:800;color:${dc};font-size:13px">${dir==='LONG'?'▲':dir==='SHORT'?'▼':'◆'} ${dir} · ${fullSym.replace('USDT','')}</span>
+          <span style="font-size:10px;color:${cc};font-weight:700">${r.confidence||''}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;margin-bottom:0.4rem">
+          ${[['Entry',r.entry,'#e5e9f2'],['SL',r.sl,'#ef4444'],['TP',r.tp,'#22c55e'],['R:R',r.rr,'#f59e0b']].map(([l,v,c])=>`
+          <div style="background:#0d0f14;border-radius:4px;padding:0.25rem 0.35rem">
+            <div style="font-size:9px;color:#5a6478;text-transform:uppercase">${l}</div>
+            <div style="font-family:'Courier New',monospace;font-size:11px;color:${c};font-weight:700">${v!=null?(typeof v==='number'?v.toFixed(v>=1000?2:4):v):'—'}</div>
+          </div>`).join('')}
+        </div>
+        <div style="font-size:11px;color:#7b8db0;line-height:1.55;margin-bottom:0.4rem;max-height:80px;overflow-y:auto">${(r.reasoning||'').replace(/\n/g,'<br>')}</div>
+        ${dir!=='NEUTRAL'&&r.entry&&r.sl?`<button onclick="bytApplyAI(${+r.entry||0},${+r.sl||0},${+r.tp||0},'${dir}')" style="width:100%;padding:0.3rem;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#a855f7;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">⚡ Apply to Order Form</button>`:''}`;
+    } catch(err) {
+      panel.innerHTML = `<div style="color:#ef4444;font-size:12px;padding:0.5rem">✗ ${err.message}</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = '🤖 Analyze with AI';
+    }
+  }
+
+  function bytApplyAI(entry, sl, tp, dir) {
+    if (entry>0 && document.getElementById('bytEntry')) document.getElementById('bytEntry').value = entry;
+    if (sl>0    && document.getElementById('bytSL'))    document.getElementById('bytSL').value = sl;
+    if (tp>0    && document.getElementById('bytTP'))    document.getElementById('bytTP').value = tp;
+    if (dir==='LONG')  { if(typeof bytSetDir==='function') bytSetDir('Buy');  }
+    if (dir==='SHORT') { if(typeof bytSetDir==='function') bytSetDir('Sell'); }
+    const ot = document.getElementById('bytOrderType');
+    if (ot) { ot.value = 'Limit'; if (typeof bytOrderTypeChange==='function') bytOrderTypeChange(); }
+    if (typeof bytUpdateSummary==='function') bytUpdateSummary();
+  }
+
+  // ── Price Alerts ─────────────────────────────────────────────
+  let _paDir = 'above';
+
+  function bytSetAlertDir(dir) {
+    _paDir = dir;
+    const aboveBtn = document.getElementById('paDirAbove');
+    const belowBtn = document.getElementById('paDirBelow');
+    if (dir === 'above') {
+      aboveBtn.style.cssText = 'flex:1;padding:0.38rem 0.5rem;border:1px solid #29ffb8;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#052e16;color:#29ffb8';
+      belowBtn.style.cssText = 'flex:1;padding:0.38rem 0.5rem;border:1px solid #252d3d;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#0f1319;color:#6b7897';
+    } else {
+      aboveBtn.style.cssText = 'flex:1;padding:0.38rem 0.5rem;border:1px solid #252d3d;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#0f1319;color:#6b7897';
+      belowBtn.style.cssText = 'flex:1;padding:0.38rem 0.5rem;border:1px solid #f87171;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#2d0a0a;color:#f87171';
+    }
+  }
+
+  async function bytSetPriceAlert() {
+    const sym    = (document.getElementById('paSymbol').value || '').trim().toUpperCase();
+    const price  = parseFloat(document.getElementById('paPrice').value);
+    const errEl  = document.getElementById('paErrMsg');
+    errEl.style.display = 'none';
+    if (!sym) { errEl.style.display='block'; errEl.textContent='Enter a symbol.'; return; }
+    if (isNaN(price) || price <= 0) { errEl.style.display='block'; errEl.textContent='Enter a valid price.'; return; }
+    try {
+      const r = await fetch('/api/alerts/price', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ symbol: sym, targetPrice: price, direction: _paDir, currentPriceWhenSet: 0 }),
+      });
+      const j = await r.json();
+      if (!j.ok) { errEl.style.display='block'; errEl.textContent= j.error || 'Failed to set alert.'; return; }
+      document.getElementById('paSymbol').value = '';
+      document.getElementById('paPrice').value  = '';
+      bytLoadPriceAlerts();
+    } catch(e) { errEl.style.display='block'; errEl.textContent = e.message; }
+  }
+
+  async function bytLoadPriceAlerts() {
+    try {
+      const r = await fetch('/api/alerts/price');
+      const alerts = await r.json();
+      const list = document.getElementById('paAlertsList');
+      const badge = document.getElementById('bytAlertCount');
+      if (badge) badge.textContent = alerts.length;
+      if (!alerts.length) { list.innerHTML = '<div class="byt-empty">No active price alerts</div>'; return; }
+      list.innerHTML = alerts.map(a => `
+        <div style="display:flex;align-items:center;gap:0.75rem;background:#0f1319;border:1px solid #1e2535;border-radius:8px;padding:0.55rem 0.75rem;font-size:13px">
+          <span style="font-weight:700;color:#e5e9f2;min-width:80px">${a.symbol}</span>
+          <span style="color:#f59e0b;font-weight:700;font-family:'JetBrains Mono',monospace">${a.targetPrice}</span>
+          <span style="font-size:11px;padding:0.15rem 0.5rem;border-radius:4px;font-weight:700;${a.direction==='above'?'background:#052e16;color:#29ffb8':'background:#2d0a0a;color:#f87171'}">${a.direction==='above'?'📈 Above':'📉 Below'}</span>
+          <span style="color:#4a5568;font-size:11px;margin-left:auto">${new Date(a.createdAt).toLocaleString()}</span>
+          <button onclick="bytDeleteAlert('${a._id}')" style="background:none;border:none;color:#4a5568;cursor:pointer;font-size:16px;line-height:1;padding:0.1rem 0.25rem;border-radius:4px" title="Delete">✕</button>
+        </div>`).join('');
+    } catch(e) { console.warn('bytLoadPriceAlerts', e); }
+  }
+
+  async function bytDeleteAlert(id) {
+    try {
+      await fetch('/api/alerts/price/' + id, { method:'DELETE' });
+      bytLoadPriceAlerts();
+    } catch(e) { console.warn('bytDeleteAlert', e); }
+  }
+
+  // Listen for socket events when alert is triggered
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof io !== 'undefined') {
+      const sock = io();
+      sock.on('price_alert:triggered', data => {
+        bytLoadPriceAlerts();
+        const msg = document.getElementById('bytMsg');
+        if (msg) {
+          msg.textContent = `💰 Price Alert: ${data.symbol} hit ${data.targetPrice}`;
+          msg.style.display = 'block';
+          msg.style.color = '#29ffb8';
+          setTimeout(() => msg.style.display = 'none', 5000);
+        }
+      });
+    }
+  });
+
+  // ── Patch bytSwitchTab so "order" tab no longer needed ────────  // app.js may still call bytSwitchTab('order') in some paths;
+  // silence it gracefully — the form is always visible now.
+  const _origBytSwitchTab = window.bytSwitchTab;
+  window.bytSwitchTab = function(tab) {
+    if (tab === 'order') return; // form is always visible
+    if (typeof _origBytSwitchTab === 'function') _origBytSwitchTab(tab);
+  };
+</script>
+<script src="/js/app.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<!-- Ghost elements for app.js bytUpdateSummary — sidebar removed but IDs must exist -->
+<div style="display:none" aria-hidden="true">
+  <span id="bsSymbol"></span><span id="bsDir"></span><span id="bsEntry"></span>
+  <span id="bsQty"></span><span id="bsLev"></span><span id="bsPosVal"></span>
+  <span id="bsMargin"></span><span id="bsSL"></span><span id="bsTP"></span>
+  <span id="bsMaxLoss"></span><span id="bsProfit"></span><span id="bsRR"></span>
+  <!-- scanner dropdown ghost (closeDropdown guard) -->
+  <div id="searchDropdown"></div>
+</div>
+<script>
+  // After app.js loads, override bytSwitchTab again (it may redefine it)
+  // and restore default bottom tab to "positions"
+  (function patchAfterAppJs() {
+    const orig = window.bytSwitchTab;
+    window.bytSwitchTab = function(tab) {
+      if (tab === 'order') return;
+      if (typeof orig === 'function') orig(tab);
+    };
+    // Ensure positions tab is active at startup
+    if (typeof window.bytSwitchTab === 'function') {
+      // app.js may default to 'order'; switch to positions
+      setTimeout(() => {
+        const activeTab = document.querySelector('.byt-tabs .byt-tab.active');
+        if (!activeTab || activeTab.dataset.byttab === 'order') {
+          window.bytSwitchTab('positions');
+        }
+      }, 0);
+    }
+  })();
+</script>
+<script src="/js/session-check.js"></script>
+</body>
+</html>

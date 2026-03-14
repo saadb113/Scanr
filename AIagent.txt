@@ -1,0 +1,287 @@
+
+Add the following feature : Autonomous Day Trading Agent.
+
+Build these new files:
+- dayAgent.js — core agent logic
+- coinScanner.js — multi-timeframe coin filtering + AI scoring
+- notifier.js — WhatsApp Business API notifications
+- agent_day_routes.js — Express API routes
+- public/agent.html — dedicated Agent page
+Update server.js to mount new routes and create DB tables.
+Update the terminal tab in index.html to add an Agent tab with control panel UI.
+
+---
+
+### How the Agent Works
+
+User clicks "Start Trade Day" → even if the user close broser or not → agent runs server-side all day independently.
+
+State:
+- trades_today = 0, max = 3
+- Fetch daily_start_balance from Bybit on start
+- Auto-shutdown scheduled at 6:00 PM Pakistan Standard Time (UTC+5)
+
+---
+
+### Coin Scanner — Phase 1: Hard Filters
+
+Pull coin universe from user's coins list in mongo settings.
+For each coin fetch from Binance Futures:
+- 24h ticker (volume, price change)
+- 4H candles (50) + 1H candles (50) + 5m candles (100)
+
+Hard filters:
+- 24h volume > $30M USDT
+- ATR(14) on 5m within min/max threshold (configurable)
+- 4H EMA20 vs EMA50 must show clear trend (not flat)
+- 1H trend agrees with 4H trend
+- RSI(14) on 5m < 38 for long candidates OR > 62 for short candidates
+- No existing open position on this coin on Bybit
+
+---
+
+### Coin Scanner — Phase 2: AI Quality Scoring
+
+For each candidate send to Kimi AI (moonshot-v1-8k) with:
+- Symbol + direction bias
+- 4H (last 30), 1H (last 30), 5m (last 50) candles
+- RSI, MACD, ATR, Volume ratio vs 20-period avg
+- Detected divergences
+- Swing highs/lows as S/R levels
+- HTF trend summary
+
+Kimi must return ONLY valid JSON no markdown:
+{
+  "score": 0-100,
+  "direction": "long" | "short",
+  "entry": number,
+  "sl": number,
+  "tp1": number,
+  "tp2": number,
+  "rr": number,
+  "confidence": "low" | "medium" | "high",
+  "reasoning": "max 200 chars"
+}
+
+Only trade if score >= 75 AND confidence is "medium" or "high".
+If multiple qualify, pick highest score.
+
+---
+
+### Trade Execution & Position Management
+
+Place market order on Bybit with autopilot mode on: direction, base size, SL, TP from AI response. trades_today++.
+
+Monitor position every 15 seconds after entry:
+- Unrealized PnL hits -2% of account → force close
+- TP1 hit → close full position
+-AUTOPILOT MODE RULES(Already built and working)
+- TP Direction: Price reaches 50% toward TP → SL moves to half initial risk  ·  Price reaches 60% toward TP → SL moves to entry (breakeven)
+- SL Direction: Price drops 60% toward SL (without hitting TP milestones) → TP moves to entry (breakeven close)
+- Position closes → send result notification → resume scan if trades_today < 3
+
+---
+
+### Scan Loop Logic
+
+- No candidates → wait 30min → scan again
+- Candidates found but all scores < 75 → wait 30min → scan again
+- Trade just closed → wait 15min cooldown → scan again
+- Active open position → skip scan, monitor only
+- 6:00 PM PST → send daily summary → shutdown agent
+- trades_today hits 3 → send daily summary → shutdown
+
+Agent trades both longs and shorts.
+
+---
+
+### Guardrails (validate before every trade and every DCA, no exceptions)
+
+- Max loss per trade: 1% of account → force close
+- Max DCA: 2 additions, sizes 1.0x → 0.5x → 0.25x
+- DCA only if RSI turning back in trade direction AND 4H trend still agrees
+- Max exposure per direction: 6% of account
+- Daily drawdown 5% → shutdown, no more trades
+- Consecutive losses 3 → pause for the day
+- Position in loss > 20 candles → force close
+- 6:00 PM PST hard stop regardless of state
+
+---
+
+### WhatsApp Notifications (Meta Business API)
+
+notifier.js uses graph.facebook.com.
+.env variables:
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_RECIPIENT_NUMBER=
+
+Send notifications in these exact situations:
+
+1. Agent Started:
+"🤖 Monty Agent Started
+Trading window: 8:00 AM – 6:00 PM PST
+Max trades today: 3
+Daily DD limit: 5%
+Scanning for opportunities..."
+
+2. Pre-trade alert (before placing order):
+"⚡ TRADE ALERT — [SYMBOL]
+Direction: LONG/SHORT
+Entry: [price]
+Stop Loss: [price]
+Take Profit: [price]
+RR Ratio: [X:1]
+AI Score: [score]/100
+Confidence: HIGH/MEDIUM
+Reason: [reasoning]
+Placing order now..."
+
+3. Trade closed win:
+"✅ TRADE CLOSED — WIN
+Symbol: [SYMBOL]
+Direction: LONG/SHORT
+Entry: [price] → Exit: [price]
+PnL: +[amount] USDT (+[%]%)
+Trades today: [X]/3"
+
+4. Trade closed loss:
+"❌ TRADE CLOSED — LOSS
+Symbol: [SYMBOL]
+Direction: LONG/SHORT
+Entry: [price] → Exit: [price]
+PnL: -[amount] USDT (-[%]%)
+Trades today: [X]/3"
+
+5. Daily Summary (sent at shutdown — 6PM cutoff, 3 trades done, DD hit, or manual stop):
+"📊 MONTY DAILY SUMMARY
+Date: [date]
+Shutdown reason: [reason]
+
+Trades taken: [X]/3
+Wins: [W] | Losses: [L]
+Win rate: [%]%
+
+[For each trade:]
+[N]. [SYMBOL] [LONG/SHORT]
+   Entry: [price] → Exit: [price]
+   PnL: [+/-amount] USDT | Score: [score]/100
+
+Total PnL: [+/-amount] USDT
+Starting balance: [amount] USDT
+Ending balance: [amount] USDT
+Account change: [+/-%]%"
+
+---
+
+### Database Tables
+
+CREATE TABLE IF NOT EXISTS agent_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  trades_taken INTEGER DEFAULT 0,
+  wins INTEGER DEFAULT 0,
+  losses INTEGER DEFAULT 0,
+  total_pnl REAL DEFAULT 0,
+  start_balance REAL,
+  end_balance REAL,
+  started_at TEXT,
+  ended_at TEXT,
+  end_reason TEXT
+);
+
+CREATE TABLE IF NOT EXISTS agent_trades (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  session_id INTEGER,
+  symbol TEXT NOT NULL,
+  side TEXT NOT NULL,
+  entry_price REAL,
+  close_price REAL,
+  sl REAL,
+  tp REAL,
+  pnl REAL,
+  pnl_percent REAL,
+  ai_score INTEGER,
+  ai_confidence TEXT,
+  ai_reasoning TEXT,
+  dca_count INTEGER DEFAULT 0,
+  opened_at TEXT,
+  closed_at TEXT
+);
+
+---
+
+### Agent Control Panel UI (separate Page)
+
+- "START TRADE DAY" button (green, large, prominent)
+- "STOP AGENT" button (red)
+- Status badge: IDLE / SCANNING / IN TRADE / PAUSED / DONE FOR TODAY
+- Shows: current PST time, "Auto-stops at 6:00 PM PST"
+- Trades used counter: X / 3
+- Daily PnL running total
+- Live activity feed: real-time Socket.io log, color coded (info=blue, warn=amber, error=red, success=green), timestamp + message
+- Today's trades table: Time | Symbol | Dir | Entry | Exit | PnL | AI Score | Status
+- Guardrails panel: consecutive losses counter, daily drawdown %, trades remaining
+
+Socket.io events to emit:
+agent:started, agent:stopped, agent:paused
+agent:scan_started, agent:scan_complete (with candidate count)
+agent:ai_scoring (symbol being scored)
+agent:trade_placed (full trade details)
+agent:trade_closed (result)
+agent:log (level, message, timestamp)
+agent:status_update (full status object)
+
+---
+
+### Dedicated Agent History Page (public/agent.html)
+
+Separate page accessible from main nav. Shows:
+
+Past Sessions Table:
+- Date | Trades | Wins | Losses | Win Rate | Total PnL | Start Balance | End Balance | Shutdown Reason
+
+Session Detail (click a row to expand):
+- Full trade breakdown for that day
+- Each trade: Symbol, Direction, Entry, Exit, PnL, AI Score, Confidence, Reasoning, Duration, DCA count
+
+Summary stats at top:
+- All-time: total sessions, total trades, overall win rate, total PnL
+- Best day PnL, worst day PnL, longest win streak
+
+Page matches existing design system. Fetch data from:
+GET /api/agent/history — all sessions
+GET /api/agent/history/:sessionId — trades for a session
+
+---
+
+### Agent Settings Tab (add to existing Settings page)
+
+New "Agent" tab with these configurable fields:
+- Trading start time (default 08:00) — PST
+- Trading end time (default 18:00) — PST
+- Max trades per day (default 3)
+- Scan interval when no trade found, minutes (default 30)
+- Cooldown after trade closes, minutes (default 15)
+- Min AI score to trade (default 75)
+- Base position size
+- Max loss per trade % (default 2)
+- Daily drawdown limit % (default 5)
+- Max consecutive losses before pause (default 3)
+- WhatsApp recipient number (with country code)
+- Toggles: notify on trade placed, notify on trade closed, notify on agent shutdown, notify on daily summary
+
+---
+
+### Implementation Notes
+
+- Agent is fully server-side, survives browser close
+- One agent instance per user only
+- All times in Pakistan Standard Time (UTC+5) — use offset consistently, no daylight saving in Pakistan
+- Use node-fetch for HTTP (already in project)
+- Reuse existing Bybit API wrapper from server.js
+- On server restart: check mongodb for active session from today, restore agent state and resume
+- Store all agent state in mongodb, not just memory
+- Keep all files modular and clean matching existing project style

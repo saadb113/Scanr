@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSI + MACD Scanner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://s3.tradingview.com/tv.js" async></script>
+</head>
+<body>
+<script src="/js/nav.js"></script>
+<header>
+    <div class="header-row">
+        <div class="title-main"><span>RSI</span> + <em>MACD</em> Scanner</div>
+
+        <!-- Coin Search -->
+        <div class="search-wrap">
+            <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input class="search-input" id="searchInput" placeholder="Search coin…" autocomplete="off" spellcheck="false">
+            <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+
+        <div class="ctrl-box">
+            <label>TF</label>
+            <select id="timeframe">
+                <option value="1m" selected>1m</option><option value="3m">3m</option>
+                <option value="5m">5m</option><option value="15m">15m</option>
+                <option value="30m">30m</option><option value="1h">1h</option>
+                <option value="2h">2h</option><option value="4h">4h</option>
+                <option value="8h">8h</option><option value="1d">1d</option>
+                <option value="3d">3d</option><option value="1w">1w</option>
+            </select>
+        </div>
+
+        <button class="icon-btn" id="settingsBtn" title="Settings">
+            <svg width="18" height="18" fill="none" stroke="#29ffb8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09c0 .66.39 1.26 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8c.13.21.22.45.22.7V9a2 2 0 0 1 0 4v.09c0 .25-.09.49-.22.7z"/>
+            </svg>
+        </button>
+
+        <div class="legend">
+            <div class="legend-item"><div class="leg-line" style="background:#29ffb8"></div>RSI</div>
+            <div class="legend-item"><div class="leg-line" style="background:#63b3ed"></div>MACD</div>
+            <div class="legend-item"><div class="leg-line" style="background:#f6ad55"></div>Signal</div>
+            <div class="legend-item"><div class="leg-dot" style="background:#48bb78"></div>Bull</div>
+            <div class="legend-item"><div class="leg-dot" style="background:#f56565"></div>Bear</div>
+        </div>
+    </div>
+</header>
+
+
+<!-- Filter bar -->
+<div class="filter-bar" id="filterBar">
+    <span style="font-size: 0.82rem;color:#3a4560;text-transform:uppercase;letter-spacing:.5px;margin-right:.2rem">Filter</span>
+    <button class="filter-btn f-all active" data-filter="all" data-fid="fAll">All <span class="filter-count" id="fcAll">0</span></button>
+    <button class="filter-btn f-ob"  data-filter="ob" data-fid="fOB">RSI OB <span class="filter-count" id="fcOB">0</span></button>
+    <button class="filter-btn f-os"  data-filter="os" data-fid="fOS">RSI OS <span class="filter-count" id="fcOS">0</span></button>
+    <button class="filter-btn f-rdiv" data-filter="rdiv" data-fid="fRDiv">RSI Div <span class="filter-count" id="fcRDiv">0</span></button>
+    <button class="filter-btn f-mdiv" data-filter="mdiv" data-fid="fMDiv">MACD Div <span class="filter-count" id="fcMDiv">0</span></button>
+    <button class="filter-btn f-mxbull" data-filter="mxbull" data-fid="fMXBull">MACD Bull✕ <span class="filter-count" id="fcMXBull">0</span></button>
+    <button class="filter-btn f-mxbear" data-filter="mxbear" data-fid="fMXBear">MACD Bear✕ <span class="filter-count" id="fcMXBear">0</span></button>
+    <button class="filter-btn f-rsigolden" data-filter="rsigolden" data-fid="fRsiGolden">RSI Golden✦ <span class="filter-count" id="fcRsiGolden">0</span></button>
+    <button class="filter-btn f-rsideath"  data-filter="rsideath"  data-fid="fRsiDeath">RSI Death✦ <span class="filter-count" id="fcRsiDeath">0</span></button>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.5rem;flex-shrink:0">
+        <!-- Watchlist toggle -->
+        <button class="filter-btn f-watchlist" id="watchlistFilterBtn" data-filter="watchlist" data-fid="fWatchlist" title="Show Watchlist only">
+            ★ Watchlist <span class="filter-count" id="fcWatchlist">0</span>
+        </button>
+        <!-- Layout toggle -->
+        <button class="sort-btn" id="layoutBtn" onclick="toggleLayout()" title="Toggle grid/list layout">
+            <span id="layoutBtnLabel">⊞ Grid</span>
+        </button>
+        <!-- Sort dropdown -->
+        <div class="sort-wrap">
+            <button class="sort-btn" id="sortBtn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M7 12h10M11 18h2"/></svg>
+                Sort <span id="sortLabel">Default</span>
+            </button>
+            <div class="sort-dropdown" id="sortDropdown">
+                <div class="sort-item active" data-sort="default">Default (manual)</div>
+                <div class="sort-item" data-sort="az">A → Z</div>
+                <div class="sort-item" data-sort="za">Z → A</div>
+                <div class="sort-item" data-sort="price-hi">Price High → Low</div>
+                <div class="sort-item" data-sort="price-lo">Price Low → High</div>
+                <div class="sort-item" data-sort="rsi-hi">RSI High → Low</div>
+                <div class="sort-item" data-sort="rsi-lo">RSI Low → High</div>
+                <div class="sort-item" data-sort="macd-hi">MACD High → Low</div>
+                <div class="sort-item" data-sort="macd-lo">MACD Low → High</div>
+                <div class="sort-item" data-sort="div-age">Div Age (freshest)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div id="gridContainer" class="grid-container"></div>
+<div id="tooltip" class="tooltip" style="display:none"></div>
+
+<!-- Modal -->
+<div id="modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modalTitle"></h2>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+                <button onclick="openCoinDetail()" title="Open detailed chart & trade" style="background:#0d1a0d;border:1px solid #22c55e;border-radius:5px;padding:0.2rem 0.6rem;font-size: 12px;font-weight:700;cursor:pointer;font-family:inherit;color:#22c55e;white-space:nowrap">🔍 More Details</button>
+                <button id="modalWlBtn" title="Add to Watchlist" style="background:none;border:1px solid #252d3d;border-radius:6px;padding:0.2rem 0.55rem;cursor:pointer;font-size:1rem;color:#3a4560;transition:all 0.15s">★</button>
+                <button class="modal-close" id="closeModal">&times;</button>
+            </div>
+        </div>
+        <div class="modal-infobar">
+            <span class="inf">Price: <span class="val" id="mPrice"></span></span>
+            <span class="inf">RSI: <span class="val" id="mRsi"></span></span>
+            <span class="inf">MACD: <span class="val" id="mMacd" style="color:#63b3ed"></span></span>
+            <span class="inf">Signal: <span class="val" id="mSignal" style="color:#f6ad55"></span></span>
+            <span class="inf">Hist: <span class="val" id="mHist"></span></span>
+            <span class="inf" id="mPosSizeWrap" style="display:none">Pos: <span class="val" id="mPosSize" style="color:#f59e0b"></span></span>
+        </div>
+        <div class="modal-toolbar">
+            <div style="display:flex;gap:4px">
+                <button class="tool-btn active" data-tool="brush" title="Brush (B)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+                </button>
+                <button class="tool-btn" data-tool="trendline" title="Trendline (T)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="20" x2="21" y2="4"/></svg>
+                </button>
+                <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 21h10"/><path d="M3 12l2-2 7.5-7.5 5 5L5 17l-2-2z"/></svg>
+                </button>
+            </div>
+            <div class="tb-sep"></div>
+            <div style="display:flex;align-items:center;gap:6px">
+                <span class="tb-label">Size</span>
+                <input type="range" id="toolSize" min="1" max="20" value="3" style="width:60px;accent-color:#29ffb8">
+                <span id="toolSizeVal" style="font-size: 12px;color:#29ffb8;min-width:14px">3</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+                <span class="tb-label">Color</span>
+                <input type="color" id="drawColor" value="#29ffb8" style="width:26px;height:26px;border-radius:4px;border:1px solid #252d3d;cursor:pointer">
+            </div>
+            <div class="tb-actions">
+                <button class="tool-btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
+                </button>
+                <button class="tool-btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3-2.7"/></svg>
+                </button>
+                <button class="btn-sm btn-danger" id="clearBtn">Clear</button>
+                <button class="btn-sm btn-export" id="exportBtn">Export</button>
+                <button class="ai-analyze-btn" id="aiAnalyzeBtn" title="Analyze with Kimi AI">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+                    Analyze with AI
+                </button>
+            </div>
+        </div>
+        <div class="modal-charts-wrap">
+        <div id="aiPanel" class="ai-panel">
+            <div class="ai-panel-header">
+                <div class="ai-panel-title">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 8v4l3 3"/></svg>
+                    AI Analysis
+                </div>
+                <button class="ai-close-panel" id="aiClosePanel">&times;</button>
+            </div>
+            <div id="aiContent"></div>
+        </div>
+        <div class="modal-charts">
+            <div class="chart-pane price-pane" id="pricePane">
+                <span class="pane-label">Price</span>
+                <canvas id="modalPriceChart"></canvas>
+            </div>
+            <div class="divider"></div>
+            <div class="chart-pane rsi-pane" id="rsiPane">
+                <span class="pane-label">RSI</span>
+                <canvas id="modalRsiChart"></canvas>
+            </div>
+            <div class="divider"></div>
+            <div class="chart-pane macd-pane" id="macdPane">
+                <span class="pane-label">MACD</span>
+                <canvas id="modalMacdChart"></canvas>
+            </div>
+        </div>
+        </div><!-- /modal-charts-wrap -->
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SETTINGS — FULL PAGE OVERLAY
+════════════════════════════════════════ -->
+<div id="settingsPanel" class="settings-panel">
+
+  <!-- Header -->
+  <div class="sp-header">
+    <div class="sp-header-title">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#29ffb8" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <span>Scanner</span> Settings
+    </div>
+    <div class="sp-header-actions">
+      <button class="s-reset" id="resetSettings">↺ Reset Defaults</button>
+      <button class="s-close" id="closeSettings">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Back to Scanner
+      </button>
+    </div>
+  </div>
+
+  <!-- Layout: sidebar + body -->
+  <div class="sp-layout">
+
+  <!-- Sidebar -->
+  <div class="sp-sidebar">
+    <div class="sp-sidebar-label">Preferences</div>
+    <div class="sp-tab active" data-tab="appearance">🎨 Appearance</div>
+    <div class="sp-tab" data-tab="indicators">📊 Indicators</div>
+    <div class="sp-tab" data-tab="filters">🔍 Filters</div>
+    <div class="sp-tab" data-tab="coins">🪙 Coins</div>
+    <div class="sp-tab" data-tab="drawings">✏️ Drawings</div>
+    <div class="sp-sidebar-divider"></div>
+    <div class="sp-sidebar-label">Connections</div>
+    <div class="sp-tab" data-tab="bybit">⚡ Bybit</div>
+    <div class="sp-tab ai-tab" data-tab="ai">🤖 Kimi AI</div>
+    <div class="sp-sidebar-divider"></div>
+    <div class="sp-sidebar-label">Account</div>
+    <div class="sp-tab profile-tab" data-tab="profile">👤 Profile</div>
+    <div class="sp-tab" data-tab="agent">📈 Day Agent</div>
+  </div>
+
+  <!-- Body -->
+  <div class="sp-body">
+
+    <!-- ── APPEARANCE ── -->
+    <div class="sp-page active" id="sp-appearance">
+      <div class="sp-grid">
+
+        <div class="sp-card">
+          <div class="sp-card-title">RSI Colors</div>
+          <div class="color-grid">
+            <div class="s-row"><label>RSI Line</label><input type="color" id="sRsiColor" value="#29ffb8"></div>
+            <div class="s-row"><label>Overbought (70)</label><input type="color" id="sRsiOBColor" value="#f56565"></div>
+            <div class="s-row"><label>Oversold (30)</label><input type="color" id="sRsiOSColor" value="#48bb78"></div>
+          </div>
+        </div>
+
+
+        <div class="sp-card">
+          <div class="sp-card-title">MACD Colors</div>
+          <div class="color-grid">
+            <div class="s-row"><label>MACD Line</label><input type="color" id="sMacdColor" value="#63b3ed"></div>
+            <div class="s-row"><label>Signal Line</label><input type="color" id="sSignalColor" value="#f6ad55"></div>
+            <div class="s-row"><label>Bull Histogram</label><input type="color" id="sBullColor" value="#48bb78"></div>
+            <div class="s-row"><label>Bear Histogram</label><input type="color" id="sBearColor" value="#f56565"></div>
+          </div>
+        </div>
+
+        <div class="sp-card">
+          <div class="sp-card-title">Price Chart</div>
+          <div class="s-row"><label>Price Line Color</label><input type="color" id="sPriceColor" value="#e5e9f2"></div>
+          <div class="s-row">
+            <label>Chart Type</label>
+            <select id="sPriceType" class="s-input-full">
+              <option value="line">Line Chart</option>
+              <option value="candle">Candlestick</option>
+            </select>
+          </div>
+          <div class="s-row">
+            <label>Line Width &nbsp;<span class="rval" id="sLWVal">2</span></label>
+            <input type="range" id="sLineWidth" min="1" max="8" value="2">
+          </div>
+          <div class="s-row">
+            <label>Card Size &nbsp;<span class="rval" id="sCellSizeVal">160</span></label>
+            <input type="range" id="cellSizeSlider" min="80" max="280" value="160">
+          </div>
+        </div>
+
+        <div class="sp-card">
+          <div class="sp-card-title">Chart Visibility</div>
+          <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#e5e9f2"></span>Show Price Chart</span><label class="toggle-switch"><input type="checkbox" id="sShowPrice" checked><span class="slider"></span></label></div>
+          <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#29ffb8"></span>Show RSI</span><label class="toggle-switch"><input type="checkbox" id="sShowRSI" checked><span class="slider"></span></label></div>
+          <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#63b3ed"></span>Show MACD</span><label class="toggle-switch"><input type="checkbox" id="sShowMACD" checked><span class="slider"></span></label></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── INDICATORS ── -->
+    <div class="sp-page" id="sp-indicators">
+      <div class="sp-grid">
+        <div class="sp-card">
+          <div class="sp-card-title">RSI Parameters</div>
+          <div class="s-row" style="display:flex;align-items:center;justify-content:space-between">
+            <label style="margin-bottom:0">RSI Length</label>
+            <input type="number" id="rsiLen" value="14" min="2" max="50" class="s-num-input">
+          </div>
+        </div>
+        <div class="sp-card">
+          <div class="sp-card-title">MACD Parameters</div>
+          <div class="s-row" style="display:flex;align-items:center;justify-content:space-between">
+            <label style="margin-bottom:0">Fast Length</label>
+            <input type="number" id="fastLen" value="12" min="1" max="50" class="s-num-input">
+          </div>
+          <div class="s-row" style="display:flex;align-items:center;justify-content:space-between">
+            <label style="margin-bottom:0">Slow Length</label>
+            <input type="number" id="slowLen" value="26" min="1" max="100" class="s-num-input">
+          </div>
+          <div class="s-row" style="display:flex;align-items:center;justify-content:space-between">
+            <label style="margin-bottom:0">Signal Length</label>
+            <input type="number" id="signalLen" value="9" min="1" max="50" class="s-num-input">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FILTERS ── -->
+    <div class="sp-page" id="sp-filters">
+      <div class="sp-grid">
+        <div class="sp-card">
+          <div class="sp-card-title">Visible Filter Buttons</div>
+          <div id="filterToggles">
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#4a5568"></span>All</span><label class="toggle-switch"><input type="checkbox" id="ft_fAll" data-fid="fAll" checked><span class="slider"></span></label></div>
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#f56565"></span>RSI Overbought</span><label class="toggle-switch"><input type="checkbox" id="ft_fOB" data-fid="fOB" checked><span class="slider"></span></label></div>
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#48bb78"></span>RSI Oversold</span><label class="toggle-switch"><input type="checkbox" id="ft_fOS" data-fid="fOS" checked><span class="slider"></span></label></div>
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#f6ad55"></span>RSI Divergence</span><label class="toggle-switch"><input type="checkbox" id="ft_fRDiv" data-fid="fRDiv" checked><span class="slider"></span></label></div>
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#63b3ed"></span>MACD Divergence</span><label class="toggle-switch"><input type="checkbox" id="ft_fMDiv" data-fid="fMDiv" checked><span class="slider"></span></label></div>
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#29ffb8"></span>MACD Bull Cross</span><label class="toggle-switch"><input type="checkbox" id="ft_fMXBull" data-fid="fMXBull" checked><span class="slider"></span></label></div>
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#fc8181"></span>MACD Bear Cross</span><label class="toggle-switch"><input type="checkbox" id="ft_fMXBear" data-fid="fMXBear" checked><span class="slider"></span></label></div>
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#ffd700"></span>RSI Golden Cross</span><label class="toggle-switch"><input type="checkbox" id="ft_fRsiGolden" data-fid="fRsiGolden" checked><span class="slider"></span></label></div>
+            <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#c0392b"></span>RSI Death Cross</span><label class="toggle-switch"><input type="checkbox" id="ft_fRsiDeath" data-fid="fRsiDeath" checked><span class="slider"></span></label></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── COINS ── -->
+    <div class="sp-page" id="sp-coins">
+      <div class="sp-card" style="max-width:500px">
+        <div class="sp-card-title">Active Coins &nbsp;<span style="color:#29ffb8;font-weight:700" id="coinCountLabel"></span></div>
+        <div class="coin-list-wrap">
+          <input class="coin-list-search" id="coinListSearch" placeholder="Filter coins…" autocomplete="off">
+          <div class="coin-list-actions">
+            <button id="selectAllCoins">Select All</button>
+            <button id="selectNoneCoins">Deselect All</button>
+            <button id="selectDefaultCoins">Reset Default</button>
+          </div>
+          <div class="coin-list" id="coinList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── AI ── -->
+    <div class="sp-page" id="sp-ai">
+      <div class="sp-grid" style="align-items:start">
+
+        <div class="sp-card ai-card">
+          <div class="sp-card-title">🤖 API Credentials</div>
+          <div class="s-row">
+            <label>API Key</label>
+            <div style="position:relative">
+              <input type="password" class="s-input-full" id="kimiApiKey" placeholder="sk-… (from platform.moonshot.ai)" autocomplete="off" spellcheck="false" style="padding-right:2.8rem">
+              <button id="toggleApiKey" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size: 12px;padding:0;font-family:inherit">Show</button>
+            </div>
+          </div>
+          <div class="s-row">
+            <label>Model</label>
+            <select id="kimiModel" class="s-input-full">
+              <option value="kimi-k2-0905-preview">kimi-k2-0905-preview ⚡ (latest)</option>
+              <option value="kimi-k2-thinking">kimi-k2-thinking 🧠 (deep reasoning)</option>
+              <option value="kimi-k2-0711-preview" selected>kimi-k2-0711-preview (stable)</option>
+              <option value="moonshot-v1-32k">moonshot-v1-32k (classic)</option>
+              <option value="moonshot-v1-8k">moonshot-v1-8k (fastest)</option>
+              <option value="moonshot-v1-128k">moonshot-v1-128k (max context)</option>
+            </select>
+          </div>
+          <div class="s-row">
+            <label>Base URL &nbsp;<span style="color:#2e3a55;font-size: 12px">leave blank = auto</span></label>
+            <input type="text" class="s-input-full" id="kimiBaseUrl" placeholder="https://api.moonshot.ai/v1" autocomplete="off">
+          </div>
+          <button id="saveKimiSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#6d28d9,#a855f7);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size: 14px;cursor:pointer;font-family:inherit;letter-spacing:0.2px">💾 Save AI Settings</button>
+          <div id="kimiSavedMsg" style="display:none;text-align:center;font-size: 13px;color:#48bb78;margin-top:0.45rem;font-weight:600">✓ Saved!</div>
+          <button id="testKimiKey" style="width:100%;margin-top:0.5rem;background:#0f1319;color:#9aa3b5;border:1px solid #1a2030;border-radius:8px;padding:0.5rem;font-weight:600;font-size: 13px;cursor:pointer;font-family:inherit">🔑 Test Server-Side Key</button>
+          <div id="kimiTestMsg" style="display:none;text-align:center;font-size: 12px;margin-top:0.4rem;font-weight:600;padding:0.4rem;border-radius:6px"></div>
+        </div>
+
+        <div class="sp-card" style="background:#0a0d12">
+          <div class="sp-card-title">📖 Model Guide</div>
+          <div style="font-size: 13px;color:#7a8499;line-height:1.8;display:flex;flex-direction:column;gap:0.6rem">
+            <div style="background:#0f1319;border-radius:8px;padding:0.65rem 0.8rem;border-left:3px solid #29ffb8">
+              <div style="color:#c8fce8;font-weight:700;font-size: 12px;margin-bottom:0.2rem">🌐 Global Account (platform.moonshot.ai)</div>
+              <div>Base URL: <code style="color:#29ffb8;font-size: 12px">api.moonshot.ai/v1</code></div>
+              <div style="color:#4a6060;font-size: 12px;margin-top:0.2rem">Models: kimi-k2-0905-preview, kimi-k2-thinking, kimi-k2-0711-preview, moonshot-v1-*</div>
+            </div>
+            <div style="background:#0f1319;border-radius:8px;padding:0.65rem 0.8rem;border-left:3px solid #63b3ed">
+              <div style="color:#bee3f8;font-weight:700;font-size: 12px;margin-bottom:0.2rem">🇨🇳 China Account (platform.moonshot.ai)</div>
+              <div>Base URL: <code style="color:#63b3ed;font-size: 12px">api.moonshot.cn/v1</code></div>
+            </div>
+            <div style="color:#2e3a55;font-size: 12px;line-height:1.7">
+              ⚡ <strong style="color:#9aa3b5">kimi-k2-0905-preview</strong> — newest, best for trading analysis<br>
+              🧠 <strong style="color:#9aa3b5">kimi-k2-thinking</strong> — slower but deeper chain-of-thought<br>
+              🔒 Keys stored in browser only, never sent elsewhere
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── DRAWINGS ── -->
+    <div class="sp-page" id="sp-drawings">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+        <div style="font-size: 0.92rem;color:#6b7897">Coins with saved drawings across all timeframes</div>
+        <button id="clearAllDrawingsBtn" style="background:#1a0f0f;border:1px solid rgba(245,101,101,0.3);color:#f56565;border-radius:7px;padding:0.38rem 1rem;font-size: 13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s">🗑 Clear All Drawings</button>
+      </div>
+      <div id="drawingsManagerList" style="display:flex;flex-direction:column;gap:0.5rem"></div>
+      <div id="drawingsEmptyMsg" style="display:none;text-align:center;padding:3rem;color:#2e3a55;font-size: 15px">
+        ✏️<br><br>No saved drawings yet.<br><span style="font-size: 13px">Open a coin, draw something, and it'll appear here.</span>
+      </div>
+    </div>
+
+    <!-- ── BYBIT SETTINGS ── -->
+    <div class="sp-page" id="sp-bybit">
+      <div class="sp-grid" style="align-items:start">
+        <div class="sp-card">
+          <div class="sp-card-title">⚡ Bybit API Credentials</div>
+
+          <!-- Active account switcher -->
+          <div style="display:flex;gap:0.4rem;margin-bottom:1rem;background:#090c12;border-radius:8px;padding:0.3rem">
+            <button id="bybitAccLiveBtn" onclick="bybitSwitchAccount('mainnet')"
+              style="flex:1;padding:0.45rem 0.5rem;border:none;border-radius:6px;font-size: 12px;font-weight:800;cursor:pointer;font-family:inherit;background:#166534;color:#4ade80;transition:all .15s">
+              🟢 Live Account
+            </button>
+            <button id="bybitAccDemoBtn" onclick="bybitSwitchAccount('testnet')"
+              style="flex:1;padding:0.45rem 0.5rem;border:none;border-radius:6px;font-size: 12px;font-weight:800;cursor:pointer;font-family:inherit;background:#0f1319;color:#6b7897;transition:all .15s">
+              🧪 Demo Account
+            </button>
+          </div>
+
+          <div id="bybitCredMsg2" style="display:none;text-align:center;font-size: 12px;margin-bottom:0.6rem;font-weight:700;padding:0.35rem;border-radius:6px"></div>
+
+          <!-- Live credentials -->
+          <div id="bybitLiveCreds">
+            <div style="font-size: 12px;color:#22c55e;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">🟢 Live (Mainnet) Credentials</div>
+            <div class="s-row">
+              <label>API Key</label>
+              <div style="position:relative">
+                <input type="password" id="bybitLiveKey" class="s-input-full" placeholder="Live API key…" style="padding-right:3rem">
+                <button onclick="toggleVisibility('bybitLiveKey',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size: 12px;font-family:inherit">Show</button>
+              </div>
+            </div>
+            <div class="s-row">
+              <label>API Secret</label>
+              <div style="position:relative">
+                <input type="password" id="bybitLiveSecret" class="s-input-full" placeholder="Live API secret…" style="padding-right:3rem">
+                <button onclick="toggleVisibility('bybitLiveSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size: 12px;font-family:inherit">Show</button>
+              </div>
+            </div>
+            <button onclick="bybitSaveAccount('mainnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#166534,#22c55e);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size: 13px;cursor:pointer;font-family:inherit">💾 Save Live Credentials</button>
+          </div>
+
+          <!-- Demo credentials -->
+          <div id="bybitDemoCreds" style="display:none">
+            <div style="font-size: 12px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">🧪 Demo (Testnet) Credentials</div>
+            <div class="s-row">
+              <label>API Key</label>
+              <div style="position:relative">
+                <input type="password" id="bybitDemoKey" class="s-input-full" placeholder="Demo API key…" style="padding-right:3rem">
+                <button onclick="toggleVisibility('bybitDemoKey',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size: 12px;font-family:inherit">Show</button>
+              </div>
+            </div>
+            <div class="s-row">
+              <label>API Secret</label>
+              <div style="position:relative">
+                <input type="password" id="bybitDemoSecret" class="s-input-full" placeholder="Demo API secret…" style="padding-right:3rem">
+                <button onclick="toggleVisibility('bybitDemoSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size: 12px;font-family:inherit">Show</button>
+              </div>
+            </div>
+            <button onclick="bybitSaveAccount('testnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size: 13px;cursor:pointer;font-family:inherit">💾 Save Demo Credentials</button>
+          </div>
+
+          <div style="border-top:1px solid #1e2535;margin-top:0.85rem;padding-top:0.85rem;display:flex;gap:0.5rem">
+            <button id="testBybitConn" style="flex:1;background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:8px;padding:0.45rem;font-weight:600;font-size: 13px;cursor:pointer;font-family:inherit">🔌 Test Active Account</button>
+          </div>
+          <div id="bybitCredMsg" style="display:none;text-align:center;font-size: 13px;margin-top:0.5rem;font-weight:600"></div>
+        </div>
+        <div class="sp-card" style="background:#0a0d12">
+          <div class="sp-card-title">📋 Setup Guide</div>
+          <div style="font-size: 13px;color:#7a8499;line-height:1.85;display:flex;flex-direction:column;gap:0.6rem">
+            <div style="background:#0f1319;border-radius:8px;padding:0.7rem 0.85rem;border-left:3px solid #f59e0b">
+              <div style="color:#f59e0b;font-weight:700;font-size: 12px;margin-bottom:0.4rem">🔑 Get API Keys</div>
+              1. Bybit → Account → API Management<br>
+              2. Create key → enable <strong style="color:#e5e9f2">Derivatives Read + Trade</strong><br>
+              3. Bind to your IP (recommended)<br>
+              4. Paste key + secret here
+            </div>
+            <div style="background:#0f1319;border-radius:8px;padding:0.7rem 0.85rem;border-left:3px solid #60a5fa">
+              <div style="color:#60a5fa;font-weight:700;font-size: 12px;margin-bottom:0.25rem">🧪 Demo Account</div>
+              Switch to Demo mode on bybit.com → API Management → create key there. Paste in Demo tab above.
+            </div>
+            <div style="background:#0f1319;border-radius:8px;padding:0.7rem 0.85rem;border-left:3px solid #29ffb8">
+              <div style="color:#29ffb8;font-weight:700;font-size: 12px;margin-bottom:0.25rem">⚡ Features</div>
+              Place limit orders with SL+TP · Track live PnL · Modify SL/TP · Close positions · Cancel orders
+            </div>
+            <div style="color:#374151;font-size: 12px">⚠️ Keys stored in localStorage only.</div>
+          </div>
+        </div>
+
+        <!-- Account / Position Settings — moved here from Position tab -->
+        <div class="sp-card">
+          <div class="sp-card-title">💰 Account & Position Settings</div>
+          <div class="s-row">
+            <label>Total Capital (USDT)</label>
+            <div style="position:relative">
+              <span style="position:absolute;left:0.6rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size: 13px">$</span>
+              <input type="number" id="posCapital" class="s-input-full" placeholder="1000" min="1" style="padding-left:1.5rem">
+            </div>
+          </div>
+          <div class="s-row">
+            <label>Risk Per Trade (%)</label>
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <input type="range" id="posRiskSlider" min="0.1" max="10" step="0.1" value="1" style="flex:1;accent-color:#f6ad55">
+              <span id="posRiskVal" style="color:#f6ad55;font-weight:700;font-size: 14px;min-width:38px;text-align:right">1%</span>
+            </div>
+          </div>
+          <div class="s-row">
+            <label>Fee Rate (%) <span style="color:var(--text-dim);font-size: 12px">per side — taker</span></label>
+            <input type="number" id="posFeeRate" class="s-input-full" value="0.00" min="0" max="1" step="0.001" placeholder="0.00">
+          </div>
+          <div class="s-row">
+            <label>Account Type</label>
+            <select id="posAccountType" class="s-input-full">
+              <option value="futures_cross">Futures — Cross Margin</option>
+              <option value="futures_iso">Futures — Isolated Margin</option>
+              <option value="spot">Spot</option>
+            </select>
+          </div>
+          <button id="savePosSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:8px;padding:0.55rem;font-weight:800;font-size: 14px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px">💾 Save Settings</button>
+          <div id="posSavedMsg" style="display:none;text-align:center;font-size: 13px;color:var(--accent-green);margin-top:0.45rem;font-weight:600">✓ Saved!</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── PROFILE ── -->
+    <div class="sp-page" id="sp-profile">
+      <div class="sp-grid">
+        <div class="sp-card">
+          <div class="sp-card-title">Personal Info</div>
+          <div class="s-row"><label>First Name</label><input type="text" id="profFirstName" class="s-input-full" placeholder="e.g. Alex" maxlength="40"></div>
+          <div class="s-row"><label>Last Name</label><input type="text" id="profLastName" class="s-input-full" placeholder="e.g. Smith" maxlength="40"></div>
+          <div class="s-row"><label>Display Name / Handle</label><input type="text" id="displayName" class="s-input-full" placeholder="e.g. alex_trades" maxlength="40"></div>
+        </div>
+        <div class="sp-card">
+          <div class="sp-card-title">Profile Picture</div>
+          <div style="text-align:center;margin-bottom:0.75rem">
+            <div id="profPfpPreview" style="width:72px;height:72px;border-radius:50%;background:var(--bg-elevated);border:2px solid var(--border-mid);margin:0 auto 0.5rem;display:flex;align-items:center;justify-content:center;font-size:2rem;overflow:hidden">👤</div>
+            <label style="display:inline-block;background:var(--bg-elevated);border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:0.3rem 0.7rem;font-size:0.82rem;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all var(--transition)">
+              Upload Photo
+              <input type="file" id="profPfpInput" accept="image/*" style="display:none" onchange="profLoadPfp(this)">
+            </label>
+            <button onclick="profClearPfp()" style="background:none;border:none;color:var(--text-muted);font-size:0.78rem;cursor:pointer;margin-left:0.5rem">Remove</button>
+          </div>
+        </div>
+        <div class="sp-card">
+          <div class="sp-card-title">Security</div>
+          <div class="s-row"><label>New Password</label><input type="password" id="profNewPassword" class="s-input-full" placeholder="Enter new password" autocomplete="new-password"></div>
+          <div class="s-row"><label>Confirm Password</label><input type="password" id="profConfirmPassword" class="s-input-full" placeholder="Repeat new password" autocomplete="new-password"></div>
+        </div>
+      </div>
+      <div style="margin-top:1rem;display:flex;gap:0.6rem;align-items:center">
+        <button onclick="profSave()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:var(--radius-sm);padding:0.5rem 1.4rem;font-size:0.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">💾 Save Profile</button>
+        <span id="profSavedMsg" style="display:none;font-size:0.82rem;color:var(--accent-green);font-weight:600">✓ Profile saved!</span>
+        <span id="profErrMsg" style="display:none;font-size:0.82rem;color:var(--accent-red);font-weight:600"></span>
+      </div>
+    </div>
+
+    <!-- ── AGENT SETTINGS ── -->
+    <div class="sp-page" id="sp-agent" style="padding:0.75rem 0 1.5rem">
+    <div style="font-size: 0.82rem;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.9rem">📈 Day Trading Agent</div>
+
+    <!-- Trading Window -->
+    <div style="margin-bottom:0.8rem">
+      <div style="font-size:0.68rem;color:#6b7280;margin-bottom:0.35rem;font-weight:600">Trading Window (PST)</div>
+      <div style="display:flex;gap:0.5rem">
+        <div style="flex:1">
+          <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Start</label>
+          <input type="time" id="agStartTime" class="s-input-full" value="08:00">
+        </div>
+        <div style="flex:1">
+          <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">End (hard stop)</label>
+          <input type="time" id="agEndTime" class="s-input-full" value="18:00">
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade Limits -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Max Trades / Day</label>
+        <input type="number" id="agMaxTrades" class="s-input-full" value="3" min="1" max="20">
+      </div>
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Scan Interval (min)</label>
+        <input type="number" id="agScanInterval" class="s-input-full" value="30" min="5" max="120">
+      </div>
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Cooldown After Trade (min)</label>
+        <input type="number" id="agCooldown" class="s-input-full" value="15" min="0" max="120">
+      </div>
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Min AI Score (0-100)</label>
+        <input type="number" id="agMinScore" class="s-input-full" value="75" min="0" max="100">
+      </div>
+    </div>
+
+    <!-- Position Sizing -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Base Position (USDT, 0=auto)</label>
+        <input type="number" id="agBaseSize" class="s-input-full" value="0" min="0" step="any">
+      </div>
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Max Loss / Trade (%)</label>
+        <input type="number" id="agMaxLossPct" class="s-input-full" value="1" min="0.1" max="10" step="0.1">
+      </div>
+    </div>
+
+    <!-- Guardrails -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Daily Drawdown Limit (%)</label>
+        <input type="number" id="agDailyDD" class="s-input-full" value="5" min="1" max="50" step="0.5">
+      </div>
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Max Consecutive Losses</label>
+        <input type="number" id="agMaxCL" class="s-input-full" value="3" min="1" max="10">
+      </div>
+    </div>
+
+    <!-- Coin Filters -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Min Volume (M USDT)</label>
+        <input type="number" id="agMinVol" class="s-input-full" value="30" min="0">
+      </div>
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">ATR Min</label>
+        <input type="number" id="agAtrMin" class="s-input-full" value="0" min="0" step="any">
+      </div>
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">ATR Max</label>
+        <input type="number" id="agAtrMax" class="s-input-full" value="9999999" min="0" step="any">
+      </div>
+    </div>
+
+    <!-- Email Notifications -->
+    <div style="margin-bottom:0.8rem">
+      <div style="font-size:0.68rem;color:#6b7280;margin-bottom:0.35rem;font-weight:600">Email Notifications</div>
+      <input type="email" id="agEmailRecipient" class="s-input-full" placeholder="Recipient email (e.g. you@gmail.com)" style="margin-bottom:0.4rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem">
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size: 0.82rem;color:#9ca3af;cursor:pointer">
+          <input type="checkbox" id="agNotifyStart" checked> Agent Start / Stop
+        </label>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size: 0.82rem;color:#9ca3af;cursor:pointer">
+          <input type="checkbox" id="agNotifyTrade" checked> Trade Placed
+        </label>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size: 0.82rem;color:#9ca3af;cursor:pointer">
+          <input type="checkbox" id="agNotifyClose" checked> Trade Closed
+        </label>
+        <label style="display:flex;align-items:center;gap:0.4rem;font-size: 0.82rem;color:#9ca3af;cursor:pointer">
+          <input type="checkbox" id="agNotifySummary" checked> Daily Summary
+        </label>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0.5rem;margin-top:0.1rem">
+      <button id="saveAgentSettings" onclick="agSaveSettings()"
+        style="flex:1;background:linear-gradient(135deg,#5b21b6,#7c3aed);border:none;border-radius:8px;padding:0.55rem;font-size: 0.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">
+        💾 Save Agent Settings
+      </button>
+      <button id="testEmailBtn" onclick="agTestEmail()"
+        style="background:#0d1a10;border:1px solid #166534;border-radius:8px;padding:0.55rem 0.75rem;font-size: 0.9rem;font-weight:700;color:#4ade80;cursor:pointer;font-family:inherit;white-space:nowrap">
+        📧 Test Email
+      </button>
+    </div>
+    <div id="agSettingsSavedMsg" style="display:none;text-align:center;font-size: 0.82rem;color:#4ade80;margin-top:0.4rem">Settings saved ✓</div>
+    <div id="agEmailTestMsg" style="display:none;text-align:center;font-size: 0.82rem;margin-top:0.4rem"></div>
+  </div><!-- /sp-agent -->
+  </div><!-- /sp-body -->
+  </div><!-- /sp-layout -->
+</div><!-- /settingsPanel -->
+
+
+<!-- ═══════════════════════════════════════════════════════
+     BYBIT TRADING TERMINAL — full overlay
+════════════════════════════════════════════════════════ -->
+<div id="bybitTerminal" class="bybit-terminal">
+  <!-- Header -->
+  <div class="byt-header">
+    <div style="display:flex;align-items:center;gap:0.75rem">
+      <a href="/scanner" style="display:flex;align-items:center;gap:0.3rem;color:#6b7897;text-decoration:none;font-size: 0.85rem;font-weight:600;padding:0.25rem 0.55rem;border:1px solid #252d3d;border-radius:var(--radius-sm);transition:all 0.15s" onmouseover="this.style.color='#e5e9f2'" onmouseout="this.style.color='#6b7897'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Scanner
+      </a>
+      <span style="font-size: 1.05rem;font-weight:800;color:#f59e0b">⚡ Bybit Terminal</span>
+      <span id="bytSymLabel" style="font-size: 0.92rem;color:#6b7897;font-weight:600"></span>
+      <span id="bytLiveBadge" style="display:none;font-size: 12px;padding:0.15rem 0.5rem;border-radius:4px;font-weight:700;background:#052e16;color:#4ade80;border:1px solid #166534">● LIVE</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.6rem">
+      <button onclick="bybitTerminalClose()" style="background:none;border:none;color:#6b7897;font-size:1.6rem;cursor:pointer;line-height:1;padding:0 0.3rem">&times;</button>
+    </div>
+  </div>
+
+  <!-- Balance strip -->
+  <div id="bytBalanceStrip" style="display:flex;align-items:center;gap:1.2rem;padding:0.4rem 1.2rem;background:#0d1117;border-bottom:1px solid #1a2030;font-size: 12px;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:0.4rem">
+      <span style="color:#6b7897">Equity</span>
+      <span id="bytBalEquity" style="color:#e5e9f2;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.4rem">
+      <span style="color:#6b7897">Available</span>
+      <span id="bytBalAvail" style="color:#22c55e;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.4rem">
+      <span style="color:#6b7897">Margin</span>
+      <span id="bytBalMargin" style="color:#f59e0b;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:0.4rem">
+      <span style="color:#6b7897">UPnL</span>
+      <span id="bytBalUPnl" style="font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    </div>
+    <button onclick="bytFetchBalance()" style="margin-left:auto;background:none;border:1px solid #252d3d;color:#6b7897;border-radius:4px;padding:0.15rem 0.5rem;font-size: 12px;cursor:pointer;font-family:inherit">⟳</button>
+  </div>
+
+  <!-- Tabs -->
+  <div class="byt-tabs">
+    <button class="byt-tab active" data-byttab="order" onclick="bytSwitchTab('order')">📝 Place Order</button>
+    <button class="byt-tab" data-byttab="positions" onclick="bytSwitchTab('positions')">📊 Positions <span id="bytPosCount" class="byt-badge">0</span></button>
+    <button class="byt-tab" data-byttab="orders" onclick="bytSwitchTab('orders')">📋 Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
+    <button class="byt-tab" data-byttab="autopilot" onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none">🤖 Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
+  </div>
+
+  <!-- ── AUTOPILOT PANEL ── -->
+  <div id="byt-autopilot" class="byt-page">
+    <div style="max-width:700px">
+
+      <!-- SL Mode config card -->
+      <div class="byt-summary-card" style="margin-bottom:0.85rem">
+        <div style="font-size: 0.82rem;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          SL Mode — Trade Rules
+        </div>
+
+        <!-- Visual rule explanation -->
+        <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.85rem">
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:0.55rem 0.75rem;border-left:3px solid #22c55e;font-size: 12px;color:var(--text-secondary);line-height:1.7">
+            <span style="color:#22c55e;font-weight:700">↑ TP Direction:</span>
+            Price reaches <strong style="color:var(--text-primary)">50%</strong> toward TP →
+            SL moves to <strong style="color:var(--text-primary)">half initial risk</strong> &nbsp;·&nbsp;
+            Price reaches <strong style="color:var(--text-primary)">60%</strong> toward TP →
+            SL moves to <strong style="color:#fbbf24">entry (breakeven)</strong>
+          </div>
+          <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:0.55rem 0.75rem;border-left:3px solid #ef4444;font-size: 12px;color:var(--text-secondary);line-height:1.7">
+            <span style="color:#ef4444;font-weight:700">↓ SL Direction:</span>
+            Price drops <strong style="color:var(--text-primary)">60%</strong> toward SL (without hitting TP milestones) →
+            TP moves to <strong style="color:#fbbf24">entry (breakeven close)</strong>
+          </div>
+        </div>
+
+        <!-- Start monitoring section -->
+        <div style="border-top:1px solid var(--border-dim);padding-top:0.75rem">
+          <div class="byt-field" style="margin-bottom:0.6rem">
+            <label>Monitor Position (Symbol)</label>
+            <select id="apSymbolSelect" class="byt-input">
+              <option value="">— Select open position —</option>
+            </select>
+          </div>
+          <div id="apPositionPreview" style="display:none;margin-bottom:0.65rem">
+            <div class="ap-grid" id="apPreviewGrid"></div>
+          </div>
+          <button class="ap-start-btn" id="apStartBtn" onclick="apStart()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Start Autopilot SL Mode
+          </button>
+        </div>
+      </div>
+
+      <!-- Active autopilot monitor -->
+      <div id="apMonitor" style="display:none">
+        <!-- Status bar -->
+        <div class="ap-status-bar">
+          <div class="ap-pulse monitoring" id="apPulseDot"></div>
+          <span style="font-size: 13px;font-weight:700;color:var(--text-primary)" id="apStatusText">Monitoring…</span>
+          <span style="font-size: 12px;color:var(--text-secondary)" id="apLivePrice">—</span>
+          <span style="margin-left:auto;font-size: 12px;color:var(--text-muted)" id="apWsStatus">Connecting…</span>
+        </div>
+
+        <!-- Active trade card -->
+        <div class="ap-trade-card" id="apTradeCard">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <span style="font-weight:800;font-size: 1.00rem;color:var(--text-primary)" id="apCardSym">—</span>
+              <span class="byt-pos-side" id="apCardSide">—</span>
+              <span style="font-size: 12px;color:var(--text-muted)" id="apCardLev">—</span>
+            </div>
+            <div style="font-size: 13px;font-weight:700;font-family:var(--font-mono)" id="apCardPnl" style="color:#22c55e">—</div>
+          </div>
+
+          <!-- Key price levels -->
+          <div class="ap-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0.55rem">
+            <div class="ap-stat">
+              <div class="ap-stat-label">Entry</div>
+              <div class="ap-stat-val" id="apCardEntry">—</div>
+            </div>
+            <div class="ap-stat" style="border-color:rgba(255,77,106,0.3)">
+              <div class="ap-stat-label">Stop Loss</div>
+              <div class="ap-stat-val" style="color:#ef4444" id="apCardSL">—</div>
+            </div>
+            <div class="ap-stat" style="border-color:rgba(0,229,160,0.3)">
+              <div class="ap-stat-label">Take Profit</div>
+              <div class="ap-stat-val" style="color:#22c55e" id="apCardTP">—</div>
+            </div>
+          </div>
+
+          <!-- TP direction progress -->
+          <div style="margin-bottom:0.4rem">
+            <div style="display:flex;justify-content:space-between;font-size: 12px;color:var(--text-muted);margin-bottom:0.2rem">
+              <span>TP Progress</span>
+              <span id="apTpPct">0%</span>
+            </div>
+            <div class="ap-progress-track">
+              <div class="ap-progress-fill toward-tp" id="apTpBar" style="width:0%"></div>
+              <!-- Milestone markers -->
+              <div class="ap-milestone" style="left:50%"><div class="ap-milestone-label">50%</div></div>
+              <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
+            </div>
+          </div>
+          <!-- SL direction progress -->
+          <div style="margin-bottom:0.65rem">
+            <div style="display:flex;justify-content:space-between;font-size: 12px;color:var(--text-muted);margin-bottom:0.2rem">
+              <span>SL Drawdown</span>
+              <span id="apSlPct">0%</span>
+            </div>
+            <div class="ap-progress-track">
+              <div class="ap-progress-fill toward-sl" id="apSlBar" style="width:0%"></div>
+              <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
+            </div>
+          </div>
+
+          <!-- Milestone status chips -->
+          <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:0.65rem" id="apMilestones">
+            <div class="ap-stat" id="apMs1" style="flex:1;min-width:120px">
+              <div class="ap-stat-label">TP 50% → Half SL</div>
+              <div class="ap-stat-val" style="color:var(--text-muted);font-size: 12px" id="apMs1Val">Waiting…</div>
+            </div>
+            <div class="ap-stat" id="apMs2" style="flex:1;min-width:120px">
+              <div class="ap-stat-label">TP 60% → Breakeven</div>
+              <div class="ap-stat-val" style="color:var(--text-muted);font-size: 12px" id="apMs2Val">Waiting…</div>
+            </div>
+            <div class="ap-stat" id="apMs3" style="flex:1;min-width:120px">
+              <div class="ap-stat-label">SL 60% → BE Close</div>
+              <div class="ap-stat-val" style="color:var(--text-muted);font-size: 12px" id="apMs3Val">Waiting…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action log -->
+        <div style="font-size: 12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.3rem">Action Log</div>
+        <div class="ap-log" id="apLog">
+          <div class="ap-log-row"><span class="ap-log-time">--:--:--</span><span class="ap-log-msg">Autopilot ready.</span></div>
+        </div>
+
+        <div style="margin-top:0.75rem">
+          <button class="ap-stop-btn" onclick="apStop()">
+            ⬛ Stop Autopilot
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- TAB: Place Order -->
+  <div id="byt-order" class="byt-page active">
+    <div class="byt-order-grid">
+      <!-- Left: order form -->
+      <div class="byt-form-col">
+        <!-- Direction toggle -->
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.85rem">
+          <button id="bytBuyBtn" class="byt-dir-btn long active" onclick="bytSetDir('Buy')">▲ LONG</button>
+          <button id="bytSellBtn" class="byt-dir-btn short" onclick="bytSetDir('Sell')">▼ SHORT</button>
+        </div>
+
+        <div class="byt-field" style="position:relative">
+          <label>Symbol</label>
+          <input id="bytSymbol" class="byt-input" placeholder="Search coin… e.g. SOL" style="text-transform:uppercase" autocomplete="off" oninput="bytSymSearch(this.value)" onkeydown="bytSymKeydown(event)">
+          <div id="bytSymDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#0d1018;border:1px solid #252d3d;border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,0.5)"></div>
+          <div id="bytSymInfo" style="font-size: 12px;color:#4a5568;margin-top:0.25rem;min-height:14px"></div>
+        </div>
+        <div class="byt-field">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
+            <label style="margin-bottom:0">Leverage</label>
+            <span id="bytMaxLevLabel" style="font-size: 12px;color:#4a5568"></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <input type="range" id="bytLevSlider" min="1" max="125" value="10" style="flex:1;accent-color:#f59e0b" oninput="bytLevSliderChange(this.value)">
+            <input type="number" id="bytLevInput" min="1" max="125" value="10" style="width:52px;background:#0f1319;border:1px solid #252d3d;border-radius:6px;padding:0.3rem 0.4rem;color:#f59e0b;font-weight:700;font-size: 14px;font-family:inherit;outline:none;text-align:center" oninput="bytLevInputChange(this.value)">
+            <span style="color:#f59e0b;font-weight:700;font-size: 14px">x</span>
+          </div>
+        </div>
+        <div class="byt-field">
+          <label>Order Type</label>
+          <select id="bytOrderType" class="byt-input" onchange="bytOrderTypeChange()">
+            <option value="Limit">Limit</option>
+            <option value="Market">Market</option>
+          </select>
+        </div>
+        <div class="byt-field" id="bytEntryField">
+          <label>Entry Price</label>
+          <input id="bytEntry" class="byt-input" type="number" placeholder="0.00" step="any">
+        </div>
+        <div class="byt-field">
+          <!-- Qty mode tabs -->
+          <div style="display:flex;gap:0;margin-bottom:0.4rem;border:1px solid #252d3d;border-radius:7px;overflow:hidden">
+            <button class="byt-qty-mode active" data-mode="qty"    onclick="bytSetQtyMode('qty')"    style="flex:1;padding:0.3rem;border:none;background:#1a1f2e;color:#f59e0b;font-size: 12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">QTY</button>
+            <button class="byt-qty-mode"        data-mode="cost"   onclick="bytSetQtyMode('cost')"   style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size: 12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">COST $</button>
+            <button class="byt-qty-mode"        data-mode="margin" onclick="bytSetQtyMode('margin')" style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size: 12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">MARGIN $</button>
+            <button class="byt-qty-mode"        data-mode="risk"   onclick="bytSetQtyMode('risk')"   style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size: 12px;font-weight:700;cursor:pointer;font-family:inherit">RISK %</button>
+          </div>
+          <!-- Input rows — only one visible at a time -->
+          <div id="bytQtyRow_qty">
+            <input id="bytQty" class="byt-input" type="number" placeholder="Contracts e.g. 0.5" step="any" oninput="bytUpdateSummary()">
+          </div>
+          <div id="bytQtyRow_cost" style="display:none">
+            <input id="bytQtyCost" class="byt-input" type="number" placeholder="Total order value in USDT" step="any" oninput="bytCalcFromCost()">
+          </div>
+          <div id="bytQtyRow_margin" style="display:none">
+            <input id="bytQtyMargin" class="byt-input" type="number" placeholder="Margin amount in USDT" step="any" oninput="bytCalcFromMargin()">
+          </div>
+          <div id="bytQtyRow_risk" style="display:none;gap:0.4rem;align-items:center">
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <input type="range" id="bytQtyRiskSlider" min="0.1" max="10" step="0.1" value="1" style="flex:1;accent-color:#f59e0b" oninput="el('bytQtyRiskVal').textContent=parseFloat(this.value).toFixed(1)+'%';bytCalcFromRisk()">
+              <span id="bytQtyRiskVal" style="color:#f59e0b;font-weight:700;font-size: 14px;min-width:38px;text-align:right">1.0%</span>
+            </div>
+            <div id="bytQtyRiskNote" style="font-size: 12px;color:#4a5568;margin-top:0.2rem"></div>
+          </div>
+          <div id="bytQtyHint" style="font-size: 12px;color:#4a5568;margin-top:0.3rem;min-height:14px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+          <!-- Stop Loss -->
+          <div class="byt-field">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
+              <label style="margin-bottom:0">Stop Loss</label>
+              <div style="display:flex;border:1px solid #7f1d1d;border-radius:5px;overflow:hidden">
+                <button id="bytSLModePrice" onclick="bytSetSlMode('price')" style="padding:0.15rem 0.45rem;font-size: 11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:#7f1d1d;color:#fca5a5;transition:all 0.15s">$Price</button>
+                <button id="bytSLModePnl"   onclick="bytSetSlMode('pnl')"   style="padding:0.15rem 0.45rem;font-size: 11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:#6b7897;transition:all 0.15s">PnL$</button>
+              </div>
+            </div>
+            <input id="bytSL"    class="byt-input" type="number" placeholder="Price" step="any" style="border-color:#7f1d1d">
+            <input id="bytSLPnl" class="byt-input" type="number" placeholder="Loss e.g. -20" step="any" style="border-color:#7f1d1d;display:none;margin-top:0.3rem">
+            <div id="bytSLPnlHint" style="font-size: 12px;color:#f87171;margin-top:0.2rem;min-height:13px;font-family:var(--font-mono)"></div>
+          </div>
+          <!-- Take Profit -->
+          <div class="byt-field">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
+              <label style="margin-bottom:0">Take Profit</label>
+              <div style="display:flex;border:1px solid #14532d;border-radius:5px;overflow:hidden">
+                <button id="bytTPModePrice" onclick="bytSetTpMode('price')" style="padding:0.15rem 0.45rem;font-size: 11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:#14532d;color:#86efac;transition:all 0.15s">$Price</button>
+                <button id="bytTPModePnl"   onclick="bytSetTpMode('pnl')"   style="padding:0.15rem 0.45rem;font-size: 11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:#6b7897;transition:all 0.15s">PnL$</button>
+              </div>
+            </div>
+            <input id="bytTP"    class="byt-input" type="number" placeholder="Price" step="any" style="border-color:#14532d">
+            <input id="bytTPPnl" class="byt-input" type="number" placeholder="Profit e.g. 50" step="any" style="border-color:#14532d;display:none;margin-top:0.3rem">
+            <div id="bytTPPnlHint" style="font-size: 12px;color:#4ade80;margin-top:0.2rem;min-height:13px;font-family:var(--font-mono)"></div>
+          </div>
+        </div>
+        <div class="byt-field">
+          <label>Margin Mode</label>
+          <select id="bytMarginMode" class="byt-input">
+            <option value="ISOLATED">Isolated</option>
+            <option value="CROSS">Cross</option>
+          </select>
+        </div>
+
+        <!-- Mode toggle — Manual vs Autopilot -->
+        <div style="margin-bottom:0.65rem">
+          <div class="ap-mode-toggle" style="width:100%">
+            <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')" style="flex:1">✋ Manual</button>
+            <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')" style="flex:1">🤖 Autopilot</button>
+          </div>
+          <div id="apModeHint" style="display:none;font-size: 12px;color:#a855f7;margin-top:0.35rem;padding:0.35rem 0.5rem;background:rgba(124,58,237,0.08);border-radius:5px;border:1px solid rgba(124,58,237,0.2);line-height:1.5">
+            🤖 Order will be placed and autopilot will automatically monitor SL/TP milestones. Requires both SL and TP.
+          </div>
+        </div>
+
+        <button id="bytPlaceBtn" onclick="bytPlaceOrder()" class="byt-place-btn">
+          <span id="bytPlaceBtnLabel">▲ Place LONG Order</span>
+        </button>
+        <div id="bytOrderMsg" style="display:none;font-size: 13px;font-weight:600;margin-top:0.5rem;padding:0.5rem 0.75rem;border-radius:7px;text-align:center"></div>
+      </div>
+
+      <!-- Right: order summary -->
+      <div class="byt-summary-col">
+        <div class="byt-summary-card">
+          <div style="font-size: 0.82rem;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.65rem">Order Summary</div>
+          <div class="byt-sum-row"><span>Symbol</span><span id="bsSymbol">—</span></div>
+          <div class="byt-sum-row"><span>Direction</span><span id="bsDir">—</span></div>
+          <div class="byt-sum-row"><span>Entry</span><span id="bsEntry">—</span></div>
+          <div class="byt-sum-row"><span>Qty</span><span id="bsQty">—</span></div>
+          <div class="byt-sum-row"><span>Leverage</span><span id="bsLev">—</span></div>
+          <div class="byt-sum-row"><span>Position Value</span><span id="bsPosVal">—</span></div>
+          <div class="byt-sum-row"><span>Margin Required</span><span id="bsMargin">—</span></div>
+          <div class="byt-sum-row"><span>Stop Loss</span><span id="bsSL" style="color:#f56565">—</span></div>
+          <div class="byt-sum-row"><span>Take Profit</span><span id="bsTP" style="color:#48bb78">—</span></div>
+          <div class="byt-sum-row"><span>Max Loss</span><span id="bsMaxLoss" style="color:#f56565">—</span></div>
+          <div class="byt-sum-row"><span>Est. Profit</span><span id="bsProfit" style="color:#48bb78">—</span></div>
+          <div class="byt-sum-row"><span>R:R</span><span id="bsRR" style="color:#63b3ed">—</span></div>
+        </div>
+        <div style="font-size: 12px;color:#374151;margin-top:0.6rem;text-align:center;line-height:1.6">
+          ⚠️ Futures trading carries significant risk of loss. Always use stop losses.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Positions -->
+  <div id="byt-positions" class="byt-page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+      <div style="font-size: 0.87rem;color:#6b7897">Live positions — auto-refreshes every 5s</div>
+      <button onclick="bytLoadPositions()" style="background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:6px;padding:0.3rem 0.75rem;font-size: 12px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+    </div>
+    <div id="bytPositionsList">
+      <div class="byt-empty">No open positions</div>
+    </div>
+  </div>
+
+  <!-- TAB: Open Orders -->
+  <div id="byt-orders" class="byt-page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
+      <div style="font-size: 0.87rem;color:#6b7897">Pending limit orders</div>
+      <button onclick="bytLoadOrders()" style="background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:6px;padding:0.3rem 0.75rem;font-size: 12px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+    </div>
+    <div id="bytOrdersList">
+      <div class="byt-empty">No open orders</div>
+    </div>
+  </div>
+
+  </div>
+</div><!-- /bybitTerminal -->
+
+<!-- Bybit Modify Modal -->
+<div id="bytModifyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;justify-content:center;align-items:center">
+  <div style="background:#13171f;border:1px solid #252d3d;border-radius:14px;padding:1.5rem;width:min(420px,95vw);display:flex;flex-direction:column;gap:0.75rem">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:700;color:#e5e9f2" id="bytModifyTitle">Modify Position</div>
+      <button onclick="el('bytModifyModal').style.display='none'" style="background:none;border:none;color:#6b7897;font-size:1.4rem;cursor:pointer">&times;</button>
+    </div>
+    <div class="byt-field"><label>Stop Loss</label><input id="bytModSL" class="byt-input" type="number" step="any" placeholder="Leave blank to keep current"></div>
+    <div class="byt-field"><label>Take Profit</label><input id="bytModTP" class="byt-input" type="number" step="any" placeholder="Leave blank to keep current"></div>
+    <input type="hidden" id="bytModSym">
+    <input type="hidden" id="bytModSide">
+    <button onclick="bytSubmitModify()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:700;font-size: 14px;cursor:pointer;font-family:inherit">Update Position</button>
+    <div id="bytModifyMsg" style="display:none;font-size: 13px;font-weight:600;text-align:center;padding:0.4rem;border-radius:6px"></div>
+  </div>
+</div>
+
+<!-- Bybit Modify Order Modal -->
+<div id="bytModOrdModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;justify-content:center;align-items:center">
+  <div style="background:#13171f;border:1px solid #252d3d;border-radius:14px;padding:1.5rem;width:min(420px,95vw);display:flex;flex-direction:column;gap:0.75rem">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:700;color:#e5e9f2">Modify Order</div>
+      <button onclick="el('bytModOrdModal').style.display='none'" style="background:none;border:none;color:#6b7897;font-size:1.4rem;cursor:pointer">&times;</button>
+    </div>
+    <div class="byt-field"><label>New Price</label><input id="bytModOrdPrice" class="byt-input" type="number" step="any"></div>
+    <div class="byt-field"><label>New Qty</label><input id="bytModOrdQty" class="byt-input" type="number" step="any"></div>
+    <div class="byt-field"><label>New SL</label><input id="bytModOrdSL" class="byt-input" type="number" step="any" placeholder="Optional"></div>
+    <div class="byt-field"><label>New TP</label><input id="bytModOrdTP" class="byt-input" type="number" step="any" placeholder="Optional"></div>
+    <input type="hidden" id="bytModOrdId">
+    <input type="hidden" id="bytModOrdSym">
+    <button onclick="bytSubmitModifyOrder()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:700;font-size: 14px;cursor:pointer;font-family:inherit">Update Order</button>
+    <div id="bytModOrdMsg" style="display:none;font-size: 13px;font-weight:600;text-align:center;padding:0.4rem;border-radius:6px"></div>
+  </div>
+</div>
+    <script src="/js/fingerprint.js"></script>
+    <script src="/js/app.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+    // ── Agent Settings Load/Save ──────────────────────────────────
+    async function agLoadSettings() {
+        try {
+            const r = await fetch('/api/agent/settings');
+            const j = await r.json();
+            if (!j.ok || !j.settings) return;
+            const s = j.settings;
+            if (s.startTime)             document.getElementById('agStartTime').value      = s.startTime;
+            if (s.endTime)               document.getElementById('agEndTime').value        = s.endTime;
+            if (s.maxTrades)             document.getElementById('agMaxTrades').value      = s.maxTrades;
+            if (s.scanInterval)          document.getElementById('agScanInterval').value   = s.scanInterval;
+            if (s.cooldownMinutes)       document.getElementById('agCooldown').value       = s.cooldownMinutes;
+            if (s.minScore !== undefined) document.getElementById('agMinScore').value      = s.minScore;
+            if (s.basePositionSize !== undefined) document.getElementById('agBaseSize').value = s.basePositionSize;
+            if (s.maxLossPerTradePct)    document.getElementById('agMaxLossPct').value     = s.maxLossPerTradePct;
+            if (s.dailyDrawdownPct)      document.getElementById('agDailyDD').value        = s.dailyDrawdownPct;
+            if (s.maxConsecutiveLosses)  document.getElementById('agMaxCL').value          = s.maxConsecutiveLosses;
+            if (s.minVolume)             document.getElementById('agMinVol').value         = s.minVolume;
+            if (s.atrMin !== undefined)  document.getElementById('agAtrMin').value         = s.atrMin;
+            if (s.atrMax !== undefined)  document.getElementById('agAtrMax').value         = s.atrMax;
+            if (s.emailRecipient)        document.getElementById('agEmailRecipient').value = s.emailRecipient;
+            document.getElementById('agNotifyStart').checked   = s.notifyOnAgentShutdown !== false;
+            document.getElementById('agNotifyTrade').checked   = s.notifyOnTradePlaced   !== false;
+            document.getElementById('agNotifyClose').checked   = s.notifyOnTradeClosed   !== false;
+            document.getElementById('agNotifySummary').checked = s.notifyOnDailySummary  !== false;
+        } catch(e) { console.warn('agLoadSettings', e); }
+    }
+
+    async function agSaveSettings() {
+        const body = {
+            startTime:              document.getElementById('agStartTime').value,
+            endTime:                document.getElementById('agEndTime').value,
+            maxTrades:              parseInt(document.getElementById('agMaxTrades').value),
+            scanInterval:           parseInt(document.getElementById('agScanInterval').value),
+            cooldownMinutes:        parseInt(document.getElementById('agCooldown').value),
+            minScore:               parseInt(document.getElementById('agMinScore').value),
+            basePositionSize:       parseFloat(document.getElementById('agBaseSize').value) || 0,
+            maxLossPerTradePct:     parseFloat(document.getElementById('agMaxLossPct').value),
+            dailyDrawdownPct:       parseFloat(document.getElementById('agDailyDD').value),
+            maxConsecutiveLosses:   parseInt(document.getElementById('agMaxCL').value),
+            minVolume:              parseFloat(document.getElementById('agMinVol').value),
+            atrMin:                 parseFloat(document.getElementById('agAtrMin').value) || 0,
+            atrMax:                 parseFloat(document.getElementById('agAtrMax').value) || 9999999,
+            emailRecipient:         document.getElementById('agEmailRecipient').value.trim(),
+            notifyOnAgentShutdown:  document.getElementById('agNotifyStart').checked,
+            notifyOnTradePlaced:    document.getElementById('agNotifyTrade').checked,
+            notifyOnTradeClosed:    document.getElementById('agNotifyClose').checked,
+            notifyOnDailySummary:   document.getElementById('agNotifySummary').checked,
+        };
+        try {
+            const r = await fetch('/api/agent/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            const j = await r.json();
+            const msg = document.getElementById('agSettingsSavedMsg');
+            if (j.ok) { msg.style.display='block'; setTimeout(()=>msg.style.display='none',2000); }
+        } catch(e) { console.warn('agSaveSettings', e); }
+    }
+
+    async function agTestEmail() {
+        const btn    = document.getElementById('testEmailBtn');
+        const msgEl  = document.getElementById('agEmailTestMsg');
+        btn.disabled = true;
+        btn.textContent = '⏳ Sending…';
+        msgEl.style.display = 'none';
+        try {
+            const r = await fetch('/api/agent/test-email', { method:'POST' });
+            const j = await r.json();
+            msgEl.style.display = 'block';
+            if (j.ok) { msgEl.style.color = '#4ade80'; msgEl.textContent = '✓ Test email sent!'; }
+            else       { msgEl.style.color = '#f87171'; msgEl.textContent = '✗ ' + (j.error || 'Failed'); }
+        } catch(e) {
+            msgEl.style.display = 'block'; msgEl.style.color = '#f87171'; msgEl.textContent = '✗ ' + e.message;
+        }
+        btn.disabled = false;
+        btn.textContent = '📧 Test Email';
+        setTimeout(() => { msgEl.style.display = 'none'; }, 5000);
+    }
+
+    // Load agent settings when settings panel tab clicked
+    document.querySelectorAll('.sp-tab[data-tab="agent"]').forEach(el => {
+        el.addEventListener('click', () => { agLoadSettings(); });
+    });
+
+    // ── Profile Settings ──────────────────────────────────────────
+    let _profPfpData = null;
+
+    document.querySelectorAll('.sp-tab[data-tab="profile"]').forEach(el => {
+        el.addEventListener('click', profLoad);
+    });
+
+    async function profLoad() {
+        try {
+            const r = await fetch('/api/settings');
+            const s = await r.json();
+            if (s.firstName)   document.getElementById('profFirstName').value   = s.firstName;
+            if (s.lastName)    document.getElementById('profLastName').value    = s.lastName;
+            if (s.displayName) document.getElementById('displayName').value     = s.displayName;
+            if (s.profilePicture) {
+                _profPfpData = s.profilePicture;
+                const prev = document.getElementById('profPfpPreview');
+                prev.style.background = 'transparent';
+                prev.innerHTML = `<img src="${s.profilePicture}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+            }
+        } catch(e) { console.warn('profLoad', e); }
+    }
+
+    async function profSave() {
+        const errEl = document.getElementById('profErrMsg');
+        const okEl  = document.getElementById('profSavedMsg');
+        const newPw = document.getElementById('profNewPassword').value;
+        const newPw2= document.getElementById('profConfirmPassword').value;
+        if (newPw && newPw !== newPw2) {
+            errEl.textContent = 'Passwords do not match'; errEl.style.display='inline';
+            setTimeout(()=>errEl.style.display='none',3000); return;
+        }
+        try {
+            const body = {
+                firstName:   document.getElementById('profFirstName').value.trim(),
+                lastName:    document.getElementById('profLastName').value.trim(),
+                displayName: document.getElementById('displayName').value.trim(),
+            };
+            if (_profPfpData) body.profilePicture = _profPfpData;
+            if (newPw) body.appPassword = newPw;
+            const r = await fetch('/api/settings', {
+                method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+            });
+            const j = await r.json();
+            if (j.error) throw new Error(j.error);
+            document.getElementById('profNewPassword').value = '';
+            document.getElementById('profConfirmPassword').value = '';
+            okEl.style.display='inline'; setTimeout(()=>okEl.style.display='none',2500);
+        } catch(e) {
+            errEl.textContent = e.message; errEl.style.display='inline';
+            setTimeout(()=>errEl.style.display='none',4000);
+        }
+    }
+
+    function profLoadPfp(input) {
+        const file = input.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            _profPfpData = e.target.result;
+            const prev = document.getElementById('profPfpPreview');
+            prev.style.background = 'transparent';
+            prev.innerHTML = `<img src="${_profPfpData}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function profClearPfp() {
+        _profPfpData = null;
+        const prev = document.getElementById('profPfpPreview');
+        prev.style.background = '';
+        prev.innerHTML = '👤';
+        fetch('/api/settings', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ profilePicture: null })
+        });
+    }
+    </script>
+
+<script src="/js/session-check.js"></script>

@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Scan Setups</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080b11;--bg-card:#0d1117;--bg-raised:#121820;--bg-input:#0a0f16;
+  --border:#1c2435;--border-mid:#243044;
+  --text-primary:#dde4f0;--text-secondary:#9aa3b5;--text-muted:#5a6478;
+  --green:#00e5a0;--red:#ff4d6a;--amber:#f5a623;--blue:#4da8ff;--purple:#a78bfa;
+  --green-dim:#051a10;--red-dim:#1a0509;--amber-dim:#1a1100;
+  --font-ui:'Space Grotesk',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text-primary);font-family:var(--font-ui);font-size:clamp(14px,1vw,20px);line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto;padding:1rem 1rem 3rem}
+html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1f8;--border:#cdd5e3;--border-mid:#b4bfcf;--text-primary:#1a2335;--text-secondary:#445068;--text-muted:#7080a0;}
+
+/* Scan button area */
+.scan-hero{text-align:center;padding:1.5rem 0 1.25rem}
+.scan-title{font-size:1.4rem;font-weight:800;margin-bottom:0.35rem}
+.scan-sub{font-size:0.88rem;color:var(--text-muted);margin-bottom:1.25rem}
+.scan-btn{display:inline-flex;align-items:center;gap:0.5rem;background:var(--green);color:#000;font-family:var(--font-ui);font-size:0.95rem;font-weight:800;padding:0.65rem 1.8rem;border:none;border-radius:var(--radius);cursor:pointer;transition:opacity .15s}
+.scan-btn:hover{opacity:0.88}
+.scan-btn:disabled{opacity:0.45;cursor:not-allowed}
+
+/* Section title */
+.section-title{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:0.65rem}
+
+/* Log feed */
+.log-box{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 1rem;margin-bottom:1.25rem;max-height:180px;overflow-y:auto;font-family:var(--font-mono);font-size:0.78rem;display:none}
+.log-line{padding:0.1rem 0;border-bottom:1px solid var(--border)}
+.log-line:last-child{border-bottom:none}
+.log-pass{color:var(--green)}
+.log-filtered{color:var(--text-muted)}
+.log-error{color:var(--red)}
+.log-info{color:var(--text-secondary)}
+
+/* Results grid */
+.results-empty{text-align:center;padding:2.5rem;color:var(--text-muted);font-size:0.9rem}
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.85rem}
+.result-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;transition:border-color .15s}
+.result-card:hover{border-color:var(--border-mid)}
+.rc-sym{font-size:1.2rem;font-weight:800;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:0.45rem}
+.rc-badge{display:inline-block;font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;padding:0.18rem 0.45rem;border-radius:4px;margin-left:0.4rem;vertical-align:middle}
+.rc-badge.long{background:var(--green-dim);color:var(--green);border:1px solid #0a3320}
+.rc-badge.short{background:var(--red-dim);color:var(--red);border:1px solid #3a0510}
+.rc-stats{display:flex;flex-direction:column;gap:0.2rem;margin-top:0.3rem}
+.rc-stat{display:flex;justify-content:space-between;align-items:center;font-size:0.78rem}
+.rc-stat label{color:var(--text-muted)}
+.rc-stat span{font-family:var(--font-mono);font-weight:700;color:var(--text-secondary)}
+.rc-view{display:inline-block;margin-top:0.65rem;background:var(--bg-raised);border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:0.25rem 0.65rem;font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-decoration:none;transition:color .15s,border-color .15s}
+.rc-view:hover{color:var(--green);border-color:var(--green)}
+
+/* Spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border-mid);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:0.4rem}
+
+/* Progress bar */
+.scan-progress-wrap{height:4px;background:var(--bg-raised);border-radius:2px;overflow:hidden;margin-bottom:1rem;display:none}
+.scan-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:2px;transition:width 0.3s ease}
+
+/* Status bar */
+.status-bar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:0.6rem 1rem;margin-bottom:1.25rem;font-size:0.83rem;color:var(--text-muted);display:none;align-items:center;gap:0.5rem}
+.status-bar.visible{display:flex}
+</style>
+</head>
+<body>
+<script src="/js/nav.js"></script>
+<div class="wrap">
+
+  <!-- Scan hero -->
+  <div class="scan-hero">
+    <div class="scan-title">Setup Scanner</div>
+    <div class="scan-sub">Runs hard filters (volume, ATR, EMA trend alignment, RSI) on your coin list</div>
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">
+      <span>🔍</span> Scan Now
+    </button>
+  </div>
+
+  <!-- Progress bar -->
+  <div class="scan-progress-wrap" id="scanProgressWrap">
+    <div class="scan-progress-fill" id="scanProgressFill"></div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar" id="statusBar">
+    <span class="spinner" id="statusSpinner" style="display:none"></span>
+    <span id="statusText">Ready</span>
+  </div>
+
+  <!-- Log feed -->
+  <div class="section-title" id="logTitle" style="display:none">Scan Progress</div>
+  <div class="log-box" id="logBox"></div>
+
+  <!-- Results -->
+  <div id="resultsTitleRow" style="display:none;align-items:center;gap:0.75rem;margin-bottom:0.65rem;flex-wrap:wrap">
+    <div class="section-title" style="margin-bottom:0">Passed Hard Filters</div>
+    <span id="resultsScanTime" style="font-size:0.75rem;color:var(--text-muted)"></span>
+    <button id="clearResultsBtn" onclick="clearSavedResults()" style="margin-left:auto;background:transparent;border:1px solid var(--border-mid);border-radius:var(--radius-sm);color:var(--text-muted);font-size:0.75rem;font-weight:600;padding:0.2rem 0.65rem;cursor:pointer;font-family:var(--font-ui);transition:color 0.15s,border-color 0.15s" onmouseover="this.style.color='var(--red)';this.style.borderColor='var(--red)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border-mid)'">✕ Clear Results</button>
+  </div>
+  <div id="resultsContainer"></div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const SETUPS_KEY   = 'monty-setups-results';
+const scanBtn      = document.getElementById('scanBtn');
+const statusBar    = document.getElementById('statusBar');
+const statusText   = document.getElementById('statusText');
+const statusSpinner = document.getElementById('statusSpinner');
+const logBox       = document.getElementById('logBox');
+const logTitle     = document.getElementById('logTitle');
+const resultsTitleRow = document.getElementById('resultsTitleRow');
+const resultsScanTime = document.getElementById('resultsScanTime');
+const resultsContainer = document.getElementById('resultsContainer');
+const progressWrap = document.getElementById('scanProgressWrap');
+const progressFill = document.getElementById('scanProgressFill');
+let _scanTotal = 0, _scanDone = 0;
+
+function setStatus(msg, spinning = false) {
+  statusBar.classList.add('visible');
+  statusText.textContent = msg;
+  statusSpinner.style.display = spinning ? 'inline-block' : 'none';
+}
+
+function addLog(msg, level = 'info') {
+  logTitle.style.display = 'block';
+  logBox.style.display = 'block';
+  const el = document.createElement('div');
+  el.className = 'log-line log-' + level;
+  el.textContent = msg;
+  logBox.appendChild(el);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function renderResults(candidates, timestamp) {
+  if (!candidates || !candidates.length) {
+    resultsTitleRow.style.display = 'flex';
+    resultsScanTime.textContent = timestamp ? '— ' + _fmtTime(timestamp) : '';
+    resultsContainer.innerHTML = '<div class="results-empty">No coins passed the hard filters this time.</div>';
+    return;
+  }
+  resultsTitleRow.style.display = 'flex';
+  resultsScanTime.textContent = timestamp ? '— ' + _fmtTime(timestamp) : '';
+  resultsContainer.innerHTML = '<div class="results-grid">' +
+    candidates.map(c => {
+      const dir   = c.direction || 'long';
+      const rsiClr = dir === 'long' ? 'var(--green)' : 'var(--red)';
+      const sym   = c.symbol.replace('USDT', '');
+      const price = c.price < 1 ? c.price.toFixed(5) : Number(c.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      return `<div class="result-card">
+        <div class="rc-sym">${sym}<span class="usdt" style="font-size:0.68rem;color:var(--text-muted);font-weight:400;margin-left:3px">USDT</span>
+          <span class="rc-badge ${dir}">${dir.toUpperCase()}</span>
+        </div>
+        <div class="rc-stats">
+          <div class="rc-stat"><label>Price</label><span>$${price}</span></div>
+          <div class="rc-stat"><label>RSI 5m</label><span style="color:${rsiClr}">${c.rsi5m}</span></div>
+          <div class="rc-stat"><label>Vol 24h</label><span>${c.volume}M</span></div>
+          <div class="rc-stat"><label>ATR 5m</label><span>${c.atr5m}</span></div>
+        </div>
+        <a class="rc-view" href="/coin-detail?sym=${c.symbol}">View Details →</a>
+      </div>`;
+    }).join('') + '</div>';
+}
+
+function _fmtTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) + ' ' +
+    d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+}
+
+function saveResults(candidates) {
+  try {
+    localStorage.setItem(SETUPS_KEY, JSON.stringify({ time: Date.now(), candidates }));
+  } catch(_) {}
+}
+
+function clearSavedResults() {
+  try { localStorage.removeItem(SETUPS_KEY); } catch(_) {}
+  resultsTitleRow.style.display = 'none';
+  resultsContainer.innerHTML = '';
+  statusBar.classList.remove('visible');
+}
+
+// Load saved results on page load
+(function loadSavedResults() {
+  try {
+    const raw = localStorage.getItem(SETUPS_KEY);
+    if (!raw) return;
+    const { time, candidates } = JSON.parse(raw);
+    renderResults(candidates, time);
+  } catch(_) {}
+})();
+
+async function startScan() {
+  scanBtn.disabled = true;
+  logBox.innerHTML = '';
+  logBox.style.display = 'none';
+  logTitle.style.display = 'none';
+  resultsContainer.innerHTML = '';
+  resultsTitleRow.style.display = 'none';
+  _scanTotal = 0; _scanDone = 0;
+  progressFill.style.width = '0%';
+  progressWrap.style.display = 'none';
+  setStatus('Starting scan…', true);
+
+  try {
+    const r = await fetch('/api/scan/setups', { method: 'POST' });
+    const j = await r.json();
+    if (!j.ok) {
+      setStatus(j.error || 'Failed to start scan', false);
+      scanBtn.disabled = false;
+    }
+    // Results come via socket.io
+  } catch (e) {
+    setStatus('Error: ' + e.message, false);
+    scanBtn.disabled = false;
+  }
+}
+
+// Socket.io
+try {
+  const sock = io();
+  sock.on('setups:start', ({ total }) => {
+    _scanTotal = total || 0;
+    _scanDone = 0;
+    progressFill.style.width = '0%';
+    progressWrap.style.display = 'block';
+  });
+  sock.on('setups:log', ({ message, level }) => {
+    setStatus('Scanning…', true);
+    addLog(message, level === 'pass' ? 'pass' : level === 'error' ? 'error' : level === 'filtered' ? 'filtered' : 'info');
+    if (level === 'pass' || level === 'filtered' || level === 'error') {
+      _scanDone++;
+      if (_scanTotal > 0) progressFill.style.width = Math.min(Math.round(_scanDone / _scanTotal * 100), 95) + '%';
+    }
+  });
+  sock.on('setups:done', ({ candidates, error }) => {
+    progressFill.style.width = '100%';
+    setTimeout(() => { progressWrap.style.display = 'none'; progressFill.style.width = '0%'; }, 700);
+    scanBtn.disabled = false;
+    if (error) {
+      setStatus('Error: ' + error, false);
+      return;
+    }
+    const n = (candidates || []).length;
+    setStatus(`Scan complete — ${n} coin${n !== 1 ? 's' : ''} passed hard filters`, false);
+    const now = Date.now();
+    saveResults(candidates || []);
+    renderResults(candidates, now);
+  });
+} catch {}
+</script>
+<script src="/js/session-check.js"></script>
+</body>
+</html>

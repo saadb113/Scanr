@@ -1,0 +1,8 @@
+
+password changing functionality is working but the first name and last name is not working correcrly
+
+for example i registered the account with firt name standard
+it shwos welcome Saad heading on dashoard 
+now i goto settings and profile tab and i change the first name to saad23. now the dashboard heading is sstill showing welcome Saad
+
+and also i updated the profile picture in settings. and that picture should show in the ehader top right proie icon
