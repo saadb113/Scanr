@@ -104,6 +104,105 @@ function getTrend(candles) {
     return 'neutral';
 }
 
+// ── Candle pattern detection ──────────────────────────────────
+function _cp(c) {
+    const body  = Math.abs(c.close - c.open);
+    const range = (c.high - c.low) || 0.0001;
+    return {
+        body, range,
+        upper: c.high - Math.max(c.open, c.close),
+        lower: Math.min(c.open, c.close) - c.low,
+        bull:  c.close >= c.open,
+    };
+}
+
+function detectCandlePattern(candles, pattern) {
+    if (candles.length < 3) return false;
+    const c  = candles[candles.length - 1];
+    const c1 = candles[candles.length - 2];
+    const c2 = candles[candles.length - 3];
+    const p  = _cp(c), p1 = _cp(c1), p2 = _cp(c2);
+    switch (pattern) {
+        case 'hammer':
+            return p.lower >= p.body * 2 && p.upper <= p.body * 0.5 && p.body > 0;
+        case 'shooting_star':
+            return p.upper >= p.body * 2 && p.lower <= p.body * 0.5 && p.body > 0;
+        case 'doji':
+            return p.body <= p.range * 0.001;
+        case 'bullish_engulfing':
+            return p.bull && !p1.bull && c.close > c1.open && c.open < c1.close;
+        case 'bearish_engulfing':
+            return !p.bull && p1.bull && c.open > c1.close && c.close < c1.open;
+        case 'morning_star': {
+            const mid = c2.close + (c2.open - c2.close) / 2;
+            return !p2.bull && p1.body <= p1.range * 0.4 && p.bull && c.close > mid;
+        }
+        case 'evening_star': {
+            const mid = c2.open + (c2.close - c2.open) / 2;
+            return p2.bull && p1.body <= p1.range * 0.4 && !p.bull && c.close < mid;
+        }
+        case 'pinbar':
+            return Math.max(p.upper, p.lower) >= p.body * 2.5 && p.body > 0;
+        // legacy aliases
+        case 'engulfing': return detectCandlePattern(candles, 'bullish_engulfing') || detectCandlePattern(candles, 'bearish_engulfing');
+        case 'pin_bar':   return detectCandlePattern(candles, 'pinbar');
+        default:          return false;
+    }
+}
+
+// ── Support / Resistance ──────────────────────────────────────
+function calcSupportLevel(candles)    { return Math.min(...candles.slice(-50).map(c => c.low));  }
+function calcResistanceLevel(candles) { return Math.max(...candles.slice(-50).map(c => c.high)); }
+
+// ── Swing highs / lows ────────────────────────────────────────
+function getSwingHighs(candles, lookback = 20) {
+    const w = candles.slice(-lookback);
+    const highs = [];
+    for (let i = 2; i < w.length - 2; i++) {
+        if (w[i].high > w[i-1].high && w[i].high > w[i-2].high &&
+            w[i].high > w[i+1].high && w[i].high > w[i+2].high) highs.push(w[i].high);
+    }
+    return highs;
+}
+
+function getSwingLows(candles, lookback = 20) {
+    const w = candles.slice(-lookback);
+    const lows = [];
+    for (let i = 2; i < w.length - 2; i++) {
+        if (w[i].low < w[i-1].low && w[i].low < w[i-2].low &&
+            w[i].low < w[i+1].low && w[i].low < w[i+2].low) lows.push(w[i].low);
+    }
+    return lows;
+}
+
+// ── Multi-timeframe trend cache ───────────────────────────────
+const _mtfCache = new Map(); // key: `${symbol}:${tf}` → { trend, cachedAt }
+const TF_TO_BYBIT = { '15m':'15','30m':'30','1h':'60','2h':'120','4h':'240','1D':'D','1W':'W' };
+const TF_TTL_MS   = { '15m':900000,'30m':1800000,'1h':3600000,'2h':7200000,'4h':14400000,'1D':86400000,'1W':604800000 };
+
+async function getMtfTrend(symbol, tf) {
+    const key    = `${symbol}:${tf}`;
+    const cached = _mtfCache.get(key);
+    const ttl    = TF_TTL_MS[tf] || 3600000;
+    if (cached && (Date.now() - cached.cachedAt) < ttl) return cached.trend;
+    const interval = TF_TO_BYBIT[tf] || '60';
+    try {
+        const candles = await fetchBybitKlines(symbol, interval, 60);
+        const closes  = candles.map(c => c.close);
+        const ema50   = calcEMASeries(closes, 50);
+        const last    = closes[closes.length - 1];
+        const e50     = ema50[ema50.length - 1];
+        let trend = 'neutral';
+        if (e50 != null) {
+            const diff = (last - e50) / e50;
+            if (diff > 0.002) trend = 'bullish';
+            else if (diff < -0.002) trend = 'bearish';
+        }
+        _mtfCache.set(key, { trend, cachedAt: Date.now() });
+        return trend;
+    } catch (_) { return 'neutral'; }
+}
+
 // ── Bybit API (server-side) ──────────────────────────────────
 function bybitRequest(apiKey, apiSecret, env, method, endpoint, params = {}) {
     return new Promise((resolve, reject) => {
@@ -260,8 +359,65 @@ function evaluateBlock(block, ind) {
             return ind.trend4h === (block.params.direction || 'bullish');
         case 'TREND_1H':
             return ind.trend1h === (block.params.direction || 'bullish');
-        case 'TREND_ALIGN':
+        case 'TREND_ALIGN': {
+            // User-selected tfA + tfB compared against trade direction (LONG=bullish, SHORT=bearish)
+            // Backward compat: if tfA/tfB not set, fall back to 4H+1H same-direction check
+            const tfA = block.params.tfA, tfB = block.params.tfB;
+            if (tfA && tfB) {
+                const tA       = (ind.trendMtf || {})[tfA] || 'neutral';
+                const tB       = (ind.trendMtf || {})[tfB] || 'neutral';
+                const align    = block.params.alignment || 'full';
+                const tradeDir = ind.tradeDir || 'bullish';
+                const matchA   = tA === tradeDir;
+                const matchB   = tB === tradeDir;
+                const result   = align === 'partial' ? (matchA || matchB) : (matchA && matchB);
+                ind._logMsgs?.push(`TREND_ALIGN(${tfA}:${tA}, ${tfB}:${tB}, ${align}, trade=${tradeDir}): matchA=${matchA} matchB=${matchB} → ${result}`);
+                return result;
+            }
             return ind.trend4h === ind.trend1h && ind.trend4h !== 'neutral';
+        }
+        case 'CANDLE_PATTERN': {
+            const pat    = block.params.pattern || 'hammer';
+            const result = detectCandlePattern(ind.candles5m || [], pat);
+            ind._logMsgs?.push(`CANDLE_PATTERN(${pat}): ${result}`);
+            return result;
+        }
+        case 'NEAR_SUPPORT': {
+            const support = calcSupportLevel(ind.candles5m || []);
+            const pct     = +(block.params.pct ?? 1);
+            // Price must be at or above support AND within pct% above it
+            const result  = ind.price >= support && ind.price <= support * (1 + pct / 100);
+            ind._logMsgs?.push(`NEAR_SUPPORT: support=${support.toFixed(4)}, price=${ind.price}, within ${pct}%: ${result}`);
+            return result;
+        }
+        case 'NEAR_RESISTANCE': {
+            const resistance = calcResistanceLevel(ind.candles5m || []);
+            const pct        = +(block.params.pct ?? 1);
+            // Price must be at or below resistance AND within pct% below it
+            const result     = ind.price <= resistance && ind.price >= resistance * (1 - pct / 100);
+            ind._logMsgs?.push(`NEAR_RESISTANCE: resistance=${resistance.toFixed(4)}, price=${ind.price}, within ${pct}%: ${result}`);
+            return result;
+        }
+        case 'HIGHER_HIGH': {
+            const highs  = getSwingHighs(ind.candles5m || []);
+            const result = highs.length >= 2 && highs[highs.length - 1] > highs[highs.length - 2];
+            ind._logMsgs?.push(`HIGHER_HIGH: swings=[${highs.slice(-3).map(h=>h.toFixed(4)).join(', ')}], result=${result}`);
+            return result;
+        }
+        case 'LOWER_LOW': {
+            const lows   = getSwingLows(ind.candles5m || []);
+            const result = lows.length >= 2 && lows[lows.length - 1] < lows[lows.length - 2];
+            ind._logMsgs?.push(`LOWER_LOW: swings=[${lows.slice(-3).map(l=>l.toFixed(4)).join(', ')}], result=${result}`);
+            return result;
+        }
+        case 'TREND_MTF': {
+            const tf     = block.params.timeframe || '4h';
+            const dir    = block.params.direction || 'bullish';
+            const trend  = (ind.trendMtf || {})[tf] || 'neutral';
+            const result = dir === 'any' ? trend !== 'neutral' : trend === dir;
+            ind._logMsgs?.push(`TREND_MTF(${tf}): trend=${trend}, want=${dir}: ${result}`);
+            return result;
+        }
         case 'TRADING_HOURS': {
             const pkt = new Date(Date.now() + 5 * 3600000);
             const hr  = pkt.getUTCHours() + pkt.getUTCMinutes() / 60;
@@ -295,7 +451,7 @@ function evaluateConditionBlocks(blocks, ind) {
 }
 
 // ── Per-coin indicators ──────────────────────────────────────
-async function calcIndicators(symbol, emaPeriods, smaPeriods) {
+async function calcIndicators(symbol, emaPeriods, smaPeriods, mtfTimeframes = []) {
     const [c5m, c1h, c4h] = await Promise.all([
         fetchBybitKlines(symbol, '5', 200),
         fetchBybitKlines(symbol, '60', 60),
@@ -325,16 +481,27 @@ async function calcIndicators(symbol, emaPeriods, smaPeriods) {
         smas[p] = ser[ser.length - 1];
     }
 
+    // MTF trend — fetched with per-timeframe caching
+    const trendMtf = {};
+    if (mtfTimeframes.length > 0) {
+        await Promise.all(mtfTimeframes.map(async tf => {
+            trendMtf[tf] = await getMtfTrend(symbol, tf);
+        }));
+    }
+
     return {
         price, rsi, prevRsi, macd, atr, volumeRatio, emas, smas, stoch,
-        trend4h: getTrend(c4h),
-        trend1h: getTrend(c1h),
+        trend4h:  getTrend(c4h),
+        trend1h:  getTrend(c1h),
+        trendMtf,
+        candles5m: c5m,
     };
 }
 
 function getNeededPeriods(allBlocks) {
-    const emaPeriods = new Set();
-    const smaPeriods = new Set();
+    const emaPeriods   = new Set();
+    const smaPeriods   = new Set();
+    const mtfTimeframes = new Set();
     for (const b of allBlocks) {
         if (b.type === 'EMA_CROSS' || b.type === 'MA_CROSS') {
             const maType = b.params.maType || 'EMA';
@@ -349,8 +516,13 @@ function getNeededPeriods(allBlocks) {
             if (maType === 'SMA') smaPeriods.add(p);
             else emaPeriods.add(p);
         }
+        if (b.type === 'TREND_MTF' && b.params.timeframe) mtfTimeframes.add(b.params.timeframe);
+        if (b.type === 'TREND_ALIGN') {
+            if (b.params.tfA) mtfTimeframes.add(b.params.tfA);
+            if (b.params.tfB) mtfTimeframes.add(b.params.tfB);
+        }
     }
-    return { emaPeriods: [...emaPeriods], smaPeriods: [...smaPeriods] };
+    return { emaPeriods: [...emaPeriods], smaPeriods: [...smaPeriods], mtfTimeframes: [...mtfTimeframes] };
 }
 
 function getSLBlock(actions) { return actions.find(b => b.type === 'STOP_LOSS'); }
@@ -558,7 +730,7 @@ async function runScanCycle(userId) {
             ...ifBlocks.flatMap(b => b.conditions || []),
             ...exitConditions,
         ];
-        const { emaPeriods, smaPeriods } = getNeededPeriods(allCondBlocks);
+        const { emaPeriods, smaPeriods, mtfTimeframes } = getNeededPeriods(allCondBlocks);
 
         // One position at a time: check if any real Bybit position is open
         const openBybitPositions = store ? await getBybitPositions(store) : [];
@@ -574,10 +746,13 @@ async function runScanCycle(userId) {
             emit(userId, 'strategy:scan_progress', { scanned: i + 1, total: coins.length, symbol: sym });
 
             try {
-                const ind = await calcIndicators(sym, emaPeriods, smaPeriods);
+                const ind = await calcIndicators(sym, emaPeriods, smaPeriods, mtfTimeframes);
+                ind._logMsgs = [];
 
                 // ── Filters ──
                 const passFilters = evaluateFilterBlocks(filters, ind);
+                for (const m of (ind._logMsgs || [])) addLog(userId, 'info', `${sym} — ${m}`);
+                ind._logMsgs = [];
                 if (!passFilters) continue;
 
                 // ── Check open position for exit conditions ──
@@ -610,11 +785,18 @@ async function runScanCycle(userId) {
                 // ── IF / ELSE IF / ELSE evaluation ──
                 let matched = false;
                 for (const ifBlock of ifBlocks) {
+                    // Expose trade direction to TREND_ALIGN block evaluation
+                    const ifActions  = ifBlock.actions || [];
+                    const ifDirBlock = ifActions.find(b => ['ENTER_LONG', 'ENTER_SHORT'].includes(b.type));
+                    ind.tradeDir = ifDirBlock?.type === 'ENTER_SHORT' ? 'bearish' : 'bullish';
+
                     let condMet = false;
                     if (ifBlock.type === 'else') {
                         condMet = true; // ELSE always matches if we get here
                     } else {
                         condMet = evaluateConditionBlocks(ifBlock.conditions || [], ind);
+                        for (const m of (ind._logMsgs || [])) addLog(userId, 'info', `${sym} — ${m}`);
+                        ind._logMsgs = [];
                     }
 
                     if (!condMet) continue;

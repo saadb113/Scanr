@@ -129,9 +129,12 @@ const BLOCK_DEFS = {
     label: 'Candle Pattern', icon: '🕯', category: 'PRICE ACTION', zones: ['conditions'],
     defaults: { pattern: 'hammer' },
     params: [
-      { key: 'pattern', label: 'Pattern', type: 'select', options: ['hammer','engulfing','doji','pin_bar'] },
+      { key: 'pattern', label: 'Pattern', type: 'select', options: [
+        'hammer','shooting_star','doji','bullish_engulfing','bearish_engulfing',
+        'morning_star','evening_star','pinbar',
+      ]},
     ],
-    summary: p => `Candle: ${p.pattern.replace('_',' ')}`,
+    summary: p => `Candle: ${p.pattern.replace(/_/g,' ')}`,
   },
   NEAR_SUPPORT: {
     label: 'Price near Support', icon: '🔽', category: 'PRICE ACTION', zones: ['conditions'],
@@ -178,13 +181,24 @@ const BLOCK_DEFS = {
     ],
     summary: p => `1H Trend = ${p.direction}`,
   },
+  TREND_MTF: {
+    label: 'Trend (Multi-TF)', icon: '📡', category: 'TREND', zones: ['filters','conditions'],
+    defaults: { timeframe: '4h', direction: 'bullish' },
+    params: [
+      { key: 'timeframe', label: 'Timeframe', type: 'select', options: ['15m','30m','1h','2h','4h','1D','1W'] },
+      { key: 'direction', label: 'Direction', type: 'select', options: ['bullish','bearish','any'] },
+    ],
+    summary: p => `${p.timeframe} Trend: ${p.direction}`,
+  },
   TREND_ALIGN: {
     label: 'Trend Alignment', icon: '📡', category: 'TREND', zones: ['filters','conditions'],
-    defaults: { direction: 'bullish' },
+    defaults: { tfA: '1h', tfB: '4h', alignment: 'full' },
     params: [
-      { key: 'direction', label: 'Both TFs', type: 'select', options: ['bullish','bearish'] },
+      { key: 'tfA', label: 'Timeframe A', type: 'select', options: ['15m','30m','1h','2h','4h','1D','1W'] },
+      { key: 'tfB', label: 'Timeframe B', type: 'select', options: ['15m','30m','1h','2h','4h','1D','1W'] },
+      { key: 'alignment', label: 'Alignment', type: 'select', options: ['full','partial'] },
     ],
-    summary: p => `4H & 1H both ${p.direction}`,
+    summary: p => `${p.tfA} & ${p.tfB} ${p.alignment} alignment`,
   },
   // TIME
   TRADING_HOURS: {
@@ -988,6 +1002,17 @@ function generatePineScript() {
     }
   });
 
+  // Collect MTF timeframes needed for TREND_MTF and TREND_ALIGN blocks
+  const TF_TO_PINE = { '15m':'15','30m':'30','1h':'60','2h':'120','4h':'240','1D':'D','1W':'W' };
+  const mtfTfSet = new Set();
+  allCondBlocks.forEach(b => {
+    if (b.type === 'TREND_MTF' && b.params.timeframe) mtfTfSet.add(b.params.timeframe);
+    if (b.type === 'TREND_ALIGN') {
+      if (b.params.tfA) mtfTfSet.add(b.params.tfA);
+      if (b.params.tfB) mtfTfSet.add(b.params.tfB);
+    }
+  });
+
   const L = [];
   L.push('//@version=5');
   L.push(`strategy("${name}", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=${sizeVal})`);
@@ -1021,6 +1046,15 @@ function generatePineScript() {
     L.push(`stochD = ta.sma(stochK, ${dp})`);
     L.push('stochKPrev = stochK[1]');
     L.push('stochDPrev = stochD[1]');
+  }
+  if (mtfTfSet.size > 0) {
+    L.push('// ── Multi-Timeframe Trends ──');
+    mtfTfSet.forEach(tf => {
+      const ptf = TF_TO_PINE[tf] || '60';
+      const v = `mtf${tf.replace(/[^a-zA-Z0-9]/g,'')}`;
+      L.push(`${v}Close = request.security(syminfo.tickerid, "${ptf}", close)`);
+      L.push(`${v}Ema50 = request.security(syminfo.tickerid, "${ptf}", ta.ema(close, 50))`);
+    });
   }
 
   // Filters
@@ -1133,6 +1167,39 @@ function blockToPine(block) {
       if (cond === 'kd_both_below')   return `stochK < ${val} and stochD < ${val}`;
       if (cond === 'kd_both_above')   return `stochK > ${val} and stochD > ${val}`;
       return 'true';
+    }
+    case 'CANDLE_PATTERN': {
+      const pat = p.pattern || 'hammer';
+      if (pat === 'doji')              return 'math.abs(close - open) <= (high - low) * 0.001';
+      if (pat === 'hammer')            return '(math.min(open,close) - low >= math.abs(close-open)*2) and (high - math.max(open,close) <= math.abs(close-open)*0.5)';
+      if (pat === 'shooting_star')     return '(high - math.max(open,close) >= math.abs(close-open)*2) and (math.min(open,close) - low <= math.abs(close-open)*0.5)';
+      if (pat === 'bullish_engulfing') return '(close > open) and (close[1] < open[1]) and (close > open[1]) and (open < close[1])';
+      if (pat === 'bearish_engulfing') return '(close < open) and (close[1] > open[1]) and (open > close[1]) and (close < open[1])';
+      if (pat === 'pinbar')            return 'math.max(high-math.max(open,close), math.min(open,close)-low) >= math.abs(close-open)*2.5';
+      if (pat === 'morning_star')      return '(close[2] < open[2]) and (math.abs(close[1]-open[1]) <= (high[1]-low[1])*0.4) and (close > open) and (close > (open[2] + close[2]) / 2)';
+      if (pat === 'evening_star')      return '(close[2] > open[2]) and (math.abs(close[1]-open[1]) <= (high[1]-low[1])*0.4) and (close < open) and (close < (open[2] + close[2]) / 2)';
+      return `true // candle pattern: ${pat}`;
+    }
+    case 'NEAR_SUPPORT':    return `(close >= ta.lowest(low, 50) and close <= ta.lowest(low, 50) * (1 + ${+(p.pct??1)} / 100))`;
+    case 'NEAR_RESISTANCE': return `(close <= ta.highest(high, 50) and close >= ta.highest(high, 50) * (1 - ${+(p.pct??1)} / 100))`;
+    case 'HIGHER_HIGH': {
+      return 'ta.pivothigh(high, 2, 2) > ta.pivothigh(high[1], 2, 2)';
+    }
+    case 'LOWER_LOW': {
+      return 'ta.pivotlow(low, 2, 2) < ta.pivotlow(low[1], 2, 2)';
+    }
+    case 'TREND_MTF': {
+      const v = `mtf${(p.timeframe||'4h').replace(/[^a-zA-Z0-9]/g,'')}`;
+      if ((p.direction||'bullish') === 'any') return `(math.abs(${v}Close - ${v}Ema50) / ${v}Ema50 > 0.002)`;
+      return (p.direction === 'bearish') ? `${v}Close < ${v}Ema50` : `${v}Close > ${v}Ema50`;
+    }
+    case 'TREND_ALIGN': {
+      const vA = `mtf${(p.tfA||'1h').replace(/[^a-zA-Z0-9]/g,'')}`;
+      const vB = `mtf${(p.tfB||'4h').replace(/[^a-zA-Z0-9]/g,'')}`;
+      if ((p.alignment||'full') === 'partial') {
+        return `(${vA}Close > ${vA}Ema50 or ${vB}Close > ${vB}Ema50)`;
+      }
+      return `((${vA}Close > ${vA}Ema50 and ${vB}Close > ${vB}Ema50) or (${vA}Close < ${vA}Ema50 and ${vB}Close < ${vB}Ema50))`;
     }
     default:            return `true // ${BLOCK_DEFS[block.type]?.summary(p) || block.type}`;
   }

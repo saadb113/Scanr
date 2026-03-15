@@ -1,5 +1,75 @@
-custom timeframe selection in ai agent for whih time frame i want agent to scan the coins
+Add these condition blocks to the Strategy Builder — implement full logic 
+for each one in both the frontend block builder and the backend bot execution engine (strategyBot.js):
 
-custom coin selection in ai agent  settings
+1. Candle Pattern block:
+   - Dropdown options: Hammer, Shooting Star, Doji, Bullish Engulfing, 
+     Bearish Engulfing, Morning Star, Evening Star, Pinbar
+   - Backend logic: detect pattern on last 1-3 closed candles using OHLC data
+   - Hammer: small body, long lower wick (2x body), small upper wick
+   - Shooting Star: small body, long upper wick (2x body), small lower wick  
+   - Doji: open ≈ close (within 0.1% of range)
+   - Bullish Engulfing: current green candle body fully engulfs previous red candle body
+   - Bearish Engulfing: current red candle body fully engulfs previous green candle body
+   - Morning Star: red candle → small doji/indecision → green candle closing above midpoint of first candle
+   - Evening Star: green candle → small doji/indecision → red candle closing below midpoint of first candle
+   - Pinbar: long wick (one side) at least 2.5x the body, closes in opposite direction
 
-AI agent is not working correctly. when i start the agent it scans the coins. when i reload the page it again scans the coins howver it doesn;t resepcet the scan interval that i set like if if i ahave set 30 miute interval it should scan after 30 minutes 
+2. Price Near Support block:
+   - Input: tolerance % (default 1%)
+   - Backend logic: calculate support as the lowest low of last 50 candles
+     (or last significant swing low — price that was rejected at least twice)
+   - Condition passes if current price is within tolerance % above support level
+   - Log the support level value when condition is checked
+
+3. Price Near Resistance block:
+   - Input: tolerance % (default 1%)
+   - Backend logic: calculate resistance as highest high of last 50 candles
+     (or last significant swing high — price that was rejected at least twice)
+   - Condition passes if current price is within tolerance % below resistance level
+   - Log the resistance level value when condition is checked
+
+4. Higher High Formed block:
+   - Backend logic: compare last 3 swing highs
+   - Swing high = a candle whose high is higher than the 2 candles before and after it
+   - Condition passes if the most recent swing high is higher than the previous swing high
+   - Lookback: last 20 candles to find swing highs
+
+5. Lower Low Formed block:
+   - Backend logic: compare last 3 swing lows
+   - Swing low = a candle whose low is lower than the 2 candles before and after it
+   - Condition passes if the most recent swing low is lower than the previous swing low
+   - Lookback: last 20 candles to find swing lows
+
+6. Trend (Multi-Timeframe) block:
+   - User selects timeframe from dropdown: 
+     15m | 30m | 1h | 2h | 4h | 1D | 1W
+   - User selects direction: Bullish | Bearish | Any
+   - Backend logic: fetch last 50 candles of the selected timeframe for the coin from Binance
+   - Determine trend using EMA50 on selected timeframe: 
+     price above EMA50 = Bullish, below = Bearish
+   - Cache candle data per coin per timeframe separately
+     (refresh cache only when that timeframe's candle closes, not on every tick)
+   - Condition passes if trend matches selected direction
+   - Log: "BTCUSDT — 4H Trend: Bullish (price 45200 > EMA50 44800)"
+   - Multiple Trend blocks can be used in the same strategy on different timeframes
+   - In Pine Script export: generate request.security() call for the selected timeframe
+
+7. Trend Alignment block:
+   - User selects two timeframes to compare: 
+     Timeframe A dropdown (15m | 30m | 1h | 2h | 4h | 1D | 1W)
+     Timeframe B dropdown (15m | 30m | 1h | 2h | 4h | 1D | 1W)
+   - Options: Full Alignment | Partial Alignment
+   - Full Alignment: both selected timeframes trend in same direction as trade
+   - Partial Alignment: at least one timeframe matches trade direction
+   - Trade direction inferred from IF block type (LONG = bullish, SHORT = bearish)
+   - Reuses the same trend logic and cache from the Trend block above
+   - In Pine Script export: generate two request.security() calls and compare them
+
+
+General implementation rules:
+- Add all 8 blocks to the correct category in the frontend block builder UI
+- Each block must have proper UI inputs/dropdowns matching the options above
+- Each block must have a corresponding evaluation function in strategyBot.js
+- All higher timeframe data (1H, 4H) must be fetched separately from the bot's main timeframe
+- Add these blocks to Pine Script export too — generate the closest Pine Script equivalent for each
+- Log which condition passed or failed for each block during bot execution for debugging
