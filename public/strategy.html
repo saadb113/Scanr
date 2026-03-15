@@ -504,6 +504,13 @@
       border-top: 1px solid #1a2030;
       background: #0c1017;
       padding: 1rem;
+      overflow: hidden;
+    }
+    .hist-table-scroll {
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 420px;
+      -webkit-overflow-scrolling: touch;
     }
     .strat-hist-header {
       font-size: 0.8rem;
@@ -527,7 +534,7 @@
     .strat-hist-stat .green { color: #29ffb8; }
     .strat-hist-stat .red { color: #f56565; }
 
-    .strat-hist-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .strat-hist-table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 0.78rem; }
     .strat-hist-table th {
       text-align: left;
       padding: 0.35rem 0.5rem;
@@ -958,6 +965,7 @@
         <span id="tradeCount" class="hist-trade-count">Showing 0 trades</span>
         <button class="btn-clear-hist" onclick="clearTradeHistory()">Clear History</button>
       </div>
+      <div class="hist-table-scroll">
       <table class="strat-hist-table">
         <thead>
           <tr>
@@ -968,6 +976,7 @@
           <tr><td colspan="9" style="text-align:center;color:#2a3545;padding:1.5rem">No trade history yet</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
 
   </div><!-- .strat-page -->
