@@ -1514,7 +1514,6 @@ function renderTrades(trades) {
     const closeBtn = isOpen
       ? `<button onclick="closeBotTrade('${t._id}')" style="background:#3a1a1a;border:1px solid #7f3a3a;border-radius:5px;color:#f56565;font-family:inherit;font-size:0.72rem;font-weight:700;padding:0.18rem 0.55rem;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f56565';this.style.color='#fff'" onmouseout="this.style.background='#3a1a1a';this.style.color='#f56565'">Close</button>`
       : '';
-    const detailsBtn = `<button onclick="openTradeDetail('${t._id}')" style="background:#111827;border:1px solid #1e3555;border-radius:5px;color:#60a5fa;font-family:inherit;font-size:0.72rem;font-weight:700;padding:0.18rem 0.55rem;cursor:pointer;white-space:nowrap" onmouseover="this.style.borderColor='#29b6ff';this.style.color='#29b6ff'" onmouseout="this.style.borderColor='#1e3555';this.style.color='#60a5fa'">Details</button>`;
     return `<tr data-trade-id="${t._id}" data-symbol="${t.symbol}" data-side="${t.side}" data-entry="${t.entryPrice}" data-qty="${t.quantity}" data-status="${t.status}">
       <td>${date}</td>
       <td style="font-weight:700;color:#e5e9f2">${t.symbol}</td>
@@ -1524,7 +1523,7 @@ function renderTrades(trades) {
       <td id="pnl-${t._id}" class="${cls}" style="font-weight:700">${pnlCell}</td>
       <td><span class="badge badge-${t.status}">${t.status}</span></td>
       <td style="color:#8a95a8;font-size:0.8rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${stratName}</td>
-      <td style="white-space:nowrap;display:flex;gap:4px">${closeBtn}${detailsBtn}</td>
+      <td>${closeBtn}</td>
     </tr>`;
   }).join('');
   updateHistSummary(trades);
@@ -1564,82 +1563,6 @@ async function updateOpenPnl() {
       cell.innerHTML = `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT <span style="font-size:0.8em;opacity:0.8">(${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)</span>`;
     }
   });
-}
-
-let _currentDetailTradeId = null;
-
-function openTradeDetail(tradeId) {
-  const t = _allTrades.find(x => x._id === tradeId);
-  if (!t) return;
-  _currentDetailTradeId = tradeId;
-
-  const strat = _strategies.find(s => s._id === t.strategyId);
-  const pnlVal = t.pnl != null ? t.pnl : 0;
-  const pnlCls = pnlVal >= 0 ? '#29ffb8' : '#f56565';
-  const pnlPct = t.entryPrice && t.quantity
-    ? (pnlVal / (t.entryPrice * t.quantity) * 100).toFixed(2) : null;
-  const rr = t.sl && t.tp && t.entryPrice
-    ? Math.abs((t.tp - t.entryPrice) / (t.entryPrice - t.sl)).toFixed(2) : 'N/A';
-  const duration = t.closedAt && t.openedAt
-    ? Math.round((new Date(t.closedAt) - new Date(t.openedAt)) / 60000) + ' min' : '—';
-  const fmt = v => v != null ? parseFloat(v).toFixed(4) : '—';
-  const fmtDate = d => d ? new Date(d).toLocaleString('en-PK', { timeZone: 'Asia/Karachi', dateStyle: 'short', timeStyle: 'short' }) : '—';
-
-  const stats = [
-    ['Symbol',    `<span style="font-weight:800;color:#e5e9f2">${t.symbol}</span>`],
-    ['Side',      `<span class="badge badge-${(t.side||'').toLowerCase()}" style="font-size:0.75rem">${(t.side||'').toUpperCase()}</span>`],
-    ['Status',    `<span class="badge badge-${t.status}" style="font-size:0.75rem">${t.status}</span>`],
-    ['Strategy',  strat?.name || '—'],
-    ['Entry',     fmt(t.entryPrice)],
-    ['Exit',      fmt(t.exitPrice)],
-    ['Stop Loss', fmt(t.sl)],
-    ['Take Profit', fmt(t.tp)],
-    ['R:R',       rr === 'N/A' ? 'N/A' : `1:${rr}`],
-    ['Quantity',  t.quantity ?? '—'],
-    ['PnL',       `<span style="color:${pnlCls};font-weight:800">${pnlVal >= 0 ? '+' : ''}${pnlVal.toFixed(2)} USDT${pnlPct != null ? ` (${parseFloat(pnlPct) >= 0 ? '+' : ''}${pnlPct}%)` : ''}</span>`],
-    ['Duration',  duration],
-    ['Opened',    fmtDate(t.openedAt)],
-    ['Closed',    fmtDate(t.closedAt)],
-  ];
-
-  $('tdModalTitle').textContent = `Trade Analysis — ${t.symbol}`;
-  $('tdGrid').innerHTML = stats.map(([label, val]) =>
-    `<div class="td-stat"><span class="td-stat-label">${label}</span><span class="td-stat-value">${val}</span></div>`
-  ).join('');
-
-  const box = $('aiAnalysisBox');
-  box.className = 'ai-analysis-box';
-  box.textContent = '';
-  $('btnAiAnalyze').disabled = false;
-  const section = $('stratTradeAnalysis');
-  section.classList.add('visible');
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-async function analyzeTradeAI() {
-  if (!_currentDetailTradeId) return;
-  const btn = $('btnAiAnalyze');
-  const box = $('aiAnalysisBox');
-  btn.disabled = true;
-  btn.textContent = '⟳ Analyzing…';
-  box.className = 'ai-analysis-box visible loading';
-  box.textContent = 'Running AI analysis…';
-  try {
-    const r = await fetch(`/api/strategy/trade/${_currentDetailTradeId}/analyze`, { method: 'POST' });
-    const d = await r.json();
-    if (d.ok) {
-      box.className = 'ai-analysis-box visible';
-      box.textContent = d.analysis;
-    } else {
-      box.className = 'ai-analysis-box visible error';
-      box.textContent = 'Error: ' + (d.error || 'Unknown error');
-    }
-  } catch (e) {
-    box.className = 'ai-analysis-box visible error';
-    box.textContent = 'Error: ' + e.message;
-  }
-  btn.disabled = false;
-  btn.innerHTML = '✦ AI Analyze this Trade';
 }
 
 async function closeBotTrade(tradeId) {
