@@ -10,7 +10,8 @@
 const crypto     = require('crypto');
 const { AgentState, AgentSession, AgentTrade, AgentSettings, KimiSettings, BybitStore, Settings } = require('./models');
 const { runScan } = require('./coinScanner');
-const notifier   = require('./notifier');
+const notifier        = require('./notifier');
+const discordNotifier = require('./discordNotifier');
 
 const PST_OFFSET_MS = 5 * 60 * 60 * 1000; // UTC+5
 
@@ -197,9 +198,16 @@ class DayAgent {
         if (this.settings.notifyOnAgentShutdown !== false) {
             notifier.notifyAgentStarted(this.settings).catch(() => {});
         }
+        discordNotifier.sendAgentAlert(this.userId, 'agent_start', {
+            mode:      'Live',
+            timeframe: this.settings.timeframe || '5m',
+            minScore:  this.settings.minScore  || 75,
+            maxTrades: this.settings.maxTrades || 3,
+        }).catch(() => {});
 
         emit('agent:started', { tradesTaken: this.tradesTaken, maxTrades, startBalance: this.startBalance });
         agLog('success', `Agent started. Balance: $${this.startBalance.toFixed(2)} | Trades: ${this.tradesTaken}/${maxTrades}`);
+        agLog('info', `Settings — minScore: ${this.settings.minScore || 75}, maxTrades: ${this.settings.maxTrades || 3}, DD limit: ${this.settings.dailyDrawdownPct || 5}%, position size: ${this.settings.basePositionSize || 'auto (risk-based)'}`);
 
         // Resume open trade if any
         const openTrade = await AgentTrade.findOne({
@@ -282,6 +290,9 @@ class DayAgent {
 
     async _doScan() {
         if (!this.running) return;
+
+        // Re-fetch latest agent settings each scan cycle so user changes take effect without restart
+        this.settings = await AgentSettings.findOne({ userId: this.userId }).lean() || this.settings;
 
         const maxTrades = this.settings.maxTrades || 3;
         if (this.tradesTaken >= maxTrades) { await this.stop('max_trades_reached'); return; }
@@ -405,6 +416,16 @@ class DayAgent {
                 entry: setup.entry, sl: setup.sl, tp: setup.tp1, score: setup.score, qty,
             });
             agLog('success', `Trade placed: ${setup.symbol} ${setup.direction.toUpperCase()} qty=${qty}`);
+            discordNotifier.sendAgentAlert(this.userId, 'trade_placed', {
+                symbol:    setup.symbol,
+                direction: setup.direction,
+                score:     setup.score,
+                entry:     setup.entry,
+                sl:        setup.sl,
+                tp:        setup.tp1,
+                qty,
+                reasoning: setup.reasoning,
+            }).catch(() => {});
             this._startMonitor();
 
         } catch (e) {
@@ -502,6 +523,15 @@ class DayAgent {
         if (this.settings.notifyOnTradeClosed !== false) {
             notifier.notifyTradeClosed(result, this.tradesTaken, this.settings.maxTrades || 3).catch(() => {});
         }
+        discordNotifier.sendAgentAlert(this.userId, isWin ? 'tp_hit' : 'sl_hit', {
+            symbol:     trade.symbol,
+            direction:  trade.side,
+            aiScore:    trade.aiScore,
+            entryPrice: trade.entryPrice,
+            closePrice,
+            pnl,
+            pnlPercent: pnlPct,
+        }).catch(() => {});
 
         const maxTrades = this.settings.maxTrades || 3;
         if (this.tradesTaken >= maxTrades) { await this.stop('max_trades_reached'); return; }

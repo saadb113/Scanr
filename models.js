@@ -30,6 +30,7 @@ const SettingsSchema = new mongoose.Schema({
             autopilotMilestone:  { type: Boolean, default: true },
             tpSlHit:             { type: Boolean, default: true },
             strategyBotAlerts:   { type: Boolean, default: true },
+            aiAgentAlerts:       { type: Boolean, default: true },
         },
     },
     ai: {

@@ -750,6 +750,7 @@ async function discLoadConfig() {
             document.getElementById('discAlertAutopilot').checked = j.alerts.autopilotMilestone !== false;
             document.getElementById('discAlertTpSl').checked      = j.alerts.tpSlHit !== false;
             document.getElementById('discAlertStratBot').checked   = j.alerts.strategyBotAlerts !== false;
+            document.getElementById('discAlertAgent').checked       = j.alerts.aiAgentAlerts !== false;
         }
     } catch(e) { console.warn('discLoadConfig', e); }
 }
@@ -763,6 +764,7 @@ async function discSaveConfig() {
             autopilotMilestone: document.getElementById('discAlertAutopilot').checked,
             tpSlHit:            document.getElementById('discAlertTpSl').checked,
             strategyBotAlerts:  document.getElementById('discAlertStratBot').checked,
+            aiAgentAlerts:      document.getElementById('discAlertAgent').checked,
         },
     };
     try {
@@ -1005,6 +1007,10 @@ function resetAccentColor() {
       <div class="disc-toggle-row">
         <div class="disc-toggle-info"><span class="disc-toggle-label">🤖 Strategy Bot Alerts</span><span class="disc-toggle-desc">Trade notifications from the strategy bot</span></div>
         <label class="toggle-switch"><input type="checkbox" id="discAlertStratBot" checked><span class="slider"></span></label>
+      </div>
+      <div class="disc-toggle-row">
+        <div class="disc-toggle-info"><span class="disc-toggle-label">🧠 AI Agent Alerts</span><span class="disc-toggle-desc">Trade notifications from the AI Day Trading Agent</span></div>
+        <label class="toggle-switch"><input type="checkbox" id="discAlertAgent" checked><span class="slider"></span></label>
       </div>
 
       <button onclick="discSaveConfig()" style="width:100%;margin-top:1.2rem;background:linear-gradient(135deg,#5865f2,#7983f5);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">💾 Save Discord Settings</button>

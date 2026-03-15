@@ -1,5 +1,7 @@
 'use strict';
 
+const { Settings } = require('./models');
+
 async function sendDiscordAlert(webhookUrl, embed) {
     if (!webhookUrl) return;
     try {
@@ -162,4 +164,94 @@ async function sendStrategyBotAlert(webhookUrl, type, data) {
     await sendDiscordAlert(webhookUrl, embed);
 }
 
-module.exports = { sendDiscordAlert, orderSummaryEmbed, positionClosedEmbed, autopilotMilestoneEmbed, priceAlertEmbed, sendStrategyBotAlert };
+module.exports = { sendDiscordAlert, orderSummaryEmbed, positionClosedEmbed, autopilotMilestoneEmbed, priceAlertEmbed, sendStrategyBotAlert, sendAgentAlert };
+
+// ── AI Day Trading Agent embeds ───────────────────────────────
+
+function agentStartEmbed(data) {
+    const coins = Array.isArray(data.coins) ? data.coins.join(', ') : (data.coins || '50+ coins');
+    return {
+        title:  '🧠 AI Agent Started',
+        color:  0x3b82f6,
+        fields: [
+            { name: 'Mode',              value: data.mode || 'Live',                      inline: true },
+            { name: 'Timeframe',         value: data.timeframe || '5m',                   inline: true },
+            { name: 'Min Score',         value: String(data.minScore ?? 75),              inline: true },
+            { name: 'Max Trades / Day',  value: String(data.maxTrades ?? 3),              inline: true },
+            { name: 'Coins Scanning',    value: coins,                                    inline: false },
+            { name: 'Time (PKT)',        value: pktTime(),                                inline: false },
+        ],
+        footer:    { text: 'Scanr AI Agent' },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+function agentTradePlacedEmbed(data) {
+    const isLong = (data.direction || '').toLowerCase() === 'long';
+    const rr = (data.sl != null && data.tp != null && data.entry)
+        ? Math.abs((data.tp - data.entry) / (data.entry - data.sl)).toFixed(2)
+        : '—';
+    const reasoning = data.reasoning
+        ? (data.reasoning.length > 100 ? data.reasoning.slice(0, 100) + '…' : data.reasoning)
+        : '—';
+    return {
+        title:  isLong ? '📈 AI Agent Trade Opened — LONG' : '📉 AI Agent Trade Opened — SHORT',
+        color:  isLong ? 0x22c55e : 0xef4444,
+        fields: [
+            { name: 'Coin',             value: data.symbol || '—',                  inline: true },
+            { name: 'Direction',        value: isLong ? 'LONG' : 'SHORT',           inline: true },
+            { name: 'Confidence Score', value: String(data.score ?? '—'),           inline: true },
+            { name: 'Entry Price',      value: String(data.entry ?? '—'),           inline: true },
+            { name: 'Stop Loss',        value: String(data.sl ?? '—'),              inline: true },
+            { name: 'Take Profit',      value: String(data.tp ?? '—'),              inline: true },
+            { name: 'RR',               value: String(rr),                          inline: true },
+            { name: 'Position Size',    value: String(data.qty ?? '—'),             inline: true },
+            { name: 'AI Reasoning',     value: reasoning,                           inline: false },
+            { name: 'Time (PKT)',       value: pktTime(),                           inline: false },
+        ],
+        footer:    { text: 'Scanr AI Agent' },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+function agentTradeClosedEmbed(type, data) {
+    const pnlStr    = data.pnl != null ? `${data.pnl >= 0 ? '+' : ''}${parseFloat(data.pnl).toFixed(4)} USDT` : '—';
+    const pnlPctStr = data.pnlPercent != null ? ` (${data.pnlPercent >= 0 ? '+' : ''}${parseFloat(data.pnlPercent).toFixed(2)}%)` : '';
+    const meta = type === 'tp_hit'
+        ? { title: '✅ AI Agent — Take Profit Hit', color: 0x22c55e }
+        : { title: '❌ AI Agent — Stop Loss Hit',   color: 0xef4444 };
+    return {
+        title:  meta.title,
+        color:  meta.color,
+        fields: [
+            { name: 'Coin',             value: data.symbol || '—',                       inline: true },
+            { name: 'Direction',        value: (data.direction || '').toUpperCase() || '—', inline: true },
+            { name: 'Confidence Score', value: String(data.aiScore ?? '—'),              inline: true },
+            { name: 'Entry',            value: String(data.entryPrice ?? '—'),           inline: true },
+            { name: 'Exit',             value: String(data.closePrice ?? '—'),           inline: true },
+            { name: 'PnL',              value: pnlStr + pnlPctStr,                       inline: true },
+            { name: 'Time (PKT)',       value: pktTime(),                                inline: false },
+        ],
+        footer:    { text: 'Scanr AI Agent' },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+async function sendAgentAlert(userId, type, data) {
+    try {
+        const settingsDoc = await Settings.findOne({ userId }).lean();
+        const webhookUrl  = settingsDoc?.discord?.webhookUrl;
+        if (!webhookUrl) return;
+        if (settingsDoc?.discord?.alerts?.aiAgentAlerts === false) return;
+
+        let embed;
+        if (type === 'agent_start')   embed = agentStartEmbed(data);
+        else if (type === 'trade_placed') embed = agentTradePlacedEmbed(data);
+        else if (type === 'tp_hit' || type === 'sl_hit') embed = agentTradeClosedEmbed(type, data);
+        else return;
+
+        await sendDiscordAlert(webhookUrl, embed);
+    } catch (e) {
+        console.error('[AgentAlert] Discord send failed:', e.message);
+    }
+}

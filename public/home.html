@@ -245,7 +245,7 @@
       max-width: 1180px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
     }
     .stat-item {
       padding: 30px 20px;
@@ -268,9 +268,11 @@
     }
     @media (max-width: 600px) {
       .stats-bar-inner { grid-template-columns: repeat(2, 1fr); }
-      .stat-item:nth-child(2) { border-right: none; }
+      .stat-item:nth-child(even) { border-right: none; }
       .stat-item:nth-child(1),
-      .stat-item:nth-child(2) { border-bottom: 1px solid var(--border); }
+      .stat-item:nth-child(2),
+      .stat-item:nth-child(3),
+      .stat-item:nth-child(4) { border-bottom: 1px solid var(--border); }
     }
 
     /* ─────────────────────────────────────
@@ -733,6 +735,10 @@
       <div class="stat-value">Bybit</div>
       <div class="stat-label">Integration + Discord Alerts</div>
     </div>
+    <div class="stat-item">
+      <div class="stat-value">75+</div>
+      <div class="stat-label">AI Score Threshold</div>
+    </div>
   </div>
 </div>
 
@@ -760,7 +766,12 @@
         <h3>No-Code Strategy Builder</h3>
         <p>Build your own trading bot using drag and drop blocks — no coding required. Set conditions, actions, and let the bot trade automatically on Bybit.</p>
       </div>
-     
+      <div class="feature-card fade-in">
+        <span class="fc-icon">&#129504;</span>
+        <h3>AI Trading Agent</h3>
+        <p>Autonomous AI agent that hard-filters 50+ coins, scores each one using technical analysis + AI reasoning, and automatically places trades on coins scoring 75 or above. Runs 24/7 with built-in risk guardrails.</p>
+      </div>
+
     </div>
   </div>
 </section>
