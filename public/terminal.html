@@ -3,10 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trade — Monty</title>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <title>Trade — Scanr</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
   <style>
+    /* ── Bybit-inspired terminal ────────────────────────────── */
+    :root {
+      --byt-bg:      #0b0e11;
+      --byt-panel:   #131722;
+      --byt-card:    #1e2026;
+      --byt-border:  #2b2f3e;
+      --byt-text:    #d1d4dc;
+      --byt-muted:   #848e9c;
+      --byt-yellow:  #f0b90b;
+      --byt-green:   #0ecb81;
+      --byt-red:     #f6465d;
+      --byt-mono:    'JetBrains Mono', 'Courier New', monospace;
+    }
+
     .bybit-terminal {
       position: static !important;
       display: flex !important;
@@ -14,14 +28,42 @@
       z-index: auto !important;
       min-height: calc(100vh - 52px);
       width: 100%;
+      background: var(--byt-bg);
+      color: var(--byt-text);
+      font-family: 'Inter', sans-serif;
     }
 
-    /* ── Top two-column layout ── */
+    /* ── Header ── */
+    .byt-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.4rem 1rem;
+      background: var(--byt-panel);
+      border-bottom: 1px solid var(--byt-border);
+      font-size: 13px;
+    }
+
+    /* ── Balance strip ── */
+    .byt-bal-strip {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 0.3rem 1rem;
+      background: var(--byt-panel);
+      border-bottom: 1px solid var(--byt-border);
+      font-size: 12px;
+    }
+    .byt-bal-item { display: flex; align-items: center; gap: 0.35rem; }
+    .byt-bal-label { color: var(--byt-muted); }
+    .byt-bal-value { color: var(--byt-text); font-weight: 600; font-family: var(--byt-mono); }
+    .byt-bal-value.avail { color: var(--byt-green); }
+
+    /* ── Top layout ── */
     .byt-top-layout {
       display: flex;
       flex: 1 0 auto;
       min-height: 0;
-      border-bottom: 1px solid #1a2030;
     }
 
     .byt-chart-col {
@@ -29,52 +71,442 @@
       min-width: 0;
       display: flex;
       flex-direction: column;
-      border-right: 1px solid #1a2030;
+      border-right: 1px solid var(--byt-border);
     }
 
-    #bytTvChartWrap {
-      flex: 1;
-      min-height: 550px;
+    .byt-sym-bar {
+      display: flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--byt-border);
+      background: var(--byt-panel);
+      position: relative;
+      gap: 0.5rem;
     }
+    .byt-sym-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--byt-text);
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      text-transform: uppercase;
+      width: 200px;
+    }
+    .byt-sym-input::placeholder { color: var(--byt-muted); font-size: 13px; font-weight: 400; }
 
-    /* ── Order sidebar (right) ── */
+    #bytTvChartWrap { flex: 1; min-height: 550px; }
+
+    /* ── Order sidebar ── */
     .byt-order-sidebar {
       flex: 0 0 35%;
       min-width: 0;
       overflow-y: auto;
-      padding: 0.85rem 1rem;
-      background: #0d1117;
-    }
-
-    /* ── Bottom tabs section ── */
-    .byt-bottom-section {
+      background: var(--byt-panel);
       display: flex;
       flex-direction: column;
-      background: #090c12;
+    }
+    .byt-order-sidebar::-webkit-scrollbar { width: 4px; }
+    .byt-order-sidebar::-webkit-scrollbar-track { background: transparent; }
+    .byt-order-sidebar::-webkit-scrollbar-thumb { background: var(--byt-border); border-radius: 2px; }
+
+    .byt-order-body { padding: 0.8rem 0.85rem; flex: 1; }
+
+    /* ── Cat toggle ── */
+    .byt-cat-toggle {
+      display: flex;
+      background: var(--byt-bg);
+      border-radius: 4px;
+      padding: 2px;
+      margin-bottom: 0.65rem;
+      gap: 2px;
+    }
+    .byt-cat-btn {
+      flex: 1;
+      padding: 0.28rem 0.5rem;
+      border: none;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      background: transparent;
+      color: var(--byt-muted);
+      transition: all 0.15s;
+    }
+    .byt-cat-btn.active { background: var(--byt-card); color: var(--byt-text); }
+
+    /* ── Long/Short ── */
+    .byt-dir-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.65rem;
+    }
+    .byt-dir-btn {
+      padding: 0.6rem 0.5rem;
+      border: none;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+    }
+    .byt-dir-btn.long        { background: rgba(14,203,129,0.12); color: rgba(14,203,129,0.45); }
+    .byt-dir-btn.long.active  { background: var(--byt-green);       color: #000; }
+    .byt-dir-btn.short       { background: rgba(246,70,93,0.12);  color: rgba(246,70,93,0.45); }
+    .byt-dir-btn.short.active { background: var(--byt-red);         color: #fff; }
+
+    /* ── Available row ── */
+    .byt-avail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.3rem 0;
+      margin-bottom: 0.5rem;
+      font-size: 12px;
+      color: var(--byt-muted);
+      border-bottom: 1px solid var(--byt-border);
+    }
+    .byt-avail-row span:last-child { color: var(--byt-text); font-weight: 600; font-family: var(--byt-mono); }
+
+    /* ── Order type tabs ── */
+    .byt-ot-row {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0.65rem;
+      border-bottom: 1px solid var(--byt-border);
+    }
+    .byt-ot-tab {
+      padding: 0.3rem 0.9rem;
+      border: none;
+      background: transparent;
+      color: var(--byt-muted);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    .byt-ot-tab.active { color: var(--byt-text); border-bottom-color: var(--byt-yellow); }
+
+    /* ── Fields & inputs ── */
+    .byt-field { margin-bottom: 0.5rem; }
+    .byt-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--byt-muted);
+      margin-bottom: 0.2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .byt-input {
+      width: 100%;
+      background: var(--byt-card);
+      border: 1px solid var(--byt-border);
+      border-radius: 4px;
+      color: var(--byt-text);
+      font-size: 13px;
+      font-family: var(--byt-mono);
+      padding: 0.38rem 0.55rem;
+      outline: none;
+      box-sizing: border-box;
+      transition: border-color 0.15s;
+    }
+    .byt-input:focus { border-color: var(--byt-yellow); }
+    .byt-input::placeholder { color: var(--byt-muted); font-size: 11px; font-family: inherit; }
+    select.byt-input { cursor: pointer; }
+
+    /* ── Leverage ── */
+    .byt-lev-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    input[type=range].byt-slider {
+      flex: 1;
+      height: 3px;
+      accent-color: var(--byt-yellow);
+      cursor: pointer;
+    }
+    .byt-lev-badge {
+      background: var(--byt-bg);
+      border: 1px solid var(--byt-border);
+      border-radius: 3px;
+      padding: 0.2rem 0.45rem;
+      color: var(--byt-yellow);
+      font-weight: 700;
+      font-size: 13px;
+      font-family: var(--byt-mono);
+      min-width: 44px;
+      text-align: center;
     }
 
-    .byt-bottom-section .byt-tabs {
-      border-bottom: 1px solid #1a2030;
-      flex-shrink: 0;
+    /* ── Qty mode tabs ── */
+    .byt-qty-tabs {
+      display: flex;
+      background: var(--byt-bg);
+      border: 1px solid var(--byt-border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0.4rem;
     }
-
-    .byt-bottom-section .byt-page {
-      padding: 0.85rem 1.2rem;
-      min-height: 200px;
+    .byt-qty-mode {
+      flex: 1;
+      padding: 0.25rem 0.15rem;
+      border: none;
+      background: transparent;
+      color: var(--byt-muted);
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      border-right: 1px solid var(--byt-border);
     }
+    .byt-qty-mode:last-child { border-right: none; }
+    .byt-qty-mode.active { background: var(--byt-card); color: var(--byt-yellow); }
 
-    /* ── AI TF selector buttons ── */
+    /* ── % quick-fill ── */
+    .byt-pct-row {
+      display: flex;
+      gap: 0.3rem;
+      margin-top: 0.35rem;
+      margin-bottom: 0.5rem;
+    }
+    .byt-pct-btn {
+      flex: 1;
+      padding: 0.3rem 0.2rem;
+      background: var(--byt-bg);
+      border: 1px solid var(--byt-border);
+      border-radius: 3px;
+      color: var(--byt-muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .byt-pct-btn:hover { border-color: var(--byt-yellow); color: var(--byt-yellow); }
+
+    /* ── SL/TP grid ── */
+    .byt-sltp-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .byt-sl-mode-tog {
+      display: flex;
+      border: 1px solid #7f1d1d;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .byt-sl-mode-btn {
+      flex: 1;
+      padding: 0.1rem 0.35rem;
+      border: none;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      background: transparent;
+      color: var(--byt-muted);
+      transition: all 0.15s;
+    }
+    .byt-sl-mode-btn.active { background: #7f1d1d; color: #fca5a5; }
+    .byt-tp-mode-tog {
+      display: flex;
+      border: 1px solid #14532d;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .byt-tp-mode-btn {
+      flex: 1;
+      padding: 0.1rem 0.35rem;
+      border: none;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      background: transparent;
+      color: var(--byt-muted);
+      transition: all 0.15s;
+    }
+    .byt-tp-mode-btn.active { background: #14532d; color: #86efac; }
+
+    /* ── Summary rows ── */
+    .byt-sum-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      padding: 0.18rem 0;
+      color: var(--byt-muted);
+    }
+    .byt-sum-row span:last-child { color: var(--byt-text); font-family: var(--byt-mono); }
+
+    /* ── Mode toggle ── */
+    .ap-mode-toggle {
+      display: flex;
+      background: var(--byt-bg);
+      border: 1px solid var(--byt-border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .ap-mode-btn {
+      flex: 1;
+      padding: 0.35rem 0.5rem;
+      border: none;
+      background: transparent;
+      color: var(--byt-muted);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .ap-mode-btn.manual.active    { background: var(--byt-card); color: var(--byt-text); }
+    .ap-mode-btn.autopilot.active { background: rgba(124,58,237,0.2); color: #a855f7; }
+
+    /* ── Place button ── */
+    .byt-place-btn {
+      width: 100%;
+      padding: 0.7rem;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+      letter-spacing: 0.3px;
+      margin-top: 0.65rem;
+      transition: opacity 0.2s;
+    }
+    .byt-place-btn:hover { opacity: 0.88; }
+
+    /* ── AI TF select ── */
     .byt-ai-tf-sel {
-      width:100%;margin-bottom:0.5rem;background:#0f1319;color:#e5e9f2;
-      border:1px solid #252d3d;border-radius:6px;padding:0.35rem 0.5rem;
-      font-size:12px;font-family:inherit;cursor:pointer;outline:none;
+      width: 100%;
+      margin-bottom: 0.5rem;
+      background: var(--byt-card);
+      border: 1px solid var(--byt-border);
+      border-radius: 4px;
+      color: var(--byt-text);
+      padding: 0.35rem 0.5rem;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      outline: none;
     }
-    .byt-ai-tf-sel:focus { border-color:rgba(168,85,247,0.5); }
+    .byt-ai-tf-sel:focus { border-color: rgba(168,85,247,0.5); }
+
+    /* ── Bottom section ── */
+    .byt-bottom-section {
+      border-top: 1px solid var(--byt-border);
+      background: var(--byt-panel);
+    }
+    .byt-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--byt-border);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .byt-tabs::-webkit-scrollbar { display: none; }
+    .byt-tab {
+      padding: 0.55rem 1rem;
+      border: none;
+      background: transparent;
+      color: var(--byt-muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+    .byt-tab.active           { color: var(--byt-yellow); border-bottom-color: var(--byt-yellow); }
+    .byt-tab:hover:not(.active) { color: var(--byt-text); }
+    .byt-badge {
+      display: inline-block;
+      background: var(--byt-border);
+      color: var(--byt-muted);
+      border-radius: 10px;
+      padding: 0.05rem 0.4rem;
+      font-size: 10px;
+      font-weight: 700;
+      margin-left: 0.25rem;
+    }
+    .byt-page { display: none; padding: 0.75rem 1rem; min-height: 180px; }
+    .byt-page.active { display: block; }
+    .byt-empty { color: var(--byt-muted); font-size: 13px; text-align: center; padding: 2rem 0; }
+
+    /* ── Autopilot ── */
+    .byt-summary-card {
+      background: var(--byt-card);
+      border: 1px solid var(--byt-border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.85rem;
+    }
+    .ap-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .ap-stat { background: var(--byt-bg); border: 1px solid var(--byt-border); border-radius: 6px; padding: 0.45rem 0.6rem; }
+    .ap-stat-label { font-size: 10px; color: var(--byt-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 0.15rem; }
+    .ap-stat-val   { font-size: 13px; font-weight: 700; font-family: var(--byt-mono); color: var(--byt-text); }
+    .ap-start-btn {
+      display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+      width: 100%; padding: 0.55rem;
+      background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.35);
+      border-radius: 6px; color: #a855f7;
+      font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+      transition: all 0.15s;
+    }
+    .ap-start-btn:hover { background: rgba(124,58,237,0.22); }
+    .ap-stop-btn {
+      width: 100%; padding: 0.45rem;
+      background: rgba(246,70,93,0.1); border: 1px solid rgba(246,70,93,0.3);
+      border-radius: 6px; color: var(--byt-red);
+      font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+    }
+    .ap-status-bar {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--byt-card); border: 1px solid var(--byt-border);
+      border-radius: 6px; padding: 0.5rem 0.75rem; margin-bottom: 0.75rem;
+    }
+    .ap-pulse { width: 8px; height: 8px; border-radius: 50%; }
+    .ap-pulse.monitoring { background: #0ecb81; box-shadow: 0 0 6px #0ecb81; animation: apPulse 1.5s ease-in-out infinite; }
+    @keyframes apPulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+    .ap-trade-card { background: var(--byt-card); border: 1px solid var(--byt-border); border-radius: 8px; padding: 0.8rem; margin-bottom: 0.75rem; }
+    .ap-progress-track { height: 5px; background: var(--byt-bg); border-radius: 3px; position: relative; overflow: visible; }
+    .ap-progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+    .ap-progress-fill.toward-tp { background: #0ecb81; }
+    .ap-progress-fill.toward-sl { background: #f6465d; }
+    .ap-milestone { position: absolute; top: -6px; bottom: -6px; border-left: 2px dashed #4a5568; }
+    .ap-milestone-label { position: absolute; top: -18px; left: 2px; font-size: 9px; color: #4a5568; white-space: nowrap; }
+    .ap-log { background: var(--byt-bg); border: 1px solid var(--byt-border); border-radius: 6px; padding: 0.5rem; max-height: 140px; overflow-y: auto; font-size: 11px; }
+    .ap-log::-webkit-scrollbar { width: 3px; }
+    .ap-log::-webkit-scrollbar-thumb { background: var(--byt-border); }
+    .ap-log-row { display: flex; gap: 0.5rem; margin-bottom: 0.2rem; }
+    .ap-log-row:last-child { margin-bottom: 0; }
+    .ap-log-time { color: #4a5568; font-family: var(--byt-mono); }
+    .ap-log-msg  { color: var(--byt-muted); }
+    .byt-pos-side { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 11px; font-weight: 700; font-family: var(--byt-mono); }
+    .byt-pos-side.long  { background: rgba(14,203,129,0.15); color: #0ecb81; }
+    .byt-pos-side.short { background: rgba(246,70,93,0.15);  color: #f6465d; }
 
     /* ── Responsive ── */
     @media (max-width: 860px) {
-      .byt-top-layout { flex-direction: column; }
-      .byt-chart-col  { flex: none; border-right: none; border-bottom: 1px solid #1a2030; }
+      .byt-top-layout  { flex-direction: column; }
+      .byt-chart-col   { flex: none; border-right: none; border-bottom: 1px solid var(--byt-border); }
       .byt-order-sidebar { flex: none; }
     }
   </style>
@@ -85,39 +517,28 @@
 <div id="bybitTerminal" class="bybit-terminal">
 
   <!-- Global notification bar -->
-  <div id="bytMsg" style="display:none;position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:9999;padding:0.4rem 1rem;border-radius:8px;font-size:13px;font-weight:700;background:#0d1117;border:1px solid #252d3d;min-width:200px;text-align:center;pointer-events:none"></div>
+  <div id="bytMsg" style="display:none;position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:9999;padding:0.4rem 1rem;border-radius:6px;font-size:13px;font-weight:700;background:#1e2026;border:1px solid #2b2f3e;min-width:200px;text-align:center;pointer-events:none"></div>
 
   <!-- Header -->
   <div class="byt-header">
     <div style="display:flex;align-items:center;gap:0.75rem">
-      <span style="font-size:1.05rem;font-weight:800;color:#f59e0b">⚡ Bybit Terminal</span>
-      <span id="bytSymLabel" style="font-size:0.92rem;color:#6b7897;font-weight:600"></span>
-      <span id="bytLiveBadge" style="display:none;font-size:12px;padding:0.15rem 0.5rem;border-radius:4px;font-weight:700;background:#052e16;color:#4ade80;border:1px solid #166534">● LIVE</span>
+      <span style="font-size:1rem;font-weight:800;color:#f0b90b;letter-spacing:0.3px">⚡ Bybit Terminal</span>
+      <span id="bytSymLabel" style="font-size:0.88rem;color:#848e9c;font-weight:600"></span>
+      <span id="bytLiveBadge" style="display:none;font-size:11px;padding:0.12rem 0.5rem;border-radius:3px;font-weight:700;background:rgba(14,203,129,0.12);color:#0ecb81;border:1px solid rgba(14,203,129,0.3)">● LIVE</span>
     </div>
-    <div style="display:flex;align-items:center;gap:0.6rem">
-      <button onclick="bybitTerminalClose()" style="background:none;border:none;color:#6b7897;font-size:1.6rem;cursor:pointer;line-height:1;padding:0 0.3rem">&times;</button>
-    </div>
+    <button onclick="bybitTerminalClose()" style="background:none;border:none;color:#848e9c;font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem;transition:color .15s" onmouseover="this.style.color='#d1d4dc'" onmouseout="this.style.color='#848e9c'">&times;</button>
   </div>
 
   <!-- Balance strip -->
-  <div id="bytBalanceStrip" style="display:flex;align-items:center;gap:1.2rem;padding:0.4rem 1.2rem;background:#0d1117;border-bottom:1px solid #1a2030;font-size:12px;flex-wrap:wrap">
-    <div style="display:flex;align-items:center;gap:0.4rem">
-      <span style="color:#6b7897">Equity</span>
-      <span id="bytBalEquity" style="color:#e5e9f2;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+  <div id="bytBalanceStrip" class="byt-bal-strip">
+    <div class="byt-bal-item">
+      <span class="byt-bal-label">Equity</span>
+      <span id="bytBalEquity" class="byt-bal-value">—</span>
     </div>
-    <div style="display:flex;align-items:center;gap:0.4rem">
-      <span style="color:#6b7897">Available</span>
-      <span id="bytBalAvail" style="color:#22c55e;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
+    <div class="byt-bal-item">
+      <span class="byt-bal-label">Available</span>
+      <span id="bytBalAvail" class="byt-bal-value avail">—</span>
     </div>
-    <div style="display:flex;align-items:center;gap:0.4rem">
-      <span style="color:#6b7897">Margin</span>
-      <span id="bytBalMargin" style="color:#f59e0b;font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:0.4rem">
-      <span style="color:#6b7897">UPnL</span>
-      <span id="bytBalUPnl" style="font-weight:700;font-family:'JetBrains Mono',monospace">—</span>
-    </div>
-    <button onclick="bytFetchBalance()" style="margin-left:auto;background:none;border:1px solid #252d3d;color:#6b7897;border-radius:4px;padding:0.15rem 0.5rem;font-size:12px;cursor:pointer;font-family:inherit">⟳</button>
   </div>
 
   <!-- ── TOP: Chart + Order Form ── -->
@@ -125,293 +546,294 @@
 
     <!-- Left: Chart -->
     <div class="byt-chart-col">
-      <!-- Symbol search above chart (full chart-column width) -->
-      <div style="padding:6px 8px;border-bottom:1px solid #1a2030;background:#0d1117;position:relative">
-        <input id="bytSymbol" class="byt-input" placeholder="Search symbol… e.g. SOL" style="text-transform:uppercase;font-size:1rem;font-weight:700;background:#0f1319" autocomplete="off" oninput="bytSymSearch(this.value)" onkeydown="bytSymKeydown(event)">
-        <div id="bytSymDropdown" style="display:none;position:absolute;top:100%;left:8px;right:8px;background:#0d1018;border:1px solid #252d3d;border-radius:8px;z-index:100;max-height:200px;overflow-y:auto;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,0.5)"></div>
-        <div id="bytSymInfo" style="font-size:12px;color:#4a5568;margin-top:0.25rem;min-height:14px"></div>
+      <div class="byt-sym-bar">
+        <input id="bytSymbol" class="byt-sym-input" placeholder="Search symbol… e.g. SOL" autocomplete="off" oninput="bytSymSearch(this.value)" onkeydown="bytSymKeydown(event)">
+        <div id="bytSymDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#1e2026;border:1px solid #2b2f3e;border-radius:6px;z-index:100;max-height:200px;overflow-y:auto;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,0.6)"></div>
+        <div id="bytSymInfo" style="font-size:11px;color:#4a5568;position:absolute;right:10px;top:50%;transform:translateY(-50%);min-height:12px"></div>
       </div>
-
-      <!-- TradingView chart -->
       <div id="bytTvChartWrap" style="flex:1;min-height:0"></div>
     </div>
 
-    <!-- Right: Order form sidebar -->
+    <!-- Right: Order sidebar -->
     <div class="byt-order-sidebar">
-      <div style="display:flex;gap:0.25rem;margin-bottom:0.75rem;background:#090c12;border-radius:8px;padding:0.2rem;border:1px solid #1a2030">
-        <button id="bytCatFutures" onclick="bytSetCategory('linear')" style="flex:1;padding:0.3rem 0.5rem;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#f59e0b;color:#000;transition:all 0.15s">📈 Futures</button>
-        <button id="bytCatSpot"    onclick="bytSetCategory('spot')"   style="flex:1;padding:0.3rem 0.5rem;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:none;color:#6b7897;transition:all 0.15s">💱 Spot</button>
-      </div>
-      <div style="display:flex;gap:0.5rem;margin-bottom:0.85rem">
-        <button id="bytBuyBtn" class="byt-dir-btn long active" onclick="bytSetDir('Buy')">▲ LONG</button>
-        <button id="bytSellBtn" class="byt-dir-btn short" onclick="bytSetDir('Sell')">▼ SHORT</button>
-      </div>
+      <div class="byt-order-body">
 
-
-      <div id="bytLevField">
-        <div class="byt-field">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
-            <label style="margin-bottom:0">Leverage</label>
-            <span id="bytMaxLevLabel" style="font-size:12px;color:#4a5568"></span>
-          </div>
-          <div style="display:flex;align-items:center;gap:0.5rem">
-            <input type="range" id="bytLevSlider" min="1" max="125" value="10" style="flex:1;accent-color:#f59e0b" oninput="bytLevSliderChange(this.value)">
-            <input type="number" id="bytLevInput" min="1" max="125" value="10" style="width:52px;background:#0f1319;border:1px solid #252d3d;border-radius:6px;padding:0.3rem 0.4rem;color:#f59e0b;font-weight:700;font-size:14px;font-family:inherit;outline:none;text-align:center" oninput="bytLevInputChange(this.value)">
-            <span style="color:#f59e0b;font-weight:700;font-size:14px">x</span>
-          </div>
+        <!-- Futures / Spot -->
+        <div class="byt-cat-toggle">
+          <button id="bytCatFutures" onclick="bytSetCategory('linear')" class="byt-cat-btn active">📈 Futures</button>
+          <button id="bytCatSpot"    onclick="bytSetCategory('spot')"   class="byt-cat-btn">💱 Spot</button>
         </div>
-      </div>
 
-      <div class="byt-field">
-        <label>Order Type</label>
-        <select id="bytOrderType" class="byt-input" onchange="bytOrderTypeChange()">
-          <option value="Limit">Limit</option>
+        <!-- Long / Short -->
+        <div class="byt-dir-row">
+          <button id="bytBuyBtn"  class="byt-dir-btn long active" onclick="bytSetDir('Buy')">▲ Long</button>
+          <button id="bytSellBtn" class="byt-dir-btn short"        onclick="bytSetDir('Sell')">▼ Short</button>
+        </div>
+
+        <!-- Available balance -->
+        <div class="byt-avail-row">
+          <span>Available</span>
+          <span id="bytFormAvail">— USDT</span>
+        </div>
+
+        <!-- Order type tabs -->
+        <div class="byt-ot-row">
+          <button class="byt-ot-tab active" id="bytOtLimit"  onclick="bytOtSwitch('Limit',this)">Limit</button>
+          <button class="byt-ot-tab"        id="bytOtMarket" onclick="bytOtSwitch('Market',this)">Market</button>
+        </div>
+        <!-- Hidden select for app.js compatibility -->
+        <select id="bytOrderType" style="display:none" onchange="bytOrderTypeChange()">
+          <option value="Limit" selected>Limit</option>
           <option value="Market">Market</option>
         </select>
-      </div>
 
-      <div class="byt-field" id="bytEntryField">
-        <label>Entry Price</label>
-        <input id="bytEntry" class="byt-input" type="number" placeholder="0.00" step="any">
-      </div>
+        <!-- Entry Price -->
+        <div class="byt-field" id="bytEntryField">
+          <label>Price (USDT)</label>
+          <input id="bytEntry" class="byt-input" type="number" placeholder="0.00" step="any">
+        </div>
 
-      <div class="byt-field">
-        <div style="display:flex;gap:0;margin-bottom:0.4rem;border:1px solid #252d3d;border-radius:7px;overflow:hidden">
-          <button class="byt-qty-mode active" data-mode="qty"    onclick="bytSetQtyMode('qty')"    style="flex:1;padding:0.3rem;border:none;background:#1a1f2e;color:#f59e0b;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">QTY</button>
-          <button class="byt-qty-mode"        data-mode="cost"   onclick="bytSetQtyMode('cost')"   style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">COST $</button>
-          <button class="byt-qty-mode"        data-mode="margin" onclick="bytSetQtyMode('margin')" style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;border-right:1px solid #252d3d">MARGIN $</button>
-          <button class="byt-qty-mode"        data-mode="risk"   onclick="bytSetQtyMode('risk')"   style="flex:1;padding:0.3rem;border:none;background:#0f1319;color:#6b7897;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">RISK %</button>
-        </div>
-        <div id="bytQtyRow_qty">
-          <input id="bytQty" class="byt-input" type="number" placeholder="Contracts e.g. 0.5" step="any" oninput="bytUpdateSummary()">
-        </div>
-        <div id="bytQtyRow_cost" style="display:none">
-          <input id="bytQtyCost" class="byt-input" type="number" placeholder="Total order value in USDT" step="any" oninput="bytCalcFromCost()">
-        </div>
-        <div id="bytQtyRow_margin" style="display:none">
-          <input id="bytQtyMargin" class="byt-input" type="number" placeholder="Margin amount in USDT" step="any" oninput="bytCalcFromMargin()">
-        </div>
-        <div id="bytQtyRow_risk" style="display:none;gap:0.4rem;align-items:center">
-          <div style="display:flex;align-items:center;gap:0.5rem">
-            <input type="range" id="bytQtyRiskSlider" min="0.1" max="10" step="0.1" value="1" style="flex:1;accent-color:#f59e0b" oninput="el('bytQtyRiskVal').textContent=parseFloat(this.value).toFixed(1)+'%';bytCalcFromRisk()">
-            <span id="bytQtyRiskVal" style="color:#f59e0b;font-weight:700;font-size:14px;min-width:38px;text-align:right">1.0%</span>
-          </div>
-          <div id="bytQtyRiskNote" style="font-size:12px;color:#4a5568;margin-top:0.2rem"></div>
-        </div>
-        <div id="bytQtyHint" style="font-size:12px;color:#4a5568;margin-top:0.3rem;min-height:14px"></div>
-      </div>
-
-      <div id="bytSlTpGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+        <!-- Quantity -->
         <div class="byt-field">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
-            <label style="margin-bottom:0">Stop Loss</label>
-            <div style="display:flex;border:1px solid #7f1d1d;border-radius:5px;overflow:hidden">
-              <button id="bytSLModePrice" onclick="bytSetSlMode('price')" style="padding:0.15rem 0.45rem;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:#7f1d1d;color:#fca5a5;transition:all 0.15s">$Price</button>
-              <button id="bytSLModePnl"   onclick="bytSetSlMode('pnl')"   style="padding:0.15rem 0.45rem;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:#6b7897;transition:all 0.15s">PnL$</button>
+          <label>Amount</label>
+          <div class="byt-qty-tabs">
+            <button class="byt-qty-mode active" data-mode="qty"    onclick="bytSetQtyMode('qty')">QTY</button>
+            <button class="byt-qty-mode"        data-mode="cost"   onclick="bytSetQtyMode('cost')">COST $</button>
+            <button class="byt-qty-mode"        data-mode="margin" onclick="bytSetQtyMode('margin')">MARGIN $</button>
+            <button class="byt-qty-mode"        data-mode="risk"   onclick="bytSetQtyMode('risk')">RISK %</button>
+          </div>
+          <div id="bytQtyRow_qty">
+            <input id="bytQty" class="byt-input" type="number" placeholder="Contracts e.g. 0.5" step="any" oninput="bytUpdateSummary()">
+          </div>
+          <div id="bytQtyRow_cost" style="display:none">
+            <input id="bytQtyCost" class="byt-input" type="number" placeholder="Total order value in USDT" step="any" oninput="bytCalcFromCost()">
+          </div>
+          <div id="bytQtyRow_margin" style="display:none">
+            <input id="bytQtyMargin" class="byt-input" type="number" placeholder="Margin amount in USDT" step="any" oninput="bytCalcFromMargin()">
+          </div>
+          <div id="bytQtyRow_risk" style="display:none">
+            <div style="display:flex;align-items:center;gap:0.5rem">
+              <input type="range" id="bytQtyRiskSlider" min="0.1" max="10" step="0.1" value="1" style="flex:1;accent-color:#f0b90b" oninput="el('bytQtyRiskVal').textContent=parseFloat(this.value).toFixed(1)+'%';bytCalcFromRisk()">
+              <span id="bytQtyRiskVal" style="color:#f0b90b;font-weight:700;font-size:13px;min-width:38px;text-align:right;font-family:var(--byt-mono)">1.0%</span>
+            </div>
+            <div id="bytQtyRiskNote" style="font-size:11px;color:#4a5568;margin-top:0.2rem"></div>
+          </div>
+          <div id="bytQtyHint" style="font-size:11px;color:#4a5568;margin-top:0.25rem;min-height:13px;font-family:var(--byt-mono)"></div>
+        </div>
+
+        <!-- % quick-fill -->
+        <div class="byt-pct-row">
+          <button class="byt-pct-btn" onclick="bytFillPct(25)">25%</button>
+          <button class="byt-pct-btn" onclick="bytFillPct(50)">50%</button>
+          <button class="byt-pct-btn" onclick="bytFillPct(75)">75%</button>
+          <button class="byt-pct-btn" onclick="bytFillPct(100)">100%</button>
+        </div>
+
+        <!-- Leverage -->
+        <div id="bytLevField">
+          <div class="byt-field">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem">
+              <label style="margin-bottom:0">Leverage</label>
+              <span id="bytMaxLevLabel" style="font-size:11px;color:#4a5568"></span>
+            </div>
+            <div class="byt-lev-row">
+              <input type="range" id="bytLevSlider" min="1" max="125" value="10" class="byt-slider" oninput="bytLevSliderChange(this.value)">
+              <div style="display:flex;align-items:center;gap:2px">
+                <input type="number" id="bytLevInput" min="1" max="125" value="10" class="byt-lev-badge" style="width:46px;border:none;background:transparent;outline:none;text-align:center" oninput="bytLevInputChange(this.value)">
+                <span style="color:#f0b90b;font-weight:700;font-size:13px">×</span>
+              </div>
             </div>
           </div>
-          <input id="bytSL"    class="byt-input" type="number" placeholder="Price" step="any" style="border-color:#7f1d1d">
-          <input id="bytSLPnl" class="byt-input" type="number" placeholder="Loss e.g. -20" step="any" style="border-color:#7f1d1d;display:none;margin-top:0.3rem">
-          <div id="bytSLPnlHint" style="font-size:12px;color:#f87171;margin-top:0.2rem;min-height:13px;font-family:var(--font-mono)"></div>
         </div>
-        <div class="byt-field">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.3rem">
-            <label style="margin-bottom:0">Take Profit</label>
-            <div style="display:flex;border:1px solid #14532d;border-radius:5px;overflow:hidden">
-              <button id="bytTPModePrice" onclick="bytSetTpMode('price')" style="padding:0.15rem 0.45rem;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:#14532d;color:#86efac;transition:all 0.15s">$Price</button>
-              <button id="bytTPModePnl"   onclick="bytSetTpMode('pnl')"   style="padding:0.15rem 0.45rem;font-size:11px;font-weight:700;border:none;cursor:pointer;font-family:inherit;background:transparent;color:#6b7897;transition:all 0.15s">PnL$</button>
+
+        <!-- SL / TP -->
+        <div id="bytSlTpGrid" class="byt-sltp-grid">
+          <div class="byt-field">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem">
+              <label style="margin-bottom:0">Stop Loss</label>
+              <div class="byt-sl-mode-tog">
+                <button id="bytSLModePrice" onclick="bytSetSlMode('price')" class="byt-sl-mode-btn active">$</button>
+                <button id="bytSLModePnl"   onclick="bytSetSlMode('pnl')"   class="byt-sl-mode-btn">PnL</button>
+              </div>
             </div>
+            <input id="bytSL"    class="byt-input" type="number" placeholder="Price" step="any" style="border-color:#7f1d1d">
+            <input id="bytSLPnl" class="byt-input" type="number" placeholder="Loss e.g. -20" step="any" style="border-color:#7f1d1d;display:none;margin-top:0.3rem">
+            <div id="bytSLPnlHint" style="font-size:11px;color:#f6465d;margin-top:0.2rem;min-height:12px;font-family:var(--byt-mono)"></div>
           </div>
-          <input id="bytTP"    class="byt-input" type="number" placeholder="Price" step="any" style="border-color:#14532d">
-          <input id="bytTPPnl" class="byt-input" type="number" placeholder="Profit e.g. 50" step="any" style="border-color:#14532d;display:none;margin-top:0.3rem">
-          <div id="bytTPPnlHint" style="font-size:12px;color:#4ade80;margin-top:0.2rem;min-height:13px;font-family:var(--font-mono)"></div>
-        </div>
-      </div>
-
-      <div id="bytMarginModeField">
-        <div class="byt-field">
-          <label>Margin Mode</label>
-          <select id="bytMarginMode" class="byt-input">
-            <option value="ISOLATED">Isolated</option>
-            <option value="CROSS">Cross</option>
-          </select>
-        </div>
-      </div>
-
-      <div id="bytApModeWrap">
-        <div style="margin-bottom:0.65rem">
-          <div class="ap-mode-toggle" style="width:100%">
-            <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')" style="flex:1">✋ Manual</button>
-            <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')" style="flex:1">🤖 Autopilot</button>
+          <div class="byt-field">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.25rem">
+              <label style="margin-bottom:0">Take Profit</label>
+              <div class="byt-tp-mode-tog">
+                <button id="bytTPModePrice" onclick="bytSetTpMode('price')" class="byt-tp-mode-btn active">$</button>
+                <button id="bytTPModePnl"   onclick="bytSetTpMode('pnl')"   class="byt-tp-mode-btn">PnL</button>
+              </div>
+            </div>
+            <input id="bytTP"    class="byt-input" type="number" placeholder="Price" step="any" style="border-color:#166534">
+            <input id="bytTPPnl" class="byt-input" type="number" placeholder="Profit e.g. 50" step="any" style="border-color:#166534;display:none;margin-top:0.3rem">
+            <div id="bytTPPnlHint" style="font-size:11px;color:#0ecb81;margin-top:0.2rem;min-height:12px;font-family:var(--byt-mono)"></div>
           </div>
-          <div id="apModeHint" style="display:none;font-size:12px;color:#a855f7;margin-top:0.35rem;padding:0.35rem 0.5rem;background:rgba(124,58,237,0.08);border-radius:5px;border:1px solid rgba(124,58,237,0.2);line-height:1.5">
+        </div>
+
+        <!-- Margin Mode -->
+        <div id="bytMarginModeField">
+          <div class="byt-field">
+            <label>Margin Mode</label>
+            <select id="bytMarginMode" class="byt-input">
+              <option value="ISOLATED">Isolated</option>
+              <option value="CROSS">Cross</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Cost / summary rows -->
+        <div style="margin-bottom:0.5rem">
+          <div class="byt-sum-row"><span>Cost</span><span id="bsMargin">—</span></div>
+          <div class="byt-sum-row"><span>Max Position</span><span id="bsPosVal">—</span></div>
+          <div class="byt-sum-row"><span>Est. Max Loss</span><span id="bsMaxLoss" style="color:#f6465d">—</span></div>
+          <div class="byt-sum-row" style="display:none"><span>Est. Profit</span><span id="bsProfit" style="color:#0ecb81">—</span></div>
+          <div class="byt-sum-row" style="display:none"><span>R:R</span><span id="bsRR">—</span></div>
+        </div>
+
+        <!-- Manual / Autopilot -->
+        <div id="bytApModeWrap">
+          <div class="ap-mode-toggle">
+            <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')">✋ Manual</button>
+            <button class="ap-mode-btn autopilot"     id="apModeAutoBtn"   onclick="apSetMode('autopilot')">🤖 Autopilot</button>
+          </div>
+          <div id="apModeHint" style="display:none;font-size:11px;color:#a855f7;margin-top:0.35rem;padding:0.35rem 0.5rem;background:rgba(124,58,237,0.08);border-radius:4px;border:1px solid rgba(124,58,237,0.2);line-height:1.5">
             🤖 Order will be placed and autopilot will automatically monitor SL/TP milestones. Requires both SL and TP.
           </div>
         </div>
-      </div>
 
-      <button id="bytPlaceBtn" onclick="bytPlaceOrder()" class="byt-place-btn">
-        <span id="bytPlaceBtnLabel">▲ Place LONG Order</span>
-      </button>
-      <div id="bytOrderMsg" style="display:none;font-size:13px;font-weight:600;margin-top:0.5rem;padding:0.5rem 0.75rem;border-radius:7px;text-align:center"></div>
+        <!-- Place Order Button -->
+        <button id="bytPlaceBtn" onclick="bytPlaceOrder()" class="byt-place-btn" style="background:#0ecb81;color:#000">
+          <span id="bytPlaceBtnLabel">▲ Place Long Order</span>
+        </button>
+        <div id="bytOrderMsg" style="display:none;font-size:12px;font-weight:600;margin-top:0.5rem;padding:0.45rem 0.75rem;border-radius:4px;text-align:center"></div>
 
-      <!-- ── AI Analysis ── -->
-      <div style="border-top:1px solid #1a2030;margin-top:0.85rem;padding-top:0.75rem">
-        <div style="font-size:11px;font-weight:700;color:#6b7897;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem">🤖 AI Analysis</div>
-    
-      <select style="" id="bytAITfSel" class="byt-ai-tf-sel" onchange="bytSetAITf(this.value)">
-      <option value="1">1m</option>
-      <option value="3">3m</option>
-      <option value="5">5m</option>
-      <option value="15">15m</option>
-      <option value="30">30m</option>
-      <option value="45">45m</option>
-      <option value="60" selected>1h</option>
-      <option value="240">4h</option>
-      <option value="D">1d</option>
-      <option value="W">1w</option>
-      <option value="M">1M</option>
-    </select>
-     <button id="bytAIBtn" onclick="bytRunAI()" style="width:100%;padding:0.55rem;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.35);border-radius:8px;color:#a855f7;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">
-      🤖 Analyze with AI
-    </button>
+        <!-- AI Analysis -->
+        <div style="border-top:1px solid #2b2f3e;margin-top:0.85rem;padding-top:0.75rem">
+          <div style="font-size:10px;font-weight:700;color:#848e9c;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem">🤖 AI Analysis</div>
+          <select id="bytAITfSel" class="byt-ai-tf-sel" onchange="bytSetAITf(this.value)">
+            <option value="1">1m</option>
+            <option value="3">3m</option>
+            <option value="5">5m</option>
+            <option value="15">15m</option>
+            <option value="30">30m</option>
+            <option value="45">45m</option>
+            <option value="60" selected>1h</option>
+            <option value="240">4h</option>
+            <option value="D">1d</option>
+            <option value="W">1w</option>
+            <option value="M">1M</option>
+          </select>
+          <button id="bytAIBtn" onclick="bytRunAI()" style="width:100%;padding:0.5rem;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.35);border-radius:4px;color:#a855f7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">
+            🤖 Analyze with AI
+          </button>
+          <div id="bytAIInfo" style="font-size:11px;color:#4a5568;margin-top:0.3rem;text-align:center">— select a coin first</div>
+          <div id="bytAIPanel" style="display:none;margin-top:0.55rem;background:#0b0e11;border:1px solid #2b2f3e;border-radius:6px;padding:0.6rem"></div>
         </div>
-    </div>
-  </div>
 
+      </div><!-- /byt-order-body -->
+    </div><!-- /byt-order-sidebar -->
 
-
-  <div style="padding: 2rem; width : 100%; border-top:1px solid #1a2030;margin-top:0.85rem;padding-top:0.75rem">
-   
-    <div id="bytAIInfo" style="font-size:11px;color:#4a5568;margin-top:0.3rem;text-align:center">— select a coin first</div>
-    <div id="bytAIPanel" style="display:none;margin-top:0.55rem;background:#0a0d14;border:1px solid #1a2030;border-radius:8px;padding:0.65rem"></div>
-  </div>
+  </div><!-- /byt-top-layout -->
 
   <!-- ── BOTTOM: Tabs ── -->
   <div class="byt-bottom-section">
     <div class="byt-tabs">
-      <button class="byt-tab active" data-byttab="positions" onclick="bytSwitchTab('positions')">📊 Positions <span id="bytPosCount" class="byt-badge">0</span></button>
-      <button class="byt-tab" data-byttab="orders"    onclick="bytSwitchTab('orders')">📋 Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
-      <button class="byt-tab" data-byttab="assets"    onclick="bytSwitchTab('assets')">💰 Assets</button>
-      <button class="byt-tab" data-byttab="autopilot" onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none">🤖 Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
-      <button class="byt-tab" data-byttab="pricealerts" onclick="bytSwitchTab('pricealerts');bytLoadPriceAlerts()">💰 Price Alerts <span id="bytAlertCount" class="byt-badge">0</span></button>
+      <button class="byt-tab active" data-byttab="positions"   onclick="bytSwitchTab('positions')">Positions <span id="bytPosCount" class="byt-badge">0</span></button>
+      <button class="byt-tab"        data-byttab="orders"      onclick="bytSwitchTab('orders')">Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
+      <button class="byt-tab"        data-byttab="assets"      onclick="bytSwitchTab('assets')">Assets</button>
+      <button class="byt-tab"        data-byttab="autopilot"   onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none">Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
+      <button class="byt-tab"        data-byttab="pricealerts" onclick="bytSwitchTab('pricealerts');bytLoadPriceAlerts()">Price Alerts <span id="bytAlertCount" class="byt-badge">0</span></button>
     </div>
 
     <!-- TAB: Positions -->
     <div id="byt-positions" class="byt-page active">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
-        <div style="font-size:0.87rem;color:#6b7897">Live positions — auto-refreshes every 5s</div>
-        <button onclick="bytLoadPositions()" style="background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:6px;padding:0.3rem 0.75rem;font-size:12px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
+        <span style="font-size:11px;color:#848e9c">Live positions · auto-refreshes every 5s</span>
+        <button onclick="bytLoadPositions()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
       </div>
-      <div id="bytPositionsList">
-        <div class="byt-empty">No open positions</div>
-      </div>
+      <div id="bytPositionsList"><div class="byt-empty">No open positions</div></div>
     </div>
 
     <!-- TAB: Open Orders -->
     <div id="byt-orders" class="byt-page">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
-        <div style="font-size:0.87rem;color:#6b7897">Pending limit orders</div>
-        <button onclick="bytLoadOrders()" style="background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:6px;padding:0.3rem 0.75rem;font-size:12px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
+        <span style="font-size:11px;color:#848e9c">Pending limit orders</span>
+        <button onclick="bytLoadOrders()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
       </div>
-      <div id="bytOrdersList">
-        <div class="byt-empty">No open orders</div>
-      </div>
+      <div id="bytOrdersList"><div class="byt-empty">No open orders</div></div>
     </div>
 
     <!-- TAB: Assets -->
     <div id="byt-assets" class="byt-page">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem;flex-wrap:wrap;gap:0.5rem">
-        <div style="font-size:0.87rem;color:#6b7897">Bybit wallet balances</div>
-        <button onclick="bytLoadAssets()" style="background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:6px;padding:0.3rem 0.75rem;font-size:12px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
+        <span style="font-size:11px;color:#848e9c">Bybit wallet balances</span>
+        <button onclick="bytLoadAssets()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
       </div>
-      <div id="bytAssetsList">
-        <div class="byt-empty">No assets found</div>
-      </div>
+      <div id="bytAssetsList"><div class="byt-empty">No assets found</div></div>
     </div>
 
     <!-- TAB: Autopilot -->
     <div id="byt-autopilot" class="byt-page">
       <div style="max-width:700px">
 
-        <!-- SL Mode config card -->
-        <div class="byt-summary-card" style="margin-bottom:0.85rem">
-          <div style="font-size:0.82rem;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <div class="byt-summary-card">
+          <div style="font-size:11px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
             SL Mode — Trade Rules
           </div>
-
           <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.85rem">
-            <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:0.55rem 0.75rem;border-left:3px solid #22c55e;font-size:12px;color:var(--text-secondary);line-height:1.7">
-              <span style="color:#22c55e;font-weight:700">↑ TP Direction:</span>
-              Price reaches <strong style="color:var(--text-primary)">50%</strong> toward TP →
-              SL moves to <strong style="color:var(--text-primary)">half initial risk</strong> &nbsp;·&nbsp;
-              Price reaches <strong style="color:var(--text-primary)">60%</strong> toward TP →
-              SL moves to <strong style="color:#fbbf24">entry (breakeven)</strong>
+            <div style="background:var(--byt-bg);border-radius:4px;padding:0.5rem 0.7rem;border-left:3px solid #0ecb81;font-size:11px;color:#848e9c;line-height:1.7">
+              <span style="color:#0ecb81;font-weight:700">↑ TP Direction:</span> Price reaches <strong style="color:#d1d4dc">50%</strong> toward TP → SL moves to <strong style="color:#d1d4dc">half initial risk</strong> &nbsp;·&nbsp; Price reaches <strong style="color:#d1d4dc">60%</strong> toward TP → SL moves to <strong style="color:#f0b90b">entry (breakeven)</strong>
             </div>
-            <div style="background:var(--bg-input);border-radius:var(--radius-sm);padding:0.55rem 0.75rem;border-left:3px solid #ef4444;font-size:12px;color:var(--text-secondary);line-height:1.7">
-              <span style="color:#ef4444;font-weight:700">↓ SL Direction:</span>
-              Price drops <strong style="color:var(--text-primary)">60%</strong> toward SL (without hitting TP milestones) →
-              TP moves to <strong style="color:#fbbf24">entry (breakeven close)</strong>
+            <div style="background:var(--byt-bg);border-radius:4px;padding:0.5rem 0.7rem;border-left:3px solid #f6465d;font-size:11px;color:#848e9c;line-height:1.7">
+              <span style="color:#f6465d;font-weight:700">↓ SL Direction:</span> Price drops <strong style="color:#d1d4dc">60%</strong> toward SL → TP moves to <strong style="color:#f0b90b">entry (breakeven close)</strong>
             </div>
           </div>
-
-          <div style="border-top:1px solid var(--border-dim);padding-top:0.75rem">
+          <div style="border-top:1px solid #2b2f3e;padding-top:0.75rem">
             <div class="byt-field" style="margin-bottom:0.6rem">
               <label>Monitor Position (Symbol)</label>
-              <select id="apSymbolSelect" class="byt-input">
-                <option value="">— Select open position —</option>
-              </select>
+              <select id="apSymbolSelect" class="byt-input"><option value="">— Select open position —</option></select>
             </div>
             <div id="apPositionPreview" style="display:none;margin-bottom:0.65rem">
               <div class="ap-grid" id="apPreviewGrid"></div>
             </div>
             <button class="ap-start-btn" id="apStartBtn" onclick="apStart()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
               Start Autopilot SL Mode
             </button>
           </div>
         </div>
 
-        <!-- Active autopilot monitor -->
         <div id="apMonitor" style="display:none">
           <div class="ap-status-bar">
             <div class="ap-pulse monitoring" id="apPulseDot"></div>
-            <span style="font-size:13px;font-weight:700;color:var(--text-primary)" id="apStatusText">Monitoring…</span>
-            <span style="font-size:12px;color:var(--text-secondary)" id="apLivePrice">—</span>
-            <span style="margin-left:auto;font-size:12px;color:var(--text-muted)" id="apWsStatus">Connecting…</span>
+            <span style="font-size:13px;font-weight:700;color:#d1d4dc" id="apStatusText">Monitoring…</span>
+            <span style="font-size:12px;color:#848e9c" id="apLivePrice">—</span>
+            <span style="margin-left:auto;font-size:11px;color:#4a5568" id="apWsStatus">Connecting…</span>
           </div>
 
           <div class="ap-trade-card" id="apTradeCard">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
               <div style="display:flex;align-items:center;gap:0.5rem">
-                <span style="font-weight:800;font-size:1.00rem;color:var(--text-primary)" id="apCardSym">—</span>
+                <span style="font-weight:800;font-size:1rem;color:#d1d4dc" id="apCardSym">—</span>
                 <span class="byt-pos-side" id="apCardSide">—</span>
-                <span style="font-size:12px;color:var(--text-muted)" id="apCardLev">—</span>
+                <span style="font-size:11px;color:#848e9c" id="apCardLev">—</span>
               </div>
-              <div style="font-size:13px;font-weight:700;font-family:var(--font-mono)" id="apCardPnl">—</div>
+              <div style="font-size:13px;font-weight:700;font-family:var(--byt-mono)" id="apCardPnl">—</div>
             </div>
 
             <div class="ap-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0.55rem">
-              <div class="ap-stat">
-                <div class="ap-stat-label">Entry</div>
-                <div class="ap-stat-val" id="apCardEntry">—</div>
-              </div>
-              <div class="ap-stat" style="border-color:rgba(255,77,106,0.3)">
-                <div class="ap-stat-label">Stop Loss</div>
-                <div class="ap-stat-val" style="color:#ef4444" id="apCardSL">—</div>
-              </div>
-              <div class="ap-stat" style="border-color:rgba(0,229,160,0.3)">
-                <div class="ap-stat-label">Take Profit</div>
-                <div class="ap-stat-val" style="color:#22c55e" id="apCardTP">—</div>
-              </div>
+              <div class="ap-stat"><div class="ap-stat-label">Entry</div><div class="ap-stat-val" id="apCardEntry">—</div></div>
+              <div class="ap-stat" style="border-color:rgba(246,70,93,0.3)"><div class="ap-stat-label">Stop Loss</div><div class="ap-stat-val" style="color:#f6465d" id="apCardSL">—</div></div>
+              <div class="ap-stat" style="border-color:rgba(14,203,129,0.3)"><div class="ap-stat-label">Take Profit</div><div class="ap-stat-val" style="color:#0ecb81" id="apCardTP">—</div></div>
             </div>
 
             <div style="margin-bottom:0.4rem">
-              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:0.2rem">
-                <span>TP Progress</span>
-                <span id="apTpPct">0%</span>
-              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#848e9c;margin-bottom:0.2rem"><span>TP Progress</span><span id="apTpPct">0%</span></div>
               <div class="ap-progress-track">
                 <div class="ap-progress-fill toward-tp" id="apTpBar" style="width:0%"></div>
                 <div class="ap-milestone" style="left:50%"><div class="ap-milestone-label">50%</div></div>
@@ -419,10 +841,7 @@
               </div>
             </div>
             <div style="margin-bottom:0.65rem">
-              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);margin-bottom:0.2rem">
-                <span>SL Drawdown</span>
-                <span id="apSlPct">0%</span>
-              </div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#848e9c;margin-bottom:0.2rem"><span>SL Drawdown</span><span id="apSlPct">0%</span></div>
               <div class="ap-progress-track">
                 <div class="ap-progress-fill toward-sl" id="apSlBar" style="width:0%"></div>
                 <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
@@ -430,26 +849,16 @@
             </div>
 
             <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:0.65rem" id="apMilestones">
-              <div class="ap-stat" id="apMs1" style="flex:1;min-width:120px">
-                <div class="ap-stat-label">TP 50% → Half SL</div>
-                <div class="ap-stat-val" style="color:var(--text-muted);font-size:12px" id="apMs1Val">Waiting…</div>
-              </div>
-              <div class="ap-stat" id="apMs2" style="flex:1;min-width:120px">
-                <div class="ap-stat-label">TP 60% → Breakeven</div>
-                <div class="ap-stat-val" style="color:var(--text-muted);font-size:12px" id="apMs2Val">Waiting…</div>
-              </div>
-              <div class="ap-stat" id="apMs3" style="flex:1;min-width:120px">
-                <div class="ap-stat-label">SL 60% → BE Close</div>
-                <div class="ap-stat-val" style="color:var(--text-muted);font-size:12px" id="apMs3Val">Waiting…</div>
-              </div>
+              <div class="ap-stat" id="apMs1" style="flex:1;min-width:120px"><div class="ap-stat-label">TP 50% → Half SL</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs1Val">Waiting…</div></div>
+              <div class="ap-stat" id="apMs2" style="flex:1;min-width:120px"><div class="ap-stat-label">TP 60% → Breakeven</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs2Val">Waiting…</div></div>
+              <div class="ap-stat" id="apMs3" style="flex:1;min-width:120px"><div class="ap-stat-label">SL 60% → BE Close</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs3Val">Waiting…</div></div>
             </div>
           </div>
 
-          <div style="font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.3rem">Action Log</div>
+          <div style="font-size:10px;color:#848e9c;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.3rem">Action Log</div>
           <div class="ap-log" id="apLog">
             <div class="ap-log-row"><span class="ap-log-time">--:--:--</span><span class="ap-log-msg">Autopilot ready.</span></div>
           </div>
-
           <div style="margin-top:0.75rem">
             <button class="ap-stop-btn" onclick="apStop()">⬛ Stop Autopilot</button>
           </div>
@@ -460,25 +869,25 @@
 
     <!-- TAB: Price Alerts -->
     <div id="byt-pricealerts" class="byt-page">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;align-items:end;margin-bottom:1rem;flex-wrap:wrap">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;align-items:end;margin-bottom:0.85rem">
         <div>
-          <label style="font-size:11px;color:#6b7897;font-weight:600;display:block;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.4px">Symbol</label>
+          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Symbol</label>
           <input id="paSymbol" class="byt-input" placeholder="e.g. BTCUSDT" style="text-transform:uppercase" autocomplete="off">
         </div>
         <div>
-          <label style="font-size:11px;color:#6b7897;font-weight:600;display:block;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.4px">Target Price</label>
+          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Target Price</label>
           <input id="paPrice" class="byt-input" type="number" step="any" placeholder="0.00">
         </div>
         <div>
-          <label style="font-size:11px;color:#6b7897;font-weight:600;display:block;margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.4px">Direction</label>
+          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Direction</label>
           <div style="display:flex;gap:0.25rem">
-            <button id="paDirAbove" onclick="bytSetAlertDir('above')" style="flex:1;padding:0.38rem 0.5rem;border:1px solid #29ffb8;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#052e16;color:#29ffb8">📈 Above</button>
-            <button id="paDirBelow" onclick="bytSetAlertDir('below')" style="flex:1;padding:0.38rem 0.5rem;border:1px solid #252d3d;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#0f1319;color:#6b7897">📉 Below</button>
+            <button id="paDirAbove" onclick="bytSetAlertDir('above')" style="flex:1;padding:0.35rem 0.4rem;border:1px solid #0ecb81;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(14,203,129,0.1);color:#0ecb81">📈 Above</button>
+            <button id="paDirBelow" onclick="bytSetAlertDir('below')" style="flex:1;padding:0.35rem 0.4rem;border:1px solid #2b2f3e;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#1e2026;color:#848e9c">📉 Below</button>
           </div>
         </div>
-        <button onclick="bytSetPriceAlert()" style="background:linear-gradient(135deg,#0d4429,#29ffb8);color:#000;border:none;border-radius:8px;padding:0.42rem 1rem;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap">Set Alert</button>
+        <button onclick="bytSetPriceAlert()" style="background:#0ecb81;color:#000;border:none;border-radius:4px;padding:0.4rem 1rem;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">Set Alert</button>
       </div>
-      <div id="paErrMsg" style="display:none;font-size:12px;color:#f87171;margin-bottom:0.5rem;font-weight:600"></div>
+      <div id="paErrMsg" style="display:none;font-size:11px;color:#f6465d;margin-bottom:0.5rem;font-weight:600"></div>
       <div id="paAlertsList" style="display:flex;flex-direction:column;gap:0.4rem">
         <div class="byt-empty">No active price alerts</div>
       </div>
@@ -488,28 +897,28 @@
 
 </div><!-- /bybitTerminal -->
 
-<!-- Bybit Modify Modal -->
+<!-- Modify Position Modal -->
 <div id="bytModifyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;justify-content:center;align-items:center">
-  <div style="background:#13171f;border:1px solid #252d3d;border-radius:14px;padding:1.5rem;width:min(420px,95vw);display:flex;flex-direction:column;gap:0.75rem">
+  <div style="background:#1e2026;border:1px solid #2b2f3e;border-radius:10px;padding:1.5rem;width:min(400px,95vw);display:flex;flex-direction:column;gap:0.75rem">
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="font-weight:700;color:#e5e9f2" id="bytModifyTitle">Modify Position</div>
-      <button onclick="el('bytModifyModal').style.display='none'" style="background:none;border:none;color:#6b7897;font-size:1.4rem;cursor:pointer">&times;</button>
+      <div style="font-weight:700;color:#d1d4dc" id="bytModifyTitle">Modify Position</div>
+      <button onclick="el('bytModifyModal').style.display='none'" style="background:none;border:none;color:#848e9c;font-size:1.4rem;cursor:pointer">&times;</button>
     </div>
     <div class="byt-field"><label>Stop Loss</label><input id="bytModSL" class="byt-input" type="number" step="any" placeholder="Leave blank to keep current"></div>
     <div class="byt-field"><label>Take Profit</label><input id="bytModTP" class="byt-input" type="number" step="any" placeholder="Leave blank to keep current"></div>
     <input type="hidden" id="bytModSym">
     <input type="hidden" id="bytModSide">
-    <button onclick="bytSubmitModify()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">Update Position</button>
-    <div id="bytModifyMsg" style="display:none;font-size:13px;font-weight:600;text-align:center;padding:0.4rem;border-radius:6px"></div>
+    <button onclick="bytSubmitModify()" style="background:#1d4ed8;color:#fff;border:none;border-radius:4px;padding:0.6rem;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Update Position</button>
+    <div id="bytModifyMsg" style="display:none;font-size:12px;font-weight:600;text-align:center;padding:0.4rem;border-radius:4px"></div>
   </div>
 </div>
 
-<!-- Bybit Modify Order Modal -->
+<!-- Modify Order Modal -->
 <div id="bytModOrdModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;justify-content:center;align-items:center">
-  <div style="background:#13171f;border:1px solid #252d3d;border-radius:14px;padding:1.5rem;width:min(420px,95vw);display:flex;flex-direction:column;gap:0.75rem">
+  <div style="background:#1e2026;border:1px solid #2b2f3e;border-radius:10px;padding:1.5rem;width:min(400px,95vw);display:flex;flex-direction:column;gap:0.75rem">
     <div style="display:flex;align-items:center;justify-content:space-between">
-      <div style="font-weight:700;color:#e5e9f2">Modify Order</div>
-      <button onclick="el('bytModOrdModal').style.display='none'" style="background:none;border:none;color:#6b7897;font-size:1.4rem;cursor:pointer">&times;</button>
+      <div style="font-weight:700;color:#d1d4dc">Modify Order</div>
+      <button onclick="el('bytModOrdModal').style.display='none'" style="background:none;border:none;color:#848e9c;font-size:1.4rem;cursor:pointer">&times;</button>
     </div>
     <div class="byt-field"><label>New Price</label><input id="bytModOrdPrice" class="byt-input" type="number" step="any"></div>
     <div class="byt-field"><label>New Qty</label><input id="bytModOrdQty" class="byt-input" type="number" step="any"></div>
@@ -517,8 +926,8 @@
     <div class="byt-field"><label>New TP</label><input id="bytModOrdTP" class="byt-input" type="number" step="any" placeholder="Optional"></div>
     <input type="hidden" id="bytModOrdId">
     <input type="hidden" id="bytModOrdSym">
-    <button onclick="bytSubmitModifyOrder()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.6rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">Update Order</button>
-    <div id="bytModOrdMsg" style="display:none;font-size:13px;font-weight:600;text-align:center;padding:0.4rem;border-radius:6px"></div>
+    <button onclick="bytSubmitModifyOrder()" style="background:#1d4ed8;color:#fff;border:none;border-radius:4px;padding:0.6rem;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Update Order</button>
+    <div id="bytModOrdMsg" style="display:none;font-size:12px;font-weight:600;text-align:center;padding:0.4rem;border-radius:4px"></div>
   </div>
 </div>
 
@@ -544,7 +953,7 @@
       height:             550,
       allow_symbol_change: true,
       locale:             'en',
-      toolbar_bg:         isDark ? '#0d1117' : '#f0f3fa',
+      toolbar_bg:         isDark ? '#131722' : '#f0f3fa',
       hide_side_toolbar:  false,
       withdateranges:     true
     });
@@ -567,13 +976,32 @@
     } catch(_) {}
   }
 
+  // ── Order type tab helper ─────────────────────────────────────
+  function bytOtSwitch(type, btn) {
+    document.getElementById('bytOrderType').value = type;
+    document.querySelectorAll('.byt-ot-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (typeof bytOrderTypeChange === 'function') bytOrderTypeChange();
+  }
 
-  // Init on load + watch symbol label for changes
+  // ── % Quick-fill ──────────────────────────────────────────────
+  function bytFillPct(pct) {
+    const balText = (document.getElementById('bytBalAvail')?.textContent || '').replace(/[^0-9.]/g, '');
+    const bal = parseFloat(balText);
+    if (!bal) return;
+    bytSetQtyMode('cost');
+    const costInput = document.getElementById('bytQtyCost');
+    if (costInput) {
+      costInput.value = (bal * pct / 100).toFixed(2);
+      if (typeof bytCalcFromCost === 'function') bytCalcFromCost();
+    }
+  }
+
+  // Init on load
   document.addEventListener('DOMContentLoaded', function() {
-    // Load default TV chart on startup
     bytInitTvWidget('BTCUSDT');
 
-    // When app.js updates the symbol label, sync TV chart and read-only sidebar label
+    // Sync symbol label → TV chart and read-only spans
     const symLabel = document.getElementById('bytSymLabel');
     if (symLabel && window.MutationObserver) {
       new MutationObserver(function() {
@@ -584,7 +1012,16 @@
       }).observe(symLabel, { childList: true, subtree: true, characterData: true });
     }
 
-    // Symbol input above chart — debounce on input, immediate on Enter
+    // Sync available balance → form inline
+    const balEl = document.getElementById('bytBalAvail');
+    if (balEl && window.MutationObserver) {
+      new MutationObserver(function() {
+        const formAvail = document.getElementById('bytFormAvail');
+        if (formAvail) formAvail.textContent = (balEl.textContent || '—') + ' USDT';
+      }).observe(balEl, { childList: true, subtree: true, characterData: true });
+    }
+
+    // Symbol input above chart
     const symInput = document.getElementById('bytSymbol');
     if (symInput) {
       let _symDebounce = null;
@@ -633,7 +1070,7 @@
     btn.disabled = true; btn.textContent = '⏳ Analyzing…';
     if (info) info.textContent = `${fullSym.replace('USDT','')} · ${tfLabel}`;
     panel.style.display = 'block';
-    panel.innerHTML = '<div style="text-align:center;padding:0.75rem;color:#6b7897;font-size:12px">Fetching klines…</div>';
+    panel.innerHTML = '<div style="text-align:center;padding:0.75rem;color:#848e9c;font-size:12px">Fetching klines…</div>';
 
     try {
       const bybitBase = 'https://api.bybit.com';
@@ -705,24 +1142,24 @@ Respond ONLY in this exact JSON (no markdown):
       try { r = JSON.parse(raw.replace(/```json|```/gi,'').trim()); } catch(e) { throw new Error('Could not parse AI response'); }
 
       const dir = (r.direction||'NEUTRAL').toUpperCase();
-      const dc = dir==='LONG'?'#22c55e':dir==='SHORT'?'#ef4444':'#9aa3b5';
-      const cc = r.confidence==='HIGH'?'#22c55e':r.confidence==='MEDIUM'?'#f59e0b':'#ef4444';
+      const dc = dir==='LONG'?'#0ecb81':dir==='SHORT'?'#f6465d':'#848e9c';
+      const cc = r.confidence==='HIGH'?'#0ecb81':r.confidence==='MEDIUM'?'#f0b90b':'#f6465d';
       panel.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.4rem">
           <span style="font-weight:800;color:${dc};font-size:13px">${dir==='LONG'?'▲':dir==='SHORT'?'▼':'◆'} ${dir} · ${fullSym.replace('USDT','')}</span>
           <span style="font-size:10px;color:${cc};font-weight:700">${r.confidence||''}</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;margin-bottom:0.4rem">
-          ${[['Entry',r.entry,'#e5e9f2'],['SL',r.sl,'#ef4444'],['TP',r.tp,'#22c55e'],['R:R',r.rr,'#f59e0b']].map(([l,v,c])=>`
-          <div style="background:#0d0f14;border-radius:4px;padding:0.25rem 0.35rem">
-            <div style="font-size:9px;color:#5a6478;text-transform:uppercase">${l}</div>
-            <div style="font-family:'Courier New',monospace;font-size:11px;color:${c};font-weight:700">${v!=null?(typeof v==='number'?v.toFixed(v>=1000?2:4):v):'—'}</div>
+          ${[['Entry',r.entry,'#d1d4dc'],['SL',r.sl,'#f6465d'],['TP',r.tp,'#0ecb81'],['R:R',r.rr,'#f0b90b']].map(([l,v,c])=>`
+          <div style="background:#0b0e11;border-radius:4px;padding:0.25rem 0.35rem">
+            <div style="font-size:9px;color:#4a5568;text-transform:uppercase">${l}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${c};font-weight:700">${v!=null?(typeof v==='number'?v.toFixed(v>=1000?2:4):v):'—'}</div>
           </div>`).join('')}
         </div>
-        <div style="font-size:11px;color:#7b8db0;line-height:1.55;margin-bottom:0.4rem;max-height:80px;overflow-y:auto">${(r.reasoning||'').replace(/\n/g,'<br>')}</div>
+        <div style="font-size:11px;color:#848e9c;line-height:1.55;margin-bottom:0.4rem;max-height:80px;overflow-y:auto">${(r.reasoning||'').replace(/\n/g,'<br>')}</div>
         ${dir!=='NEUTRAL'&&r.entry&&r.sl?`<button onclick="bytApplyAI(${+r.entry||0},${+r.sl||0},${+r.tp||0},'${dir}')" style="width:100%;padding:0.3rem;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#a855f7;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">⚡ Apply to Order Form</button>`:''}`;
     } catch(err) {
-      panel.innerHTML = `<div style="color:#ef4444;font-size:12px;padding:0.5rem">✗ ${err.message}</div>`;
+      panel.innerHTML = `<div style="color:#f6465d;font-size:12px;padding:0.5rem">✗ ${err.message}</div>`;
     } finally {
       btn.disabled = false; btn.textContent = '🤖 Analyze with AI';
     }
@@ -747,11 +1184,11 @@ Respond ONLY in this exact JSON (no markdown):
     const aboveBtn = document.getElementById('paDirAbove');
     const belowBtn = document.getElementById('paDirBelow');
     if (dir === 'above') {
-      aboveBtn.style.cssText = 'flex:1;padding:0.38rem 0.5rem;border:1px solid #29ffb8;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#052e16;color:#29ffb8';
-      belowBtn.style.cssText = 'flex:1;padding:0.38rem 0.5rem;border:1px solid #252d3d;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#0f1319;color:#6b7897';
+      aboveBtn.style.cssText = 'flex:1;padding:0.35rem 0.4rem;border:1px solid #0ecb81;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(14,203,129,0.1);color:#0ecb81';
+      belowBtn.style.cssText = 'flex:1;padding:0.35rem 0.4rem;border:1px solid #2b2f3e;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#1e2026;color:#848e9c';
     } else {
-      aboveBtn.style.cssText = 'flex:1;padding:0.38rem 0.5rem;border:1px solid #252d3d;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#0f1319;color:#6b7897';
-      belowBtn.style.cssText = 'flex:1;padding:0.38rem 0.5rem;border:1px solid #f87171;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;background:#2d0a0a;color:#f87171';
+      aboveBtn.style.cssText = 'flex:1;padding:0.35rem 0.4rem;border:1px solid #2b2f3e;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#1e2026;color:#848e9c';
+      belowBtn.style.cssText = 'flex:1;padding:0.35rem 0.4rem;border:1px solid #f6465d;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(246,70,93,0.1);color:#f6465d';
     }
   }
 
@@ -784,12 +1221,12 @@ Respond ONLY in this exact JSON (no markdown):
       if (badge) badge.textContent = alerts.length;
       if (!alerts.length) { list.innerHTML = '<div class="byt-empty">No active price alerts</div>'; return; }
       list.innerHTML = alerts.map(a => `
-        <div style="display:flex;align-items:center;gap:0.75rem;background:#0f1319;border:1px solid #1e2535;border-radius:8px;padding:0.55rem 0.75rem;font-size:13px">
-          <span style="font-weight:700;color:#e5e9f2;min-width:80px">${a.symbol}</span>
-          <span style="color:#f59e0b;font-weight:700;font-family:'JetBrains Mono',monospace">${a.targetPrice}</span>
-          <span style="font-size:11px;padding:0.15rem 0.5rem;border-radius:4px;font-weight:700;${a.direction==='above'?'background:#052e16;color:#29ffb8':'background:#2d0a0a;color:#f87171'}">${a.direction==='above'?'📈 Above':'📉 Below'}</span>
+        <div style="display:flex;align-items:center;gap:0.75rem;background:#1e2026;border:1px solid #2b2f3e;border-radius:6px;padding:0.5rem 0.75rem;font-size:12px">
+          <span style="font-weight:700;color:#d1d4dc;min-width:80px;font-family:'JetBrains Mono',monospace">${a.symbol}</span>
+          <span style="color:#f0b90b;font-weight:700;font-family:'JetBrains Mono',monospace">${a.targetPrice}</span>
+          <span style="font-size:11px;padding:0.12rem 0.45rem;border-radius:3px;font-weight:700;${a.direction==='above'?'background:rgba(14,203,129,0.12);color:#0ecb81':'background:rgba(246,70,93,0.12);color:#f6465d'}">${a.direction==='above'?'📈 Above':'📉 Below'}</span>
           <span style="color:#4a5568;font-size:11px;margin-left:auto">${new Date(a.createdAt).toLocaleString()}</span>
-          <button onclick="bytDeleteAlert('${a._id}')" style="background:none;border:none;color:#4a5568;cursor:pointer;font-size:16px;line-height:1;padding:0.1rem 0.25rem;border-radius:4px" title="Delete">✕</button>
+          <button onclick="bytDeleteAlert('${a._id}')" style="background:none;border:none;color:#4a5568;cursor:pointer;font-size:15px;line-height:1;padding:0.1rem 0.25rem;border-radius:3px" title="Delete">✕</button>
         </div>`).join('');
     } catch(e) { console.warn('bytLoadPriceAlerts', e); }
   }
@@ -811,51 +1248,43 @@ Respond ONLY in this exact JSON (no markdown):
         if (msg) {
           msg.textContent = `💰 Price Alert: ${data.symbol} hit ${data.targetPrice}`;
           msg.style.display = 'block';
-          msg.style.color = '#29ffb8';
+          msg.style.color = '#0ecb81';
           setTimeout(() => msg.style.display = 'none', 5000);
         }
       });
     }
   });
 
-  // ── Patch bytSwitchTab so "order" tab no longer needed ────────  // app.js may still call bytSwitchTab('order') in some paths;
-  // silence it gracefully — the form is always visible now.
+  // Patch bytSwitchTab so "order" tab no longer needed
   const _origBytSwitchTab = window.bytSwitchTab;
   window.bytSwitchTab = function(tab) {
-    if (tab === 'order') return; // form is always visible
+    if (tab === 'order') return;
     if (typeof _origBytSwitchTab === 'function') _origBytSwitchTab(tab);
   };
 </script>
 <script src="/js/app.js"></script>
 <script src="/socket.io/socket.io.js"></script>
-<!-- Ghost elements for app.js bytUpdateSummary — sidebar removed but IDs must exist -->
+<!-- Ghost elements for app.js compatibility -->
 <div style="display:none" aria-hidden="true">
   <span id="bsSymbol"></span><span id="bsDir"></span><span id="bsEntry"></span>
-  <span id="bsQty"></span><span id="bsLev"></span><span id="bsPosVal"></span>
-  <span id="bsMargin"></span><span id="bsSL"></span><span id="bsTP"></span>
-  <span id="bsMaxLoss"></span><span id="bsProfit"></span><span id="bsRR"></span>
+  <span id="bsQty"></span><span id="bsLev"></span>
   <!-- scanner dropdown ghost (closeDropdown guard) -->
   <div id="searchDropdown"></div>
+  <span id="bytSymReadOnly"></span>
 </div>
 <script>
-  // After app.js loads, override bytSwitchTab again (it may redefine it)
-  // and restore default bottom tab to "positions"
   (function patchAfterAppJs() {
     const orig = window.bytSwitchTab;
     window.bytSwitchTab = function(tab) {
       if (tab === 'order') return;
       if (typeof orig === 'function') orig(tab);
     };
-    // Ensure positions tab is active at startup
-    if (typeof window.bytSwitchTab === 'function') {
-      // app.js may default to 'order'; switch to positions
-      setTimeout(() => {
-        const activeTab = document.querySelector('.byt-tabs .byt-tab.active');
-        if (!activeTab || activeTab.dataset.byttab === 'order') {
-          window.bytSwitchTab('positions');
-        }
-      }, 0);
-    }
+    setTimeout(() => {
+      const activeTab = document.querySelector('.byt-tabs .byt-tab.active');
+      if (!activeTab || activeTab.dataset.byttab === 'order') {
+        window.bytSwitchTab('positions');
+      }
+    }, 0);
   })();
 </script>
 <script src="/js/session-check.js"></script>

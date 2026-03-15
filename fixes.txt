@@ -1,48 +1,43 @@
-Add Discord notifications for the strategy bot and add a toggle for it in Discord settings.
+Redesign terminal.html to look and feel like Bybit's trading terminal UI.
 
-1. Discord Settings UI (settings page — Discord modal):
-   - Add a new toggle: "Strategy Bot Alerts" (on/off)
-   - Save this toggle to DB alongside existing Discord alert toggles
-   - Only send strategy bot Discord notifications if this toggle is ON
+Design reference — Bybit terminal layout:
+- Pure dark theme: #0b0e11 background, #1a1d26 panels, #252936 cards
+- Accent colors: Yellow #f0b90b for primary actions, Green #0ecb81 for long/profit, Red #f6465d for short/loss
+- Font: Clean monospace/tabular numbers for prices, sans-serif for labels
+- Tight dense layout — every pixel used, no wasted space
+- Subtle borders: 1px #2b2f3e between panels
 
-2. Bot Start Notification:
-   - When bot starts successfully, send a Discord embed:
-     - Title: "🤖 Strategy Bot Started"
-     - Fields: Strategy Name, Timeframe, Coins being scanned (count), Time (PKT)
-     - Color: Blue
+Layout (left to right):
+1. LEFT PANEL — TradingView chart (takes ~65% width, full height)
+   - Symbol input + timeframe selector bar at top of chart
+   - TV Chart / Our Chart toggle as tab pills
 
-3. Trade Placed Notification:
-   - When bot finds a matching coin and places a trade, send embed:
-     - Title: "📈 Bot Trade Opened" or "📉 Bot Trade Opened" (based on LONG/SHORT)
-     - Fields: Coin, Direction (LONG/SHORT), Entry Price, SL, TP, RR, Position Size, Strategy Name, Time (PKT)
-     - Color: Green for LONG, Red for SHORT
+2. RIGHT PANEL — Order Form (~35% width)
+   - Top: Long / Short toggle tabs (green/red, pill style)
+   - Account balance row (Available: X USDT)
+   - Order type tabs: Market | Limit
+   - Input rows (label left, input right):
+     - Price (for limit)
+     - Quantity (USDT / Coin toggle)
+     - Leverage slider with value badge
+     - TP input with toggle checkbox
+     - SL input with toggle checkbox
+   - % quick-fill buttons: 25% 50% 75% 100% (pill buttons)
+   - Cost / Max rows below inputs
+   - Big LONG or SHORT submit button (green/red, full width, rounded)
 
-4. TP Hit Notification:
-   - When TP is hit send embed:
-     - Title: "✅ Bot Trade — Take Profit Hit"
-     - Fields: Coin, Direction, Entry, Exit, PnL (USDT + %), Strategy Name, Time (PKT)
-     - Color: Green
+3. BOTTOM TABS PANEL (below chart, full width):
+   - Tabs: Positions | Open Orders | Assets | Autopilot
+   - Table rows: dark alternating rows, monospace numbers
+   - Close buttons: small red pill buttons on position rows
+   - Autopilot tab: same milestone cards but dark themed
 
-5. SL Hit Notification:
-   - When SL is hit send embed:
-     - Title: "❌ Bot Trade — Stop Loss Hit"
-     - Fields: Coin, Direction, Entry, Exit, PnL (USDT + %), Strategy Name, Time (PKT)
-     - Color: Red
+Styling rules:
+- All inputs: dark bg #1a1d26, border #2b2f3e, yellow focus ring
+- Scrollbars: thin, dark styled
+- Hover states on all interactive elements
+- Numbers: always monospace, green if positive, red if negative
+- Loading skeletons for balance/position data
+- Responsive but prioritize desktop (traders use desktop)
 
-6. Manual Close Notification (from the close position button we just added):
-   - When user manually closes a bot trade send embed:
-     - Title: "🔒 Bot Trade — Manually Closed"
-     - Fields: Coin, Direction, Entry, Exit, PnL (USDT + %), Strategy Name, Time (PKT)
-     - Color: Orange
-
-7. Implementation:
-   - Reuse the existing discordNotifier.js sendEmbed function
-   - Add a new function sendStrategyBotAlert(userId, type, data) in discordNotifier.js
-   - Fetch user's Discord webhook URL and strategyBotAlerts toggle from DB before sending
-   - If toggle is off or no webhook URL set, skip silently
-   - All times must be in PKT (UTC+5)
-
-   add the strategy builder button in the quick actions on the dashbord sidebar.
-   remove the streaks logic functionality from the project
-
-   push it to both branches
+Keep all existing JS functionality intact — only change the HTML structure and CSS. Do not break any existing API calls, socket events, or form submission logic.
