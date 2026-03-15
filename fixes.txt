@@ -1,75 +1,127 @@
-Add these condition blocks to the Strategy Builder — implement full logic 
-for each one in both the frontend block builder and the backend bot execution engine (strategyBot.js):
+Fix these Pine Script export bugs in the strategy builder:
 
-1. Candle Pattern block:
-   - Dropdown options: Hammer, Shooting Star, Doji, Bullish Engulfing, 
-     Bearish Engulfing, Morning Star, Evening Star, Pinbar
-   - Backend logic: detect pattern on last 1-3 closed candles using OHLC data
-   - Hammer: small body, long lower wick (2x body), small upper wick
-   - Shooting Star: small body, long upper wick (2x body), small lower wick  
-   - Doji: open ≈ close (within 0.1% of range)
-   - Bullish Engulfing: current green candle body fully engulfs previous red candle body
-   - Bearish Engulfing: current red candle body fully engulfs previous green candle body
-   - Morning Star: red candle → small doji/indecision → green candle closing above midpoint of first candle
-   - Evening Star: green candle → small doji/indecision → red candle closing below midpoint of first candle
-   - Pinbar: long wick (one side) at least 2.5x the body, closes in opposite direction
+1. Price Near Support — wrong formula, currently uses highest high instead of lowest low:
+   Fix to:
+   close >= ta.lowest(low, 50) and close <= ta.lowest(low, 50) * (1 + tolerance / 100)
+   where tolerance is the user's input % (default 1.5)
 
-2. Price Near Support block:
-   - Input: tolerance % (default 1%)
-   - Backend logic: calculate support as the lowest low of last 50 candles
-     (or last significant swing low — price that was rejected at least twice)
-   - Condition passes if current price is within tolerance % above support level
-   - Log the support level value when condition is checked
+2. Price Near Resistance — keep highest high but fix the logic to be clearly resistance:
+   close <= ta.highest(high, 50) and close >= ta.highest(high, 50) * (1 - tolerance / 100)
+   where tolerance is the user's input % (default 1.5)
 
-3. Price Near Resistance block:
-   - Input: tolerance % (default 1%)
-   - Backend logic: calculate resistance as highest high of last 50 candles
-     (or last significant swing high — price that was rejected at least twice)
-   - Condition passes if current price is within tolerance % below resistance level
-   - Log the resistance level value when condition is checked
+3. Doji tolerance too strict — current value 0.001 means almost no candle ever passes:
+   Fix to:
+   math.abs(close - open) <= (high - low) * 0.1
+   (10% of candle range is the standard doji definition)
 
-4. Higher High Formed block:
-   - Backend logic: compare last 3 swing highs
-   - Swing high = a candle whose high is higher than the 2 candles before and after it
-   - Condition passes if the most recent swing high is higher than the previous swing high
-   - Lookback: last 20 candles to find swing highs
+4. Higher High Formed — ta.pivothigh() returns na when no pivot found, comparing na > na never passes:
+   Fix to:
+   ph = ta.pivothigh(high, 2, 2)
+   ph1 = ta.pivothigh(high[1], 2, 2)
+   if not na(ph) and not na(ph1) and ph > ph1
 
-5. Lower Low Formed block:
-   - Backend logic: compare last 3 swing lows
-   - Swing low = a candle whose low is lower than the 2 candles before and after it
-   - Condition passes if the most recent swing low is lower than the previous swing low
-   - Lookback: last 20 candles to find swing lows
+5. Lower Low Formed — same na issue as Higher High:
+   Fix to:
+   pl = ta.pivotlow(low, 2, 2)
+   pl1 = ta.pivotlow(low[1], 2, 2)
+   if not na(pl) and not na(pl1) and pl < pl1
 
-6. Trend (Multi-Timeframe) block:
-   - User selects timeframe from dropdown: 
-     15m | 30m | 1h | 2h | 4h | 1D | 1W
-   - User selects direction: Bullish | Bearish | Any
-   - Backend logic: fetch last 50 candles of the selected timeframe for the coin from Binance
-   - Determine trend using EMA50 on selected timeframe: 
-     price above EMA50 = Bullish, below = Bearish
-   - Cache candle data per coin per timeframe separately
-     (refresh cache only when that timeframe's candle closes, not on every tick)
-   - Condition passes if trend matches selected direction
-   - Log: "BTCUSDT — 4H Trend: Bullish (price 45200 > EMA50 44800)"
-   - Multiple Trend blocks can be used in the same strategy on different timeframes
-   - In Pine Script export: generate request.security() call for the selected timeframe
-
-7. Trend Alignment block:
-   - User selects two timeframes to compare: 
-     Timeframe A dropdown (15m | 30m | 1h | 2h | 4h | 1D | 1W)
-     Timeframe B dropdown (15m | 30m | 1h | 2h | 4h | 1D | 1W)
-   - Options: Full Alignment | Partial Alignment
-   - Full Alignment: both selected timeframes trend in same direction as trade
-   - Partial Alignment: at least one timeframe matches trade direction
-   - Trade direction inferred from IF block type (LONG = bullish, SHORT = bearish)
-   - Reuses the same trend logic and cache from the Trend block above
-   - In Pine Script export: generate two request.security() calls and compare them
+Apply these fixes to both:
+- The Pine Script export generator
+- The actual backend evaluation logic in strategyBot.js 
+  so the bot executes these conditions correctly too
 
 
-General implementation rules:
-- Add all 8 blocks to the correct category in the frontend block builder UI
-- Each block must have proper UI inputs/dropdowns matching the options above
-- Each block must have a corresponding evaluation function in strategyBot.js
-- All higher timeframe data (1H, 4H) must be fetched separately from the bot's main timeframe
-- Add these blocks to Pine Script export too — generate the closest Pine Script equivalent for each
-- Log which condition passed or failed for each block during bot execution for debugging
+
+
+Rewrite the AI Day Trading Agent completely. Model it after the strategy bot 
+architecture (runs 24/7 server-side via PM2, survives tab close, uses candle-based 
+scanning loop). Replace the current agent logic entirely.
+
+ARCHITECTURE:
+- Agent runs server-side as a persistent loop (same pattern as strategyBot.js)
+- Survives tab close, server restart (PM2 keeps it alive)
+- One agent instance per user, tracked in a module-level Map keyed by userId
+- Agent state persisted in DB — if server restarts, agent resumes if it was running
+
+SETTINGS (all fetched fresh from DB on each scan cycle, never hardcoded):
+- Coins list — user selected coins to scan (from agent settings in settings page)
+- Timeframe — candle timeframe to scan on (15m | 30m | 1h | 2h | 4h | 1D)
+- Scan interval — how often to scan (on candle close of selected timeframe)
+- Trading hours — custom PKT hours range (e.g. 9:00–22:00), skip scans outside this window
+- Hard filter settings:
+  * Min volume (USDT)
+  * Min ATR%
+  * Trend alignment (optional toggle)
+  * RSI zone (optional — e.g. only scan if RSI < 40 or > 60)
+  * MACD filter (optional toggle)
+- AI provider — GLM-4.7-Flash | Kimi K2 | Claude Sonnet (use user's own API key)
+- Min confidence score — default 75, user can change
+- Risk per trade % — position size based on account balance
+- Max trades per day — hard stop after this many trades
+- Daily drawdown limit % — hard stop if DD exceeds this
+- Demo/Live mode — skip real Bybit orders in demo mode
+- One position at a time — do not scan if a position is already open
+
+SCAN LOOP (runs on every candle close of selected timeframe):
+1. Check trading hours — skip if outside PKT window
+2. Check guardrails — skip if max trades hit or daily DD exceeded
+3. Check open position — skip if position already open (one at a time rule)
+4. Fetch latest candles for all selected coins from Binance
+5. Run hard filters on each coin — discard coins that fail any filter
+6. For each coin that passes hard filters:
+   - Build full analysis payload: OHLC candles, RSI, MACD, EMA, volume, ATR, 
+     current price, trend direction, support/resistance levels
+   - Send to AI with this prompt structure:
+     "Analyze this coin for a potential trade. 
+      Return JSON only with these fields:
+      direction (LONG/SHORT/NONE), 
+      confidence_score (0-100), 
+      entry_price, 
+      stop_loss, 
+      take_profit, 
+      rr_ratio, 
+      reasoning (max 100 chars)"
+   - Parse AI response, extract confidence_score
+7. Collect all coins with confidence_score >= min threshold (default 75)
+8. If multiple coins qualify, pick the ONE with highest confidence score
+9. Place trade on that coin:
+   - Calculate position size from risk % and account balance
+   - Place market order on Bybit (or paper trade in demo mode)
+   - Save trade to DB with all details
+   - Send Discord alert (if enabled)
+   - Set hasOpenPosition = true
+10. If no coin scores >= threshold, log "No qualifying coins found" and wait for next candle
+
+POSITION MONITORING:
+- Monitor open position every 30 seconds
+- Check if current price hit TP or SL
+- If TP hit: close position, update DB, send Discord alert, set hasOpenPosition = false, resume scanning
+- If SL hit: close position, update DB, send Discord alert, set hasOpenPosition = false, resume scanning
+- Update live PnL in DB every 30 seconds for frontend to display
+
+AGENT CONTROLS (via socket or REST):
+- Start agent — POST /api/agent/start
+- Stop agent — POST /api/agent/stop
+- Get agent status — GET /api/agent/status (running, lastScan, openPosition, todayTrades, todayPnL)
+- Manual close position button — same as strategy bot close position we built earlier
+
+FRONTEND (agent.html):
+- Start/Stop toggle button with live status indicator
+- Last scan time
+- Today's stats: trades taken, win rate, total PnL
+- Open position card with live PnL (updates every 30s)
+- Trade history table with same filters as strategy bot:
+  Direction | Score | Entry | SL | TP | Exit | PnL | Status
+- Filter dropdowns: Direction, Score range, PnL sort, Status
+- Clear history button (same rules — skip open trades)
+- All agent settings in settings page must actually be read and applied
+
+LOGGING:
+- On start: "AI Agent started — scanning X coins on Ym — min score: Z"
+- On each scan: "Scanning X coins — Y passed hard filters"
+- On AI analysis: "BTCUSDT — AI score: 82 — direction: LONG"
+- On trade: "Trade placed — BTCUSDT LONG — score: 82 — entry: X SL: X TP: X"
+- On skip: "No qualifying coins this cycle — highest score: 71 (ETHUSDT)"
+- On TP/SL: "BTCUSDT TP hit — PnL: +$12.40 (+2.3%)"
+- On guardrail: "Max trades reached for today — agent paused until midnight PKT"
