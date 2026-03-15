@@ -179,6 +179,7 @@
           <tbody id="licTbody"><tr class="empty-row"><td colspan="10">Loading...</td></tr></tbody>
         </table>
       </div>
+      <div id="licTbody_pg" class="pg-bar"></div>
     </div>
   </div>
 
@@ -201,6 +202,7 @@
           <tbody id="userTbody"><tr class="empty-row"><td colspan="9">Loading...</td></tr></tbody>
         </table>
       </div>
+      <div id="userTbody_pg" class="pg-bar"></div>
     </div>
   </div>
 
@@ -218,6 +220,7 @@
           <tbody id="monthTbody"><tr><td colspan="3" style="color:var(--muted);padding:20px;text-align:center">Loading...</td></tr></tbody>
         </table>
       </div>
+      <div id="monthTbody_pg" class="pg-bar"></div>
     </div>
   </div>
 
@@ -256,6 +259,7 @@
           <tbody id="contactsTbody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody>
         </table>
       </div>
+      <div id="contactsTbody_pg" class="pg-bar"></div>
     </div>
   </div>
 </div>
@@ -370,6 +374,7 @@
   </div>
 </div>
 
+<script src="/js/pagination.js"></script>
 <script>
 // ── Helpers ──────────────────────────────────────────────────
 async function api(method, path, body) {
@@ -424,12 +429,16 @@ async function loadLicenses() {
 }
 
 function renderLicenses() {
+  pgSetup('licTbody', _licenses, _doRenderLicenses);
+}
+
+function _doRenderLicenses(slice) {
   const tbody = document.getElementById('licTbody');
   if (!_licenses.length) {
     tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No licenses yet</td></tr>';
     return;
   }
-  tbody.innerHTML = _licenses.map(l => {
+  tbody.innerHTML = slice.map(l => {
     const user = l.activatedByUserId
       ? `${l.activatedByUserId.firstName || ''} ${l.activatedByUserId.lastName || ''}<br><span style="color:var(--muted);font-size:11px">${l.activatedByUserId.email || ''}</span>`
       : '—';
@@ -535,9 +544,10 @@ async function loadUsers() {
 }
 
 function renderUsers(users) {
-  const tbody = document.getElementById('userTbody');
-  if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No users yet</td></tr>'; return; }
-  tbody.innerHTML = users.map(u => {
+  pgSetup('userTbody', users, function(slice) {
+    const tbody = document.getElementById('userTbody');
+    if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No users yet</td></tr>'; return; }
+    tbody.innerHTML = slice.map(u => {
     const isAdmin = u.role === 'admin';
     const suspBadge = u.suspiciousActivity ? ' <span class="badge badge-warn" title="Suspicious activity detected">⚠️</span>' : '';
     let acts = '';
@@ -559,6 +569,7 @@ function renderUsers(users) {
       <td><div class="acts">${acts}</div></td>
     </tr>`;
   }).join('');
+  });
 }
 
 function filterUsers() {
@@ -712,9 +723,15 @@ async function loadRevenue() {
       <div class="stat-card"><div class="stat-label">Suspended</div><div class="stat-value red">${d.suspended}</div></div>
     `;
     const months = Object.keys(d.monthly).sort().reverse();
-    document.getElementById('monthTbody').innerHTML = months.length
-      ? months.map(m => `<tr><td>${m}</td><td>${d.monthly[m].count}</td><td>$${d.monthly[m].revenue.toFixed(2)}</td></tr>`).join('')
-      : '<tr><td colspan="3" style="color:var(--muted);text-align:center">No data yet</td></tr>';
+    if (!months.length) {
+      document.getElementById('monthTbody').innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center">No data yet</td></tr>';
+    } else {
+      pgSetup('monthTbody', months, function(slice) {
+        document.getElementById('monthTbody').innerHTML = slice.map(m =>
+          `<tr><td>${m}</td><td>${d.monthly[m].count}</td><td>$${d.monthly[m].revenue.toFixed(2)}</td></tr>`
+        ).join('');
+      });
+    }
   } catch (e) { console.error(e); }
 }
 
@@ -755,7 +772,8 @@ async function loadContacts() {
       tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No contact submissions yet.</td></tr>';
       return;
     }
-    tbody.innerHTML = contacts.map(c => `
+    pgSetup('contactsTbody', contacts, function(slice) {
+      tbody.innerHTML = slice.map(c => `
       <tr style="${!c.read ? 'background:rgba(239,68,68,0.04)' : ''}">
         <td style="font-weight:${c.read?'400':'700'}">${c.name}</td>
         <td><a href="mailto:${c.email}" style="color:var(--accent);text-decoration:none">${c.email}</a></td>
@@ -768,6 +786,7 @@ async function loadContacts() {
           <button class="act-btn delete" onclick="deleteContact('${c._id}',this)">Delete</button>
         </td>
       </tr>`).join('');
+    });
   } catch(e) {
     tbody.innerHTML = `<tr class="empty-row"><td colspan="7" style="color:var(--danger)">${e.message}</td></tr>`;
   }
@@ -816,5 +835,3 @@ fetch('/api/public/app-name').then(r => r.ok ? r.json() : null).then(data => {
 }).catch(() => {});
 </script>
 <script src="/js/session-check.js"></script>
-</body>
-</html>

@@ -1448,6 +1448,7 @@ let _filterDir      = 'all';
 let _filterStatus   = 'all';
 let _sortPnl        = 'default';
 let _pnlInterval    = null;
+let _filteredTrades = [];
 
 async function loadAllTrades() {
   try {
@@ -1494,13 +1495,18 @@ function applyFilters() {
 }
 
 function renderTrades(trades) {
+  _filteredTrades = trades || [];
+  pgSetup('stratHistBody', _filteredTrades, _doRenderTradesPage);
+}
+
+function _doRenderTradesPage(slice) {
   const tbody = $('stratHistBody');
-  if (!trades?.length) {
+  if (!_filteredTrades.length) {
     tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#2a3545;padding:1.5rem">No trade history yet</td></tr>';
     updateHistSummary([]);
     return;
   }
-  tbody.innerHTML = trades.map(t => {
+  tbody.innerHTML = slice.map(t => {
     const isOpen = t.status === 'open';
     const pnlVal = t.pnl != null ? t.pnl : 0;
     const cls = pnlVal >= 0 ? 'pnl-pos' : 'pnl-neg';
@@ -1526,7 +1532,7 @@ function renderTrades(trades) {
       <td>${closeBtn}</td>
     </tr>`;
   }).join('');
-  updateHistSummary(trades);
+  updateHistSummary(_filteredTrades);
 }
 
 function startPnlUpdater() {

@@ -176,11 +176,13 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
       <!-- Open Positions -->
       <div class="cd-tab-content active" id="tab-open">
         <div id="openPosBody"><div class="cd-tbl-empty">No open positions</div></div>
+        <div id="openPosBody_pg" class="pg-bar"></div>
       </div>
 
       <!-- Trade History -->
       <div class="cd-tab-content" id="tab-history">
         <div id="historyBody"><div class="cd-tbl-empty">No trades yet</div></div>
+        <div id="historyBody_pg" class="pg-bar"></div>
       </div>
 
       <!-- Daily PnL chart -->
@@ -413,9 +415,17 @@ async function refreshOpenPositions() {
   } catch(e) {}
 }
 
+let _openTrades = [], _openPriceMap = {};
 function renderOpenPositions(trades, priceMap = {}) {
+  _openTrades = trades;
+  _openPriceMap = priceMap;
   const el = document.getElementById('openPosBody');
   if (!trades.length) { el.innerHTML = '<div class="cd-tbl-empty">No open positions</div>'; return; }
+  pgSetup('openPosBody', trades, _doRenderOpenPos);
+}
+
+function _doRenderOpenPos(slice) {
+  const el = document.getElementById('openPosBody');
   el.innerHTML = `
     <table class="cd-tbl">
       <thead><tr>
@@ -423,8 +433,8 @@ function renderOpenPositions(trades, priceMap = {}) {
         <th>Current</th><th>Unr. PnL</th><th>SL</th><th>TP</th><th></th>
       </tr></thead>
       <tbody>
-      ${trades.map(t => {
-        const cur  = priceMap[t.symbol] || t.entryPrice;
+      ${slice.map(t => {
+        const cur  = _openPriceMap[t.symbol] || t.entryPrice;
         const dir  = t.side === 'long' ? 1 : -1;
         const upnl = ((cur - t.entryPrice) / t.entryPrice) * t.quantity * (t.leverage||1) * dir;
         const pc   = upnl >= 0 ? 'green' : 'red';
@@ -444,9 +454,16 @@ function renderOpenPositions(trades, priceMap = {}) {
     </table>`;
 }
 
+let _histTrades = [];
 function renderHistory(trades) {
+  _histTrades = trades;
   const el = document.getElementById('historyBody');
   if (!trades.length) { el.innerHTML = '<div class="cd-tbl-empty">No closed trades yet</div>'; return; }
+  pgSetup('historyBody', trades, _doRenderHistory);
+}
+
+function _doRenderHistory(slice) {
+  const el = document.getElementById('historyBody');
   el.innerHTML = `
     <table class="cd-tbl">
       <thead><tr>
@@ -454,7 +471,7 @@ function renderHistory(trades) {
         <th>Exit</th><th>PnL</th><th>RR</th><th>Result</th>
       </tr></thead>
       <tbody>
-      ${trades.map(t => {
+      ${slice.map(t => {
         const pnl = parseFloat(t.pnl)||0;
         const pc  = pnl >= 0 ? 'green' : 'red';
         const dt  = t.closedAt ? new Date(t.closedAt).toLocaleDateString() : '—';
@@ -656,6 +673,5 @@ function showMsg(el, text, color) {
 // ── Boot ──────────────────────────────────────────────────────
 boot();
 </script>
+<script src="/js/pagination.js"></script>
 <script src="/js/session-check.js"></script>
-</body>
-</html>

@@ -241,6 +241,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
   </div><!-- .db-main -->
 </div><!-- .db-layout -->
 
+<script src="/js/pagination.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 // ── Sidebar toggle (mobile) ──────────────────────────────────────
@@ -335,8 +336,12 @@ async function dbLoadTab(tab) {
       const total = coins.reduce((s,c) => s+parseFloat(c.usdValue||0), 0);
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
         <th>Asset</th><th>Wallet Balance</th><th>Available</th><th>USD Value</th>
-      </tr></thead><tbody>
-        ${coins.map(c => {
+      </tr></thead><tbody id="db-spot-tbody"></tbody><tfoot><tr style="font-weight:700">
+        <td colspan="3" style="color:var(--text-muted)">Total</td>
+        <td class="mono" style="color:var(--green)">$${total.toFixed(2)}</td>
+      </tr></tfoot></table><div id="db-tab-spot_pg" class="pg-bar"></div>`;
+      pgSetup('db-tab-spot', coins, function(slice) {
+        document.getElementById('db-spot-tbody').innerHTML = slice.map(c => {
           const bal   = parseFloat(c.walletBalance||0);
           const avail = parseFloat(c.availableToWithdraw||c.availableToBorrow||c.free||0);
           const usd   = parseFloat(c.usdValue||0);
@@ -346,20 +351,17 @@ async function dbLoadTab(tab) {
             <td class="mono" style="color:var(--green)">${avail.toFixed(6)}</td>
             <td class="mono" style="color:var(--blue)">$${usd.toFixed(2)}</td>
           </tr>`;
-        }).join('')}
-        <tr style="font-weight:700">
-          <td colspan="3" style="color:var(--text-muted)">Total</td>
-          <td class="mono" style="color:var(--green)">$${total.toFixed(2)}</td>
-        </tr>
-      </tbody></table>`;
+        }).join('');
+      });
     } else if (tab === 'futures') {
       const d = await fetch('/api/dashboard/futures-positions').then(r => r.json());
       const positions = d.positions || [];
       if (!positions.length) { pane.innerHTML = '<div class="db-tab-empty">No open futures positions</div>'; return; }
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
         <th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>PnL</th><th>Lev</th>
-      </tr></thead><tbody>
-        ${positions.map(p => {
+      </tr></thead><tbody id="db-futures-tbody"></tbody></table><div id="db-tab-futures_pg" class="pg-bar"></div>`;
+      pgSetup('db-tab-futures', positions, function(slice) {
+        document.getElementById('db-futures-tbody').innerHTML = slice.map(p => {
           const pnl = parseFloat(p.unrealisedPnl||0);
           const pnlCls = pnl>=0?'profit':'loss';
           const side  = p.side==='Buy'?'LONG':'SHORT';
@@ -373,16 +375,17 @@ async function dbLoadTab(tab) {
             <td class="mono pos-pnl ${pnlCls}">${fmtPnl(pnl)}</td>
             <td class="mono">${p.leverage}x</td>
           </tr>`;
-        }).join('')}
-      </tbody></table>`;
+        }).join('');
+      });
     } else if (tab === 'orders') {
       const d = await fetch('/api/dashboard/orders').then(r => r.json());
       const orders = d.orders || [];
       if (!orders.length) { pane.innerHTML = '<div class="db-tab-empty">No open orders</div>'; return; }
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
         <th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th>
-      </tr></thead><tbody>
-        ${orders.map(o => {
+      </tr></thead><tbody id="db-orders-tbody"></tbody></table><div id="db-tab-orders_pg" class="pg-bar"></div>`;
+      pgSetup('db-tab-orders', orders, function(slice) {
+        document.getElementById('db-orders-tbody').innerHTML = slice.map(o => {
           const sc = o.side==='Buy'?'var(--green)':'var(--red)';
           return `<tr>
             <td style="font-weight:700;color:var(--text-primary)">${o.symbol.replace('USDT','')}</td>
@@ -392,8 +395,8 @@ async function dbLoadTab(tab) {
             <td class="mono">$${parseFloat(o.price||0).toFixed(2)||'—'}</td>
             <td style="font-size:0.72rem;color:var(--text-muted)">${o.orderStatus}</td>
           </tr>`;
-        }).join('')}
-      </tbody></table>`;
+        }).join('');
+      });
     }
   } catch(e) { pane.innerHTML = `<div class="db-tab-empty" style="color:var(--red)">Error: ${e.message}</div>`; }
 }
@@ -408,5 +411,3 @@ dbLoadTab('spot'); // pre-load first tab
 setInterval(loadSummary, 10000);
 </script>
 <script src="/js/session-check.js"></script>
-</body>
-</html>

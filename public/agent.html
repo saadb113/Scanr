@@ -164,6 +164,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1
       </tr></thead>
       <tbody id="todayTbody"><tr><td colspan="8" class="empty-row">No trades this session</td></tr></tbody>
     </table>
+    <div id="todayTbody_pg" class="pg-bar"></div>
   </div>
 
   <!-- ── Session History ── -->
@@ -176,11 +177,13 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1
       </tr></thead>
       <tbody id="histTbody"></tbody>
     </table>
+    <div id="histTbody_pg" class="pg-bar"></div>
   </div>
 
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/js/pagination.js"></script>
 <script>
 // ── Helpers ──────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -292,15 +295,26 @@ function renderTodayTrade(t) {
   `;
 }
 
+let _todayTrades = [];
 async function loadTodayTrades() {
   try {
     const r = await fetch('/api/agent/today');
     const j = await r.json();
-    if (j.ok && j.trades.length) {
-      $('todayTbody').innerHTML = '';
-      j.trades.forEach(renderTodayTrade);
+    if (j.ok) {
+      _todayTrades = j.trades || [];
+      pgSetup('todayTbody', _todayTrades, _doRenderTodayPage);
     }
   } catch {}
+}
+
+function _doRenderTodayPage(slice) {
+  const tbody = $('todayTbody');
+  tbody.innerHTML = '';
+  if (!_todayTrades.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No trades this session</td></tr>';
+    return;
+  }
+  slice.forEach(renderTodayTrade);
 }
 
 // ── Start / Stop ─────────────────────────────────────────────
@@ -380,6 +394,7 @@ async function pollStatus() {
 }
 
 // ── Session History ───────────────────────────────────────────
+let _histSessions = [];
 async function loadHistory() {
   try {
     const r = await fetch('/api/agent/history?limit=60');
@@ -390,9 +405,16 @@ async function loadHistory() {
       $('histLoader').textContent = 'No sessions yet.';
       return;
     }
-    const tbody = $('histTbody');
-    tbody.innerHTML = '';
-    j.sessions.forEach(s => {
+    _histSessions = j.sessions;
+    $('histTable').style.display = 'table';
+    pgSetup('histTbody', _histSessions, _doRenderHistPage);
+  } catch {}
+}
+
+function _doRenderHistPage(slice) {
+  const tbody = $('histTbody');
+  tbody.innerHTML = '';
+  slice.forEach(s => {
       const pnl    = parseFloat(s.totalPnl)||0;
       const pnlCls = pnl>=0?'var(--green)':'var(--red)';
       const pnlTxt = fmtP(pnl);
@@ -474,9 +496,7 @@ async function loadHistory() {
           detailTd.innerHTML = '<div style="color:var(--red);font-size:0.82rem;padding:0.4rem">Failed to load trades.</div>';
         }
       });
-    });
-    $('histTable').style.display = 'table';
-  } catch {}
+  });
 }
 
 // ── Init ─────────────────────────────────────────────────────
