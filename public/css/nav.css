@@ -47,6 +47,12 @@
   color:var(--text-secondary,#9aa3b5); cursor:pointer;
   font-family:var(--font-ui,'Space Grotesk',system-ui,sans-serif); transition:all 0.12s;
 }
+.sh-dd-item i{
+      color: var(--text-secondary, #9aa3b5) !important;
+}
+html.light-mode .sh-dd-item i{
+      color: #445068 !important; 
+}
 .sh-dd-item:hover { background:var(--bg-elevated,#1a2030); color:var(--text-primary,#dde4f0); }
 .sh-dd-item.sh-dd-signout:hover { color:#f87171; background:rgba(248,113,113,0.08); }
 .sh-dd-sep    { height:1px; background:var(--border-dim,#1c2435); margin:0.25rem 0.35rem; }

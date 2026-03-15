@@ -289,6 +289,12 @@
         .sp-tab { padding:0.55rem 0.85rem; font-size:0.87rem; font-weight:600; color:var(--text-secondary); cursor:pointer; border-radius:var(--radius-sm); border-left:2px solid transparent; white-space:nowrap; transition:all var(--transition); user-select:none; }
         .sp-tab:hover { color:var(--text-primary); background:var(--bg-elevated); }
         .sp-tab.active { color:var(--accent-green); background:rgba(0,229,160,0.07); border-left-color:var(--accent-green); }
+        .sp-tab i{
+            color: var(--text-secondary) !important;
+        }
+        .sp-tab.active i{
+            color:var(--accent-green) !important;
+        }
         .sp-tab.ai-tab.active { color:var(--accent-purple); background:rgba(167,139,250,0.07); border-left-color:var(--accent-purple); }
         .sp-tab.profile-tab.active { color:var(--accent-blue); background:rgba(77,168,255,0.07); border-left-color:var(--accent-blue); }
         .sp-sidebar-divider { height:1px; background:var(--border-dim); margin:0.4rem 0.5rem; flex-shrink:0; }

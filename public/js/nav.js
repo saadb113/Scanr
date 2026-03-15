@@ -18,6 +18,7 @@
   headerEl.className = 'site-header';
   headerEl.id = 'siteHeader';
   headerEl.innerHTML = `
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <div class="sh-left">
       <a class="sh-logo" href="/">Monty<span>.</span></a>
       <span class="sh-clock" id="shClock"></span>
@@ -27,15 +28,23 @@
       <a class="sh-link" href="/scanner">Scanner</a>
       <a class="sh-link" href="/strategy">Strategy</a>
       <a class="sh-link" href="/terminal">Trade</a>
+      <a class="sh-link" href="/challenge">Challenge</a>
+      <a class="sh-link" href="/setups">Setups</a>
+      <a class="sh-link" href="/agent">AI Agent(Beta)</a>
+    
       <a class="sh-link sh-admin-link" href="/admin" id="shAdminLink" style="display:none">Admin</a>
-      <button class="sh-link sh-settings-btn" id="shSettingsBtn" title="Settings">⚙ Settings</button>
-      <button class="sh-link sh-theme-btn" id="shThemeBtn" title="Toggle light/dark mode"></button>
-      <div class="sh-pfp-wrap" id="shPfpWrap">
+      
+      
+      <div class="sh-pfp-wrap" style="margin-left: 5px;" id="shPfpWrap">
         <span class="sh-pfp" id="shPfp" title="Profile">👤</span>
         <div class="sh-pfp-dropdown" id="shPfpDropdown">
-          <button class="sh-dd-item" id="shDdProfile">👤 Edit Profile</button>
+          <button class="sh-dd-item" id="shDdProfile"><i class="fa-solid fa-user" style="color: rgb(255, 255, 255);"></i> Edit Profile</button>
           <div class="sh-dd-sep"></div>
-          <button class="sh-dd-item sh-dd-signout" id="shDdSignout">🚪 Sign Out</button>
+          <button class="sh-dd-item sh-settings-btn" id="shSettingsBtn" title="Settings"><i class="fa-solid fa-gear" style="color: rgb(255, 255, 255);"></i> Settings</button>
+          <div class="sh-dd-sep"></div>
+          <button class="sh-dd-item sh-theme-btn" id="shThemeBtn" title="Toggle light/dark mode"></button>
+          <div class="sh-dd-sep"></div>
+          <button class="sh-dd-item sh-dd-signout" id="shDdSignout"><i class="fa-solid fa-sign-out-alt" style="color: rgb(255, 255, 255);"></i> Sign Out</button>
         </div>
       </div>
     </nav>
@@ -90,10 +99,10 @@
   function applyTheme(t) {
     if (t === 'light') {
       root.classList.add('light-mode');
-      if (themeBtn) themeBtn.textContent = '☀';
+      if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-sun" style="color: rgb(255, 255, 255);"></i> Light Mode';
     } else {
       root.classList.remove('light-mode');
-      if (themeBtn) themeBtn.textContent = '🌙';
+      if (themeBtn) themeBtn.innerHTML = '<i class="fa-solid fa-moon" style="color: rgb(255, 255, 255);"></i> Dark Mode';
     }
     try { localStorage.setItem(THEME_KEY, t); } catch {}
   }

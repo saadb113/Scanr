@@ -1,127 +1,80 @@
-Fix these Pine Script export bugs in the strategy builder:
+Redesign the strategy page layout completely:
 
-1. Price Near Support — wrong formula, currently uses highest high instead of lowest low:
-   Fix to:
-   close >= ta.lowest(low, 50) and close <= ta.lowest(low, 50) * (1 + tolerance / 100)
-   where tolerance is the user's input % (default 1.5)
+LAYOUT:
+- Left sidebar (fixed 280px): Block Palette only
+- Main area (remaining width): Strategy Canvas only — maximum space, no clutter
+- Top bar (full width): page title left, buttons right
 
-2. Price Near Resistance — keep highest high but fix the logic to be clearly resistance:
-   close <= ta.highest(high, 50) and close >= ta.highest(high, 50) * (1 - tolerance / 100)
-   where tolerance is the user's input % (default 1.5)
+TOP BAR:
+- Left: "Strategy Builder" title + saved strategies dropdown to load existing
+- Right: these 4 buttons in a row:
+  * "💾 Save" — saves inline, no modal
+  * "📜 Pine Script" — opens Pine Script modal
+  * "🤖 Bot" — opens Bot modal  
+  * strategies dropdown to switch/load strategies
 
-3. Doji tolerance too strict — current value 0.001 means almost no candle ever passes:
-   Fix to:
-   math.abs(close - open) <= (high - low) * 0.1
-   (10% of candle range is the standard doji definition)
+LEFT SIDEBAR (280px, fixed height, scrollable):
+- "Blocks" heading
+- Collapsible categories with arrow toggle:
+  * Indicators (RSI, MACD, Stochastic, MA Cross, Price vs MA, Volume, ATR, BB)
+  * Candle Patterns (Hammer, Shooting Star, Doji, Engulfing, Morning/Evening Star, Pinbar)
+  * Price Action (Near Support, Near Resistance, Higher High, Lower Low)
+  * Trend (Multi-timeframe trend block, Trend Alignment)
+  * Time (Trading Hours)
+  * Actions (Enter Long, Enter Short)
+  * Risk (Stop Loss, Take Profit, Position Size)
+- Compact draggable block chips
+- Dark scrollbar, clean spacing
 
-4. Higher High Formed — ta.pivothigh() returns na when no pivot found, comparing na > na never passes:
-   Fix to:
-   ph = ta.pivothigh(high, 2, 2)
-   ph1 = ta.pivothigh(high[1], 2, 2)
-   if not na(ph) and not na(ph1) and ph > ph1
+MAIN CANVAS AREA:
+- Full remaining width and height
+- Filters bar at very top (collapsible, horizontal)
+- IF / ELSE IF / ELSE blocks rendered vertically with connecting lines
+- Each block is a clean dark card
+- Lots of breathing room
+- Drag and drop reordering of blocks and conditions
+- Add ELSE IF button between blocks
+- Empty state message when no blocks: "Drag blocks from the left to start building"
 
-5. Lower Low Formed — same na issue as Higher High:
-   Fix to:
-   pl = ta.pivotlow(low, 2, 2)
-   pl1 = ta.pivotlow(low[1], 2, 2)
-   if not na(pl) and not na(pl1) and pl < pl1
+PINE SCRIPT MODAL (opens on button click):
+- Large modal (~700px wide)
+- Title: "Pine Script Export"
+- Dark code block with monospace font showing full live-generated script
+- Copy to clipboard button top right
+- Close button
+- Auto updates as strategy changes
 
-Apply these fixes to both:
-- The Pine Script export generator
-- The actual backend evaluation logic in strategyBot.js 
-  so the bot executes these conditions correctly too
+BOT MODAL (opens on button click):
+- Large modal (~800px wide, tall)
+- Two tabs inside modal: "Bot Controls" | "Trade History"
 
+  Bot Controls tab:
+  - Strategy name (read only, shows current strategy)
+  - Timeframe dropdown
+  - Trading hours display (from filter settings)
+  - Big Start/Stop bot button (green/red, full width)
+  - Bot status: running indicator + last scan time
+  - Today's stats row: Trades | Win Rate | Today's PnL
+  - Discord alerts toggle (if webhook is set)
 
+  Trade History tab:
+  - Filter dropdowns row: Strategy | Direction | Status | Sort by PnL
+  - "Clear History" button top right (small, red outline)
+  - Trade table:
+    Coin | Dir | Entry | SL | TP | Exit | PnL | Status | Action
+  - Green/red PnL values
+  - "Close Position" button on open trades
+  - Empty state if no trades
+  - Scrollable table
 
-
-Rewrite the AI Day Trading Agent completely. Model it after the strategy bot 
-architecture (runs 24/7 server-side via PM2, survives tab close, uses candle-based 
-scanning loop). Replace the current agent logic entirely.
-
-ARCHITECTURE:
-- Agent runs server-side as a persistent loop (same pattern as strategyBot.js)
-- Survives tab close, server restart (PM2 keeps it alive)
-- One agent instance per user, tracked in a module-level Map keyed by userId
-- Agent state persisted in DB — if server restarts, agent resumes if it was running
-
-SETTINGS (all fetched fresh from DB on each scan cycle, never hardcoded):
-- Coins list — user selected coins to scan (from agent settings in settings page)
-- Timeframe — candle timeframe to scan on (15m | 30m | 1h | 2h | 4h | 1D)
-- Scan interval — how often to scan (on candle close of selected timeframe)
-- Trading hours — custom PKT hours range (e.g. 9:00–22:00), skip scans outside this window
-- Hard filter settings:
-  * Min volume (USDT)
-  * Min ATR%
-  * Trend alignment (optional toggle)
-  * RSI zone (optional — e.g. only scan if RSI < 40 or > 60)
-  * MACD filter (optional toggle)
-- AI provider — GLM-4.7-Flash | Kimi K2 | Claude Sonnet (use user's own API key)
-- Min confidence score — default 75, user can change
-- Risk per trade % — position size based on account balance
-- Max trades per day — hard stop after this many trades
-- Daily drawdown limit % — hard stop if DD exceeds this
-- Demo/Live mode — skip real Bybit orders in demo mode
-- One position at a time — do not scan if a position is already open
-
-SCAN LOOP (runs on every candle close of selected timeframe):
-1. Check trading hours — skip if outside PKT window
-2. Check guardrails — skip if max trades hit or daily DD exceeded
-3. Check open position — skip if position already open (one at a time rule)
-4. Fetch latest candles for all selected coins from Binance
-5. Run hard filters on each coin — discard coins that fail any filter
-6. For each coin that passes hard filters:
-   - Build full analysis payload: OHLC candles, RSI, MACD, EMA, volume, ATR, 
-     current price, trend direction, support/resistance levels
-   - Send to AI with this prompt structure:
-     "Analyze this coin for a potential trade. 
-      Return JSON only with these fields:
-      direction (LONG/SHORT/NONE), 
-      confidence_score (0-100), 
-      entry_price, 
-      stop_loss, 
-      take_profit, 
-      rr_ratio, 
-      reasoning (max 100 chars)"
-   - Parse AI response, extract confidence_score
-7. Collect all coins with confidence_score >= min threshold (default 75)
-8. If multiple coins qualify, pick the ONE with highest confidence score
-9. Place trade on that coin:
-   - Calculate position size from risk % and account balance
-   - Place market order on Bybit (or paper trade in demo mode)
-   - Save trade to DB with all details
-   - Send Discord alert (if enabled)
-   - Set hasOpenPosition = true
-10. If no coin scores >= threshold, log "No qualifying coins found" and wait for next candle
-
-POSITION MONITORING:
-- Monitor open position every 30 seconds
-- Check if current price hit TP or SL
-- If TP hit: close position, update DB, send Discord alert, set hasOpenPosition = false, resume scanning
-- If SL hit: close position, update DB, send Discord alert, set hasOpenPosition = false, resume scanning
-- Update live PnL in DB every 30 seconds for frontend to display
-
-AGENT CONTROLS (via socket or REST):
-- Start agent — POST /api/agent/start
-- Stop agent — POST /api/agent/stop
-- Get agent status — GET /api/agent/status (running, lastScan, openPosition, todayTrades, todayPnL)
-- Manual close position button — same as strategy bot close position we built earlier
-
-FRONTEND (agent.html):
-- Start/Stop toggle button with live status indicator
-- Last scan time
-- Today's stats: trades taken, win rate, total PnL
-- Open position card with live PnL (updates every 30s)
-- Trade history table with same filters as strategy bot:
-  Direction | Score | Entry | SL | TP | Exit | PnL | Status
-- Filter dropdowns: Direction, Score range, PnL sort, Status
-- Clear history button (same rules — skip open trades)
-- All agent settings in settings page must actually be read and applied
-
-LOGGING:
-- On start: "AI Agent started — scanning X coins on Ym — min score: Z"
-- On each scan: "Scanning X coins — Y passed hard filters"
-- On AI analysis: "BTCUSDT — AI score: 82 — direction: LONG"
-- On trade: "Trade placed — BTCUSDT LONG — score: 82 — entry: X SL: X TP: X"
-- On skip: "No qualifying coins this cycle — highest score: 71 (ETHUSDT)"
-- On TP/SL: "BTCUSDT TP hit — PnL: +$12.40 (+2.3%)"
-- On guardrail: "Max trades reached for today — agent paused until midnight PKT"
+STYLING:
+- Dark Bybit-like theme throughout
+- Background: #0b0e11
+- Panels/sidebar: #1a1d26  
+- Borders: #2b2f3e
+- Accent: #f0b90b (yellow) for active states
+- Green: #0ecb81 for LONG/profit
+- Red: #f6465d for SHORT/loss
+- Smooth modal open/close animations
+- Keep ALL existing JS functionality intact — this is layout and styling only
+- Mobile: sidebar becomes a bottom drawer, canvas takes full width

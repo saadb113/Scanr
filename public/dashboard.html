@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -39,10 +40,16 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
   padding:0.55rem 0.75rem;cursor:pointer;text-decoration:none;transition:border-color .15s,background .15s;
   font-family:inherit;font-size:0.82rem;font-weight:600;color:var(--text-secondary);
 }
+.sb-action-btn i{
+  color : var(--text-secondary) !important
+}
 .sb-action-btn:hover{border-color:var(--border-mid);background:var(--bg-raised);color:var(--text-primary)}
 .sb-action-icon{font-size:1rem;line-height:1;flex-shrink:0}
 .sb-action-btn.agent-btn{border-color:rgba(245,166,35,0.25);animation:agentPulse 2.5s ease-in-out infinite}
 .sb-action-btn.agent-btn,.sb-action-btn.agent-btn *{color:var(--amber)}
+.sb-action-btn.agent-btn i{
+  color:var(--amber) !important
+}
 @keyframes agentPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,0)}50%{box-shadow:0 0 12px 2px rgba(245,166,35,0.18)}}
 
 /* ── Main content ── */
@@ -168,23 +175,25 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
     <!-- Quick Actions -->
     <div class="sb-actions-title">Quick Actions</div>
     <a class="sb-action-btn" href="/scanner">
-      <span class="sb-action-icon">📊</span>Scanner
-    </a>
-    <a class="sb-action-btn" href="/setups">
-      <span class="sb-action-icon">🔍</span>Scan Setups
+      <span class="sb-action-icon"><i class="fa-solid fa-arrow-up-right-dots" style="color: rgb(255, 255, 255);"></i></span>Scanner
     </a>
     <a class="sb-action-btn" href="/strategy">
-      <span class="sb-action-icon">🧩</span>Strategy Builder
+      <span class="sb-action-icon"><i class="fa-solid fa-puzzle-piece" style="color: rgb(255, 255, 255);"></i></span>Strategy Builder
     </a>
     <a class="sb-action-btn" href="/terminal">
-      <span class="sb-action-icon">⚡</span>Trade
+      <span class="sb-action-icon"><i class="fa-solid fa-bolt" style="color: rgb(255, 255, 255);"></i></span>Trade
     </a>
     <a class="sb-action-btn" href="/challenge">
-      <span class="sb-action-icon">🏆</span>Prop Firm Challenge
+      <span class="sb-action-icon"><i class="fa-solid fa-trophy" style="color: rgb(255, 255, 255);"></i></span>Prop Firm Challenge
+    </a>
+    <a class="sb-action-btn" href="/setups">
+      <span class="sb-action-icon"><i class="fa-solid fa-magnifying-glass" style="color: rgb(255, 255, 255);"></i></span>Scan Setups
     </a>
     <a class="sb-action-btn agent-btn" href="/agent">
-      <span class="sb-action-icon">🤖</span>AI Agent (Beta)
+      <span class="sb-action-icon"><i class="fa-solid fa-robot" style="color: rgb(255, 255, 255);"></i></span>AI Agent (Beta)
     </a>
+    <a class="sb-action-btn sh-settings-btn" href="/settings" title="Settings"><i class="fa-solid fa-gear" style="color: rgb(255, 255, 255);"></i> Settings</a>
+
 
   </div>
 
@@ -336,12 +345,8 @@ async function dbLoadTab(tab) {
       const total = coins.reduce((s,c) => s+parseFloat(c.usdValue||0), 0);
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
         <th>Asset</th><th>Wallet Balance</th><th>Available</th><th>USD Value</th>
-      </tr></thead><tbody id="db-spot-tbody"></tbody><tfoot><tr style="font-weight:700">
-        <td colspan="3" style="color:var(--text-muted)">Total</td>
-        <td class="mono" style="color:var(--green)">$${total.toFixed(2)}</td>
-      </tr></tfoot></table><div id="db-tab-spot_pg" class="pg-bar"></div>`;
-      pgSetup('db-tab-spot', coins, function(slice) {
-        document.getElementById('db-spot-tbody').innerHTML = slice.map(c => {
+      </tr></thead><tbody>
+        ${coins.map(c => {
           const bal   = parseFloat(c.walletBalance||0);
           const avail = parseFloat(c.availableToWithdraw||c.availableToBorrow||c.free||0);
           const usd   = parseFloat(c.usdValue||0);
@@ -351,17 +356,20 @@ async function dbLoadTab(tab) {
             <td class="mono" style="color:var(--green)">${avail.toFixed(6)}</td>
             <td class="mono" style="color:var(--blue)">$${usd.toFixed(2)}</td>
           </tr>`;
-        }).join('');
-      });
+        }).join('')}
+        <tr style="font-weight:700">
+          <td colspan="3" style="color:var(--text-muted)">Total</td>
+          <td class="mono" style="color:var(--green)">$${total.toFixed(2)}</td>
+        </tr>
+      </tbody></table>`;
     } else if (tab === 'futures') {
       const d = await fetch('/api/dashboard/futures-positions').then(r => r.json());
       const positions = d.positions || [];
       if (!positions.length) { pane.innerHTML = '<div class="db-tab-empty">No open futures positions</div>'; return; }
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
         <th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>PnL</th><th>Lev</th>
-      </tr></thead><tbody id="db-futures-tbody"></tbody></table><div id="db-tab-futures_pg" class="pg-bar"></div>`;
-      pgSetup('db-tab-futures', positions, function(slice) {
-        document.getElementById('db-futures-tbody').innerHTML = slice.map(p => {
+      </tr></thead><tbody>
+        ${positions.map(p => {
           const pnl = parseFloat(p.unrealisedPnl||0);
           const pnlCls = pnl>=0?'profit':'loss';
           const side  = p.side==='Buy'?'LONG':'SHORT';
@@ -375,17 +383,16 @@ async function dbLoadTab(tab) {
             <td class="mono pos-pnl ${pnlCls}">${fmtPnl(pnl)}</td>
             <td class="mono">${p.leverage}x</td>
           </tr>`;
-        }).join('');
-      });
+        }).join('')}
+      </tbody></table>`;
     } else if (tab === 'orders') {
       const d = await fetch('/api/dashboard/orders').then(r => r.json());
       const orders = d.orders || [];
       if (!orders.length) { pane.innerHTML = '<div class="db-tab-empty">No open orders</div>'; return; }
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
         <th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th>
-      </tr></thead><tbody id="db-orders-tbody"></tbody></table><div id="db-tab-orders_pg" class="pg-bar"></div>`;
-      pgSetup('db-tab-orders', orders, function(slice) {
-        document.getElementById('db-orders-tbody').innerHTML = slice.map(o => {
+      </tr></thead><tbody>
+        ${orders.map(o => {
           const sc = o.side==='Buy'?'var(--green)':'var(--red)';
           return `<tr>
             <td style="font-weight:700;color:var(--text-primary)">${o.symbol.replace('USDT','')}</td>
@@ -395,11 +402,15 @@ async function dbLoadTab(tab) {
             <td class="mono">$${parseFloat(o.price||0).toFixed(2)||'—'}</td>
             <td style="font-size:0.72rem;color:var(--text-muted)">${o.orderStatus}</td>
           </tr>`;
-        }).join('');
-      });
+        }).join('')}
+      </tbody></table>`;
     }
   } catch(e) { pane.innerHTML = `<div class="db-tab-empty" style="color:var(--red)">Error: ${e.message}</div>`; }
 }
+
+
+
+  
 
 // ── Init ──────────────────────────────────────────────────────
 fetch('/api/auth/me')
