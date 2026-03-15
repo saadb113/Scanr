@@ -8,6 +8,10 @@
   <link rel="stylesheet" href="/css/styles.css">
   <style>
     /* ── Bybit-inspired terminal ────────────────────────────── */
+    #bytTvWidgetInner,
+    #bytTvWidgetInner > div{
+      height : 100% !important
+    }
     :root {
       --byt-bg:      #0b0e11;
       --byt-panel:   #131722;
@@ -520,17 +524,17 @@
   <div id="bytMsg" style="display:none;position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:9999;padding:0.4rem 1rem;border-radius:6px;font-size:13px;font-weight:700;background:#1e2026;border:1px solid #2b2f3e;min-width:200px;text-align:center;pointer-events:none"></div>
 
   <!-- Header -->
-  <div class="byt-header">
+  <div class="byt-header" style="display: none;">
     <div style="display:flex;align-items:center;gap:0.75rem">
       <span style="font-size:1rem;font-weight:800;color:#f0b90b;letter-spacing:0.3px">⚡ Bybit Terminal</span>
       <span id="bytSymLabel" style="font-size:0.88rem;color:#848e9c;font-weight:600"></span>
-      <span id="bytLiveBadge" style="display:none;font-size:11px;padding:0.12rem 0.5rem;border-radius:3px;font-weight:700;background:rgba(14,203,129,0.12);color:#0ecb81;border:1px solid rgba(14,203,129,0.3)">● LIVE</span>
+      
     </div>
     <button onclick="bybitTerminalClose()" style="background:none;border:none;color:#848e9c;font-size:1.5rem;cursor:pointer;line-height:1;padding:0 0.25rem;transition:color .15s" onmouseover="this.style.color='#d1d4dc'" onmouseout="this.style.color='#848e9c'">&times;</button>
   </div>
 
   <!-- Balance strip -->
-  <div id="bytBalanceStrip" class="byt-bal-strip">
+  <div id="bytBalanceStrip" style="display: none;" class="byt-bal-strip">
     <div class="byt-bal-item">
       <span class="byt-bal-label">Equity</span>
       <span id="bytBalEquity" class="byt-bal-value">—</span>
@@ -727,7 +731,7 @@
 
         <!-- Available balance -->
         <div class="byt-avail-row">
-          <span>Available</span>
+          <span>Available <span id="bytLiveBadge" style="display:none;font-size:11px;padding:0.12rem 0.5rem;border-radius:3px;font-weight:700;background:rgba(14,203,129,0.12);color:#0ecb81;border:1px solid rgba(14,203,129,0.3)">● LIVE</span></span>
           <span id="bytFormAvail">— USDT</span>
         </div>
 
@@ -870,13 +874,13 @@
         <div style="border-top:1px solid #2b2f3e;margin-top:0.85rem;padding-top:0.75rem">
           <div style="font-size:10px;font-weight:700;color:#848e9c;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem">🤖 AI Analysis</div>
           <select id="bytAITfSel" class="byt-ai-tf-sel" onchange="bytSetAITf(this.value)">
-            <option value="1">1m</option>
+            <option value="1" selected>1m</option>
             <option value="3">3m</option>
             <option value="5">5m</option>
             <option value="15">15m</option>
             <option value="30">30m</option>
             <option value="45">45m</option>
-            <option value="60" selected>1h</option>
+            <option value="60" >1h</option>
             <option value="240">4h</option>
             <option value="D">1d</option>
             <option value="W">1w</option>
