@@ -172,11 +172,11 @@
           <thead>
             <tr>
               <th>License Key</th><th>Buyer</th><th>Contact</th>
-              <th>Purchase Date</th><th>Price</th><th>Status</th>
+              <th>Purchase Date</th><th>Price</th><th>Status</th><th>Expires</th>
               <th>Activated By</th><th>Activated At</th><th>Transfers</th><th>Actions</th>
             </tr>
           </thead>
-          <tbody id="licTbody"><tr class="empty-row"><td colspan="10">Loading...</td></tr></tbody>
+          <tbody id="licTbody"><tr class="empty-row"><td colspan="11">Loading...</td></tr></tbody>
         </table>
       </div>
       <div id="licTbody_pg" class="pg-bar"></div>
@@ -301,6 +301,31 @@
       <label>Notes (optional)</label>
       <textarea id="mNotes" placeholder="Any additional notes…"></textarea>
     </div>
+    <!-- Expiration -->
+    <div class="modal-field" style="margin-bottom:0.35rem">
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+        <input type="checkbox" id="mExpireToggle" onchange="toggleExpiry(this.checked)">
+        <span>Set Expiration</span>
+      </label>
+    </div>
+    <div id="mExpireInputs" style="display:none;margin-bottom:0.5rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="modal-field" style="margin:0">
+          <label>Duration</label>
+          <input type="number" id="mExpireAmount" min="1" value="7" placeholder="e.g. 7">
+        </div>
+        <div class="modal-field" style="margin:0">
+          <label>Unit</label>
+          <select id="mExpireUnit">
+            <option value="minutes">Minutes</option>
+            <option value="hours">Hours</option>
+            <option value="days" selected>Days</option>
+            <option value="weeks">Weeks</option>
+            <option value="months">Months</option>
+          </select>
+        </div>
+      </div>
+    </div>
     <div class="modal-msg" id="createMsg"></div>
     <div class="modal-btns">
       <button class="modal-btn-cancel" onclick="closeCreateModal()">Cancel</button>
@@ -424,18 +449,24 @@ async function loadLicenses() {
     _licenses = await api('GET', '/api/admin/licenses');
     renderLicenses();
   } catch (e) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="9" style="color:var(--danger)">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11" style="color:var(--danger)">${e.message}</td></tr>`;
   }
 }
 
 function renderLicenses() {
-  pgSetup('licTbody', _licenses, _doRenderLicenses);
+  const now = new Date();
+  const sorted = [..._licenses].sort((a, b) => {
+    const aExp = a.expiresAt && now > new Date(a.expiresAt);
+    const bExp = b.expiresAt && now > new Date(b.expiresAt);
+    return aExp === bExp ? 0 : aExp ? 1 : -1;
+  });
+  pgSetup('licTbody', sorted, _doRenderLicenses);
 }
 
 function _doRenderLicenses(slice) {
   const tbody = document.getElementById('licTbody');
   if (!_licenses.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No licenses yet</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="11">No licenses yet</td></tr>';
     return;
   }
   tbody.innerHTML = slice.map(l => {
@@ -447,19 +478,35 @@ function _doRenderLicenses(slice) {
     const transfersLabel = l.status === 'active' || l.status === 'suspended'
       ? `${curT}/${maxT}`
       : `${curT}/${maxT}`;
+    // Expiry display
+    const now = new Date();
+    let expiryCell;
+    if (!l.expiresAt) {
+      expiryCell = `<span style="color:var(--muted);font-size:12px">Never</span>`;
+    } else {
+      const expDate = new Date(l.expiresAt);
+      const isExp   = now > expDate;
+      if (isExp) {
+        expiryCell = `<span style="background:#3b1a1a;color:#f56565;font-size:11px;font-weight:700;padding:2px 7px;border-radius:5px">EXPIRED</span>`;
+      } else {
+        expiryCell = `<span style="color:var(--warning);font-size:12px">${expDate.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</span>`;
+      }
+    }
+    const isExpired = l.expiresAt && now > new Date(l.expiresAt);
     let acts = '';
     if (l.status === 'active')    acts += `<button class="act-btn suspend"    onclick="suspendLicense('${l._id}')">Suspend</button>`;
     if (l.status === 'suspended') acts += `<button class="act-btn reactivate" onclick="reactivateLicense('${l._id}')">Reactivate</button>`;
     acts += `<button class="act-btn delete" onclick="deleteLicense('${l._id}','${l.licenseKey}','${l.status}')">Delete</button>`;
     if ((l.status === 'active' || l.status === 'suspended') && curT < maxT)
       acts += `<button class="act-btn transfer" onclick="transferLicense('${l._id}')">Transfer</button>`;
-    return `<tr>
+    return `<tr style="${isExpired ? 'opacity:0.5' : ''}">
       <td style="font-family:monospace;font-size:12px;color:var(--success)">${l.licenseKey}</td>
       <td>${l.buyerName || '—'}</td>
       <td>${l.buyerContact || '—'}</td>
       <td>${fmt(l.purchaseDate)}</td>
       <td>${l.price != null ? l.price + ' ' + (l.currency || 'USD') : '—'}</td>
       <td>${badge(l.status)}</td>
+      <td>${expiryCell}</td>
       <td>${user}</td>
       <td>${fmtDt(l.activatedAt)}</td>
       <td style="font-size:12px;color:${curT >= maxT ? 'var(--danger)' : 'var(--muted)'}">${transfersLabel}</td>
@@ -489,9 +536,16 @@ async function deleteLicense(id, key, status) {
 function openCreateModal() {
   document.getElementById('mDate').value = new Date().toISOString().split('T')[0];
   document.getElementById('createMsg').textContent = '';
+  document.getElementById('mExpireToggle').checked = false;
+  document.getElementById('mExpireInputs').style.display = 'none';
+  document.getElementById('mExpireAmount').value = '7';
+  document.getElementById('mExpireUnit').value = 'days';
   document.getElementById('createModal').classList.add('open');
 }
 function closeCreateModal() { document.getElementById('createModal').classList.remove('open'); }
+function toggleExpiry(checked) {
+  document.getElementById('mExpireInputs').style.display = checked ? 'block' : 'none';
+}
 
 async function doCreateLicense() {
   const buyerName    = document.getElementById('mBuyerName').value.trim();
@@ -509,12 +563,18 @@ async function doCreateLicense() {
 
   btn.disabled = true; btn.textContent = 'Generating...';
   try {
-    const d = await api('POST', '/api/admin/licenses/create', { buyerName, buyerContact, purchaseDate, price, currency, notes });
+    const d = await api('POST', '/api/admin/licenses/create', {
+      buyerName, buyerContact, purchaseDate, price, currency, notes,
+      expiresAmount: document.getElementById('mExpireToggle').checked ? document.getElementById('mExpireAmount').value : null,
+      expiresUnit:   document.getElementById('mExpireToggle').checked ? document.getElementById('mExpireUnit').value   : null,
+    });
     closeCreateModal();
     document.getElementById('generatedKey').textContent = d.key;
     document.getElementById('keyModal').classList.add('open');
     // Clear form
     ['mBuyerName','mContact','mDate','mPrice','mNotes'].forEach(id => { document.getElementById(id).value = ''; });
+    document.getElementById('mExpireToggle').checked = false;
+    document.getElementById('mExpireInputs').style.display = 'none';
     loadLicenses();
   } catch (e) { msg.textContent = e.message; msg.className = 'modal-msg err'; }
   finally { btn.disabled = false; btn.textContent = 'Generate License'; }

@@ -243,6 +243,7 @@ const UserSchema = new mongoose.Schema({
     licenseKey:          { type: String, default: null },
     licenseStatus:       { type: String, enum: ['inactive', 'active', 'suspended'], default: 'inactive' },
     licenseActivatedAt:  { type: Date, default: null },
+    licenseExpiresAt:    { type: Date, default: null },
     deviceFingerprint:   { type: String, default: null },
     lastIp:              { type: String, default: null },
     lastLogin:           { type: Date, default: null },
@@ -270,6 +271,7 @@ const LicenseSchema = new mongoose.Schema({
     deviceFingerprint:   { type: String, default: null },
     ipHistory:           { type: [String], default: [] },
     notes:               { type: String, default: '' },
+    expiresAt:           { type: Date, default: null },
     // Transfer tracking
     transferCount:       { type: Number, default: 0 },
     maxTransfers:        { type: Number, default: 2 },

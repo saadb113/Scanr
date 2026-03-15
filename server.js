@@ -115,6 +115,14 @@ async function requireActiveAuth(req, res, next) {
             if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License suspended' });
             return res.redirect('/suspended');
         }
+        if (user.licenseStatus === 'active' && user.licenseExpiresAt && new Date() > new Date(user.licenseExpiresAt)) {
+            await Promise.all([
+                User.findByIdAndUpdate(req.session.userId, { licenseStatus: 'suspended' }),
+                License.findOneAndUpdate({ licenseKey: user.licenseKey }, { status: 'suspended' }),
+            ]);
+            if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License expired' });
+            return res.redirect('/suspended?reason=expired');
+        }
         if (user.licenseStatus !== 'active') {
             if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License not active' });
             return res.redirect('/license');
@@ -268,6 +276,7 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
             licenseKey:          license.licenseKey,
             licenseStatus:       'active',
             licenseActivatedAt:  new Date(),
+            licenseExpiresAt:    license.expiresAt || null,
             deviceFingerprint:   deviceFingerprint || '',
         });
         req.session.licenseStatus = 'active';
@@ -297,9 +306,14 @@ app.get('/api/admin/licenses', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/licenses/create', requireAdmin, async (req, res) => {
     try {
-        const { buyerName, buyerContact, purchaseDate, price, currency, notes } = req.body;
+        const { buyerName, buyerContact, purchaseDate, price, currency, notes, expiresAmount, expiresUnit } = req.body;
         if (!buyerName || !buyerContact || !purchaseDate || price == null)
             return res.status(400).json({ error: 'buyerName, buyerContact, purchaseDate and price are required' });
+        // Calculate expiry date if provided
+        const unitMs  = { minutes: 60000, hours: 3600000, days: 86400000, weeks: 604800000, months: 2592000000 };
+        const expiresAt = (expiresAmount && expiresUnit && unitMs[expiresUnit])
+            ? new Date(Date.now() + parseInt(expiresAmount) * unitMs[expiresUnit])
+            : null;
         // Generate SCAN-XXXX-XXXX-XXXX-XXXX
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         const seg   = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
@@ -312,6 +326,7 @@ app.post('/api/admin/licenses/create', requireAdmin, async (req, res) => {
             price:        parseFloat(price),
             currency:     currency || 'USD',
             notes:        notes || '',
+            expiresAt,
         });
         res.json({ ok: true, key, license });
     } catch (e) { res.status(500).json({ error: e.message }); }
