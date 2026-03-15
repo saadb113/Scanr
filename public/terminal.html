@@ -552,6 +552,161 @@
         <div id="bytSymInfo" style="font-size:11px;color:#4a5568;position:absolute;right:10px;top:50%;transform:translateY(-50%);min-height:12px"></div>
       </div>
       <div id="bytTvChartWrap" style="flex:1;min-height:0"></div>
+        <!-- ── BOTTOM: Tabs ── -->
+  <div class="byt-bottom-section">
+    <div class="byt-tabs">
+      <button class="byt-tab active" data-byttab="positions"   onclick="bytSwitchTab('positions')">Positions <span id="bytPosCount" class="byt-badge">0</span></button>
+      <button class="byt-tab"        data-byttab="orders"      onclick="bytSwitchTab('orders')">Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
+      <button class="byt-tab"        data-byttab="assets"      onclick="bytSwitchTab('assets')">Assets</button>
+      <button class="byt-tab"        data-byttab="autopilot"   onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none">Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
+      <button class="byt-tab"        data-byttab="pricealerts" onclick="bytSwitchTab('pricealerts');bytLoadPriceAlerts()">Price Alerts <span id="bytAlertCount" class="byt-badge">0</span></button>
+    </div>
+
+    <!-- TAB: Positions -->
+    <div id="byt-positions" class="byt-page active">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
+        <span style="font-size:11px;color:#848e9c">Live positions · auto-refreshes every 5s</span>
+        <button onclick="bytLoadPositions()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      </div>
+      <div id="bytPositionsList"><div class="byt-empty">No open positions</div></div>
+    </div>
+
+    <!-- TAB: Open Orders -->
+    <div id="byt-orders" class="byt-page">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
+        <span style="font-size:11px;color:#848e9c">Pending limit orders</span>
+        <button onclick="bytLoadOrders()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      </div>
+      <div id="bytOrdersList"><div class="byt-empty">No open orders</div></div>
+    </div>
+
+    <!-- TAB: Assets -->
+    <div id="byt-assets" class="byt-page">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
+        <span style="font-size:11px;color:#848e9c">Bybit wallet balances</span>
+        <button onclick="bytLoadAssets()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
+      </div>
+      <div id="bytAssetsList"><div class="byt-empty">No assets found</div></div>
+    </div>
+
+    <!-- TAB: Autopilot -->
+    <div id="byt-autopilot" class="byt-page">
+      <div style="max-width:700px">
+
+        <div class="byt-summary-card">
+          <div style="font-size:11px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            SL Mode — Trade Rules
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.85rem">
+            <div style="background:var(--byt-bg);border-radius:4px;padding:0.5rem 0.7rem;border-left:3px solid #0ecb81;font-size:11px;color:#848e9c;line-height:1.7">
+              <span style="color:#0ecb81;font-weight:700">↑ TP Direction:</span> Price reaches <strong style="color:#d1d4dc">50%</strong> toward TP → SL moves to <strong style="color:#d1d4dc">half initial risk</strong> &nbsp;·&nbsp; Price reaches <strong style="color:#d1d4dc">60%</strong> toward TP → SL moves to <strong style="color:#f0b90b">entry (breakeven)</strong>
+            </div>
+            <div style="background:var(--byt-bg);border-radius:4px;padding:0.5rem 0.7rem;border-left:3px solid #f6465d;font-size:11px;color:#848e9c;line-height:1.7">
+              <span style="color:#f6465d;font-weight:700">↓ SL Direction:</span> Price drops <strong style="color:#d1d4dc">60%</strong> toward SL → TP moves to <strong style="color:#f0b90b">entry (breakeven close)</strong>
+            </div>
+          </div>
+          <div style="border-top:1px solid #2b2f3e;padding-top:0.75rem">
+            <div class="byt-field" style="margin-bottom:0.6rem">
+              <label>Monitor Position (Symbol)</label>
+              <select id="apSymbolSelect" class="byt-input"><option value="">— Select open position —</option></select>
+            </div>
+            <div id="apPositionPreview" style="display:none;margin-bottom:0.65rem">
+              <div class="ap-grid" id="apPreviewGrid"></div>
+            </div>
+            <button class="ap-start-btn" id="apStartBtn" onclick="apStart()">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start Autopilot SL Mode
+            </button>
+          </div>
+        </div>
+
+        <div id="apMonitor" style="display:none">
+          <div class="ap-status-bar">
+            <div class="ap-pulse monitoring" id="apPulseDot"></div>
+            <span style="font-size:13px;font-weight:700;color:#d1d4dc" id="apStatusText">Monitoring…</span>
+            <span style="font-size:12px;color:#848e9c" id="apLivePrice">—</span>
+            <span style="margin-left:auto;font-size:11px;color:#4a5568" id="apWsStatus">Connecting…</span>
+          </div>
+
+          <div class="ap-trade-card" id="apTradeCard">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
+              <div style="display:flex;align-items:center;gap:0.5rem">
+                <span style="font-weight:800;font-size:1rem;color:#d1d4dc" id="apCardSym">—</span>
+                <span class="byt-pos-side" id="apCardSide">—</span>
+                <span style="font-size:11px;color:#848e9c" id="apCardLev">—</span>
+              </div>
+              <div style="font-size:13px;font-weight:700;font-family:var(--byt-mono)" id="apCardPnl">—</div>
+            </div>
+
+            <div class="ap-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0.55rem">
+              <div class="ap-stat"><div class="ap-stat-label">Entry</div><div class="ap-stat-val" id="apCardEntry">—</div></div>
+              <div class="ap-stat" style="border-color:rgba(246,70,93,0.3)"><div class="ap-stat-label">Stop Loss</div><div class="ap-stat-val" style="color:#f6465d" id="apCardSL">—</div></div>
+              <div class="ap-stat" style="border-color:rgba(14,203,129,0.3)"><div class="ap-stat-label">Take Profit</div><div class="ap-stat-val" style="color:#0ecb81" id="apCardTP">—</div></div>
+            </div>
+
+            <div style="margin-bottom:0.4rem">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#848e9c;margin-bottom:0.2rem"><span>TP Progress</span><span id="apTpPct">0%</span></div>
+              <div class="ap-progress-track">
+                <div class="ap-progress-fill toward-tp" id="apTpBar" style="width:0%"></div>
+                <div class="ap-milestone" style="left:50%"><div class="ap-milestone-label">50%</div></div>
+                <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
+              </div>
+            </div>
+            <div style="margin-bottom:0.65rem">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:#848e9c;margin-bottom:0.2rem"><span>SL Drawdown</span><span id="apSlPct">0%</span></div>
+              <div class="ap-progress-track">
+                <div class="ap-progress-fill toward-sl" id="apSlBar" style="width:0%"></div>
+                <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:0.65rem" id="apMilestones">
+              <div class="ap-stat" id="apMs1" style="flex:1;min-width:120px"><div class="ap-stat-label">TP 50% → Half SL</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs1Val">Waiting…</div></div>
+              <div class="ap-stat" id="apMs2" style="flex:1;min-width:120px"><div class="ap-stat-label">TP 60% → Breakeven</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs2Val">Waiting…</div></div>
+              <div class="ap-stat" id="apMs3" style="flex:1;min-width:120px"><div class="ap-stat-label">SL 60% → BE Close</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs3Val">Waiting…</div></div>
+            </div>
+          </div>
+
+          <div style="font-size:10px;color:#848e9c;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.3rem">Action Log</div>
+          <div class="ap-log" id="apLog">
+            <div class="ap-log-row"><span class="ap-log-time">--:--:--</span><span class="ap-log-msg">Autopilot ready.</span></div>
+          </div>
+          <div style="margin-top:0.75rem">
+            <button class="ap-stop-btn" onclick="apStop()">⬛ Stop Autopilot</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- TAB: Price Alerts -->
+    <div id="byt-pricealerts" class="byt-page">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;align-items:end;margin-bottom:0.85rem">
+        <div>
+          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Symbol</label>
+          <input id="paSymbol" class="byt-input" placeholder="e.g. BTCUSDT" style="text-transform:uppercase" autocomplete="off">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Target Price</label>
+          <input id="paPrice" class="byt-input" type="number" step="any" placeholder="0.00">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Direction</label>
+          <div style="display:flex;gap:0.25rem">
+            <button id="paDirAbove" onclick="bytSetAlertDir('above')" style="flex:1;padding:0.35rem 0.4rem;border:1px solid #0ecb81;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(14,203,129,0.1);color:#0ecb81">📈 Above</button>
+            <button id="paDirBelow" onclick="bytSetAlertDir('below')" style="flex:1;padding:0.35rem 0.4rem;border:1px solid #2b2f3e;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#1e2026;color:#848e9c">📉 Below</button>
+          </div>
+        </div>
+        <button onclick="bytSetPriceAlert()" style="background:#0ecb81;color:#000;border:none;border-radius:4px;padding:0.4rem 1rem;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">Set Alert</button>
+      </div>
+      <div id="paErrMsg" style="display:none;font-size:11px;color:#f6465d;margin-bottom:0.5rem;font-weight:600"></div>
+      <div id="paAlertsList" style="display:flex;flex-direction:column;gap:0.4rem">
+        <div class="byt-empty">No active price alerts</div>
+      </div>
+    </div>
+
+  </div><!-- /byt-bottom-section -->
     </div>
 
     <!-- Right: Order sidebar -->
@@ -739,161 +894,7 @@
 
   </div><!-- /byt-top-layout -->
 
-  <!-- ── BOTTOM: Tabs ── -->
-  <div class="byt-bottom-section">
-    <div class="byt-tabs">
-      <button class="byt-tab active" data-byttab="positions"   onclick="bytSwitchTab('positions')">Positions <span id="bytPosCount" class="byt-badge">0</span></button>
-      <button class="byt-tab"        data-byttab="orders"      onclick="bytSwitchTab('orders')">Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
-      <button class="byt-tab"        data-byttab="assets"      onclick="bytSwitchTab('assets')">Assets</button>
-      <button class="byt-tab"        data-byttab="autopilot"   onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none">Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
-      <button class="byt-tab"        data-byttab="pricealerts" onclick="bytSwitchTab('pricealerts');bytLoadPriceAlerts()">Price Alerts <span id="bytAlertCount" class="byt-badge">0</span></button>
-    </div>
 
-    <!-- TAB: Positions -->
-    <div id="byt-positions" class="byt-page active">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
-        <span style="font-size:11px;color:#848e9c">Live positions · auto-refreshes every 5s</span>
-        <button onclick="bytLoadPositions()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
-      </div>
-      <div id="bytPositionsList"><div class="byt-empty">No open positions</div></div>
-    </div>
-
-    <!-- TAB: Open Orders -->
-    <div id="byt-orders" class="byt-page">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
-        <span style="font-size:11px;color:#848e9c">Pending limit orders</span>
-        <button onclick="bytLoadOrders()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
-      </div>
-      <div id="bytOrdersList"><div class="byt-empty">No open orders</div></div>
-    </div>
-
-    <!-- TAB: Assets -->
-    <div id="byt-assets" class="byt-page">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.65rem">
-        <span style="font-size:11px;color:#848e9c">Bybit wallet balances</span>
-        <button onclick="bytLoadAssets()" style="background:#1e2026;border:1px solid #2b2f3e;color:#848e9c;border-radius:4px;padding:0.2rem 0.65rem;font-size:11px;cursor:pointer;font-family:inherit">⟳ Refresh</button>
-      </div>
-      <div id="bytAssetsList"><div class="byt-empty">No assets found</div></div>
-    </div>
-
-    <!-- TAB: Autopilot -->
-    <div id="byt-autopilot" class="byt-page">
-      <div style="max-width:700px">
-
-        <div class="byt-summary-card">
-          <div style="font-size:11px;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;display:flex;align-items:center;gap:0.4rem">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            SL Mode — Trade Rules
-          </div>
-          <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.85rem">
-            <div style="background:var(--byt-bg);border-radius:4px;padding:0.5rem 0.7rem;border-left:3px solid #0ecb81;font-size:11px;color:#848e9c;line-height:1.7">
-              <span style="color:#0ecb81;font-weight:700">↑ TP Direction:</span> Price reaches <strong style="color:#d1d4dc">50%</strong> toward TP → SL moves to <strong style="color:#d1d4dc">half initial risk</strong> &nbsp;·&nbsp; Price reaches <strong style="color:#d1d4dc">60%</strong> toward TP → SL moves to <strong style="color:#f0b90b">entry (breakeven)</strong>
-            </div>
-            <div style="background:var(--byt-bg);border-radius:4px;padding:0.5rem 0.7rem;border-left:3px solid #f6465d;font-size:11px;color:#848e9c;line-height:1.7">
-              <span style="color:#f6465d;font-weight:700">↓ SL Direction:</span> Price drops <strong style="color:#d1d4dc">60%</strong> toward SL → TP moves to <strong style="color:#f0b90b">entry (breakeven close)</strong>
-            </div>
-          </div>
-          <div style="border-top:1px solid #2b2f3e;padding-top:0.75rem">
-            <div class="byt-field" style="margin-bottom:0.6rem">
-              <label>Monitor Position (Symbol)</label>
-              <select id="apSymbolSelect" class="byt-input"><option value="">— Select open position —</option></select>
-            </div>
-            <div id="apPositionPreview" style="display:none;margin-bottom:0.65rem">
-              <div class="ap-grid" id="apPreviewGrid"></div>
-            </div>
-            <button class="ap-start-btn" id="apStartBtn" onclick="apStart()">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              Start Autopilot SL Mode
-            </button>
-          </div>
-        </div>
-
-        <div id="apMonitor" style="display:none">
-          <div class="ap-status-bar">
-            <div class="ap-pulse monitoring" id="apPulseDot"></div>
-            <span style="font-size:13px;font-weight:700;color:#d1d4dc" id="apStatusText">Monitoring…</span>
-            <span style="font-size:12px;color:#848e9c" id="apLivePrice">—</span>
-            <span style="margin-left:auto;font-size:11px;color:#4a5568" id="apWsStatus">Connecting…</span>
-          </div>
-
-          <div class="ap-trade-card" id="apTradeCard">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.6rem">
-              <div style="display:flex;align-items:center;gap:0.5rem">
-                <span style="font-weight:800;font-size:1rem;color:#d1d4dc" id="apCardSym">—</span>
-                <span class="byt-pos-side" id="apCardSide">—</span>
-                <span style="font-size:11px;color:#848e9c" id="apCardLev">—</span>
-              </div>
-              <div style="font-size:13px;font-weight:700;font-family:var(--byt-mono)" id="apCardPnl">—</div>
-            </div>
-
-            <div class="ap-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:0.55rem">
-              <div class="ap-stat"><div class="ap-stat-label">Entry</div><div class="ap-stat-val" id="apCardEntry">—</div></div>
-              <div class="ap-stat" style="border-color:rgba(246,70,93,0.3)"><div class="ap-stat-label">Stop Loss</div><div class="ap-stat-val" style="color:#f6465d" id="apCardSL">—</div></div>
-              <div class="ap-stat" style="border-color:rgba(14,203,129,0.3)"><div class="ap-stat-label">Take Profit</div><div class="ap-stat-val" style="color:#0ecb81" id="apCardTP">—</div></div>
-            </div>
-
-            <div style="margin-bottom:0.4rem">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:#848e9c;margin-bottom:0.2rem"><span>TP Progress</span><span id="apTpPct">0%</span></div>
-              <div class="ap-progress-track">
-                <div class="ap-progress-fill toward-tp" id="apTpBar" style="width:0%"></div>
-                <div class="ap-milestone" style="left:50%"><div class="ap-milestone-label">50%</div></div>
-                <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
-              </div>
-            </div>
-            <div style="margin-bottom:0.65rem">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:#848e9c;margin-bottom:0.2rem"><span>SL Drawdown</span><span id="apSlPct">0%</span></div>
-              <div class="ap-progress-track">
-                <div class="ap-progress-fill toward-sl" id="apSlBar" style="width:0%"></div>
-                <div class="ap-milestone" style="left:60%"><div class="ap-milestone-label">60%</div></div>
-              </div>
-            </div>
-
-            <div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:0.65rem" id="apMilestones">
-              <div class="ap-stat" id="apMs1" style="flex:1;min-width:120px"><div class="ap-stat-label">TP 50% → Half SL</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs1Val">Waiting…</div></div>
-              <div class="ap-stat" id="apMs2" style="flex:1;min-width:120px"><div class="ap-stat-label">TP 60% → Breakeven</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs2Val">Waiting…</div></div>
-              <div class="ap-stat" id="apMs3" style="flex:1;min-width:120px"><div class="ap-stat-label">SL 60% → BE Close</div><div class="ap-stat-val" style="color:#848e9c;font-size:11px" id="apMs3Val">Waiting…</div></div>
-            </div>
-          </div>
-
-          <div style="font-size:10px;color:#848e9c;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.3rem">Action Log</div>
-          <div class="ap-log" id="apLog">
-            <div class="ap-log-row"><span class="ap-log-time">--:--:--</span><span class="ap-log-msg">Autopilot ready.</span></div>
-          </div>
-          <div style="margin-top:0.75rem">
-            <button class="ap-stop-btn" onclick="apStop()">⬛ Stop Autopilot</button>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- TAB: Price Alerts -->
-    <div id="byt-pricealerts" class="byt-page">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:0.5rem;align-items:end;margin-bottom:0.85rem">
-        <div>
-          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Symbol</label>
-          <input id="paSymbol" class="byt-input" placeholder="e.g. BTCUSDT" style="text-transform:uppercase" autocomplete="off">
-        </div>
-        <div>
-          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Target Price</label>
-          <input id="paPrice" class="byt-input" type="number" step="any" placeholder="0.00">
-        </div>
-        <div>
-          <label style="font-size:10px;color:#848e9c;font-weight:600;display:block;margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.4px">Direction</label>
-          <div style="display:flex;gap:0.25rem">
-            <button id="paDirAbove" onclick="bytSetAlertDir('above')" style="flex:1;padding:0.35rem 0.4rem;border:1px solid #0ecb81;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:rgba(14,203,129,0.1);color:#0ecb81">📈 Above</button>
-            <button id="paDirBelow" onclick="bytSetAlertDir('below')" style="flex:1;padding:0.35rem 0.4rem;border:1px solid #2b2f3e;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;background:#1e2026;color:#848e9c">📉 Below</button>
-          </div>
-        </div>
-        <button onclick="bytSetPriceAlert()" style="background:#0ecb81;color:#000;border:none;border-radius:4px;padding:0.4rem 1rem;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;white-space:nowrap">Set Alert</button>
-      </div>
-      <div id="paErrMsg" style="display:none;font-size:11px;color:#f6465d;margin-bottom:0.5rem;font-weight:600"></div>
-      <div id="paAlertsList" style="display:flex;flex-direction:column;gap:0.4rem">
-        <div class="byt-empty">No active price alerts</div>
-      </div>
-    </div>
-
-  </div><!-- /byt-bottom-section -->
 
 </div><!-- /bybitTerminal -->
 
