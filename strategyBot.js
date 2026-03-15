@@ -3,7 +3,9 @@
 const https    = require('https');
 const crypto   = require('crypto');
 const { Strategy, BotTrade, BybitStore } = require('./models');
-const notifier = require('./notifier');
+const { Settings }                        = require('./models');
+const notifier                            = require('./notifier');
+const { sendStrategyBotAlert }            = require('./discordNotifier');
 
 // ── Shared indicator utilities (reused from coinScanner) ─────
 function calcEMASeries(values, period) {
@@ -443,6 +445,63 @@ function emit(userId, event, data) {
     if (_io) _io.to(userId).emit(event, data);
 }
 
+// ── Discord helpers ──────────────────────────────────────────
+async function getStrategyBotWebhook(userId) {
+    try {
+        const settings = await Settings.findOne({ userId }).lean();
+        const discord  = settings?.discord;
+        if (!discord?.webhookUrl) return null;
+        if (discord?.alerts?.strategyBotAlerts === false) return null;
+        return discord.webhookUrl;
+    } catch (_) { return null; }
+}
+
+async function checkClosedTrades(userId, store, strategyId) {
+    if (!store) return;
+    const openTrades = await BotTrade.find({ userId, strategyId, status: 'open' }).lean().catch(() => []);
+    if (!openTrades.length) return;
+    const bybitPositions = await getBybitPositions(store).catch(() => []);
+    const openSymbols    = new Set(bybitPositions.map(p => p.symbol));
+
+    const webhook     = await getStrategyBotWebhook(userId);
+    const strategyDoc = await Strategy.findById(strategyId).lean().catch(() => null);
+
+    for (const trade of openTrades) {
+        if (openSymbols.has(trade.symbol)) continue; // still open on Bybit
+
+        let exitPrice = trade.entryPrice;
+        try {
+            const pr = await bybitRequest(store.apiKey, store.apiSecret, store.env,
+                'GET', '/v5/market/tickers', { category: 'linear', symbol: trade.symbol });
+            exitPrice = parseFloat(pr?.result?.list?.[0]?.lastPrice) || trade.entryPrice;
+        } catch (_) {}
+
+        // Determine if TP or SL hit
+        let closeType = 'tp_hit';
+        if (trade.sl != null && trade.tp != null) {
+            closeType = Math.abs(exitPrice - trade.sl) <= Math.abs(exitPrice - trade.tp) ? 'sl_hit' : 'tp_hit';
+        } else if (trade.sl != null) {
+            const isLong = trade.side === 'LONG';
+            closeType = (isLong ? exitPrice <= trade.sl : exitPrice >= trade.sl) ? 'sl_hit' : 'tp_hit';
+        }
+
+        const pnl    = (exitPrice - trade.entryPrice) * (trade.quantity || 0.01) * (trade.side === 'LONG' ? 1 : -1);
+        const pnlPct = trade.entryPrice ? pnl / (trade.entryPrice * (trade.quantity || 0.01)) * 100 : null;
+
+        await BotTrade.findByIdAndUpdate(trade._id, { status: 'closed', exitPrice, closedAt: new Date(), pnl }).catch(() => {});
+        addLog(userId, 'trade', `${trade.symbol} ${closeType === 'tp_hit' ? 'TP' : 'SL'} hit @ ${exitPrice} | PnL: ${pnl.toFixed(4)} USDT`);
+        emit(userId, 'strategy:trade_closed', { symbol: trade.symbol, type: closeType, pnl, exitPrice });
+
+        if (webhook) {
+            sendStrategyBotAlert(webhook, closeType, {
+                symbol: trade.symbol, direction: trade.side,
+                entryPrice: trade.entryPrice, exitPrice,
+                pnl, pnlPct, strategyName: strategyDoc?.name,
+            }).catch(() => {});
+        }
+    }
+}
+
 // ── Scan cycle ───────────────────────────────────────────────
 async function runScanCycle(userId) {
     const bot = bots.get(userId);
@@ -468,8 +527,17 @@ async function runScanCycle(userId) {
             return;
         }
 
-        const store = await BybitStore.findOne({ userId }).lean();
-        const alertOnly = !store?.apiKey;
+        const rawStore = await BybitStore.findOne({ userId }).lean();
+        const _env  = rawStore?.activeEnv || 'mainnet';
+        const _cred = rawStore?.[_env] || {};
+        const store = (_cred.apiKey && _cred.apiSecret)
+            ? { apiKey: _cred.apiKey, apiSecret: _cred.apiSecret, env: _env }
+            : null;
+        const alertOnly = !store;
+        if (alertOnly) addLog(userId, 'info', 'No Bybit API credentials — running in alert-only mode');
+
+        // Check if any open BotTrades were closed on Bybit (TP/SL hit)
+        await checkClosedTrades(userId, store, bot.strategyId);
 
         bot.status = 'scanning';
         bot.lastScan = Date.now();
@@ -560,8 +628,10 @@ async function runScanCycle(userId) {
 
                     addLog(userId, 'signal', `${sym} — ${ifBlock.type.toUpperCase()} block matched (${conds})`);
                     emit(userId, 'strategy:conditions_met', { symbol: sym, side: dir, conditions: conds });
+                    addLog(userId, 'info', `${sym} — actions: [${actions.map(a => a.type).join(', ') || 'none'}] | alertOnly=${isAlertOnly} | dirBlock=${dirBlock?.type || 'none'}`);
 
                     if (isAlertOnly) {
+                        addLog(userId, 'info', `${sym} — alert-only: no Bybit credentials, skipping order`);
                         try {
                             await notifier.sendAlert(userId, `🔔 STRATEGY ALERT — ${sym}\nStrategy: ${strategy.name}\nSignal: ${dir}\nBlock: ${ifBlock.type}\nPrice: ${ind.price}\n${new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })} PKT`);
                         } catch (_) {}
@@ -572,6 +642,7 @@ async function runScanCycle(userId) {
                     // Guardrail: daily drawdown check
                     const closedToday = await BotTrade.find({ userId, openedAt: { $gte: dayStart }, status: 'closed' }).lean();
                     const totalLoss   = closedToday.reduce((s, t) => s + (t.pnl < 0 ? t.pnl : 0), 0);
+                    addLog(userId, 'info', `${sym} — drawdown check: totalLoss=$${totalLoss.toFixed(2)}, limit=$-50`);
                     if (totalLoss < -50) {
                         addLog(userId, 'warn', 'Daily drawdown limit reached — bot stopping');
                         await stopBot(userId);
@@ -579,6 +650,7 @@ async function runScanCycle(userId) {
                     }
 
                     // Place order
+                    addLog(userId, 'info', `${sym} — placing ${dir} order @ ${ind.price} | ATR=${ind.atr?.toFixed(4)}`);
                     try {
                         const { orderId, sl, tp, qty } = await placeOrder(userId, sym, side, ind.price, ind.atr, actions, store);
                         await BotTrade.create({
@@ -586,8 +658,15 @@ async function runScanCycle(userId) {
                             entryPrice: ind.price, sl, tp, quantity: qty, status: 'open',
                             conditionsMet: { conditions: conds },
                         });
-                        addLog(userId, 'trade', `Order placed ${sym} ${dir} @ ${ind.price} — orderId: ${orderId}`);
+                        addLog(userId, 'trade', `Order placed ${sym} ${dir} @ ${ind.price} — orderId: ${orderId} | SL: ${sl ?? 'none'} | TP: ${tp ?? 'none'} | qty: ${qty}`);
                         emit(userId, 'strategy:order_placed', { symbol: sym, side: dir, entry: ind.price, sl, tp });
+                        // Discord notification
+                        getStrategyBotWebhook(userId).then(wh => {
+                            if (wh) sendStrategyBotAlert(wh, 'trade_placed', {
+                                symbol: sym, direction: dir, entryPrice: ind.price,
+                                sl, tp, qty, strategyName: strategy.name,
+                            }).catch(() => {});
+                        }).catch(() => {});
                         foundSignals++;
                     } catch (e) {
                         addLog(userId, 'error', `Order failed ${sym}: ${e.message}`);
@@ -620,6 +699,10 @@ const TF_INTERVAL = { '1m':'1','3m':'3','5m':'5','15m':'15','30m':'30','1h':'60'
 async function pollCandle(userId) {
     const bot = bots.get(userId);
     if (!bot) return;
+    if (bot.status === 'scanning') {
+        addLog(userId, 'info', 'Poll tick skipped — previous scan still running');
+        return;
+    }
     try {
         const strategy = await Strategy.findById(bot.strategyId).lean();
         // Bug 1+2: if startBot replaced this bot while we were awaiting, exit quietly
@@ -664,6 +747,15 @@ async function startBot(userId, strategyId) {
         bots.set(userId, bot);
         addLog(userId, 'info', `Bot started — strategy: "${strategy?.name}" | coins: ${(strategy?.coins || []).join(', ') || 'default'} | if-blocks: ${(strategy?.blocks?.ifBlocks || []).length}`);
         addLog(userId, 'info', `Loaded blocks: ${JSON.stringify(strategy?.blocks)}`);
+
+        // Discord bot start notification
+        getStrategyBotWebhook(userId).then(wh => {
+            if (wh) sendStrategyBotAlert(wh, 'bot_start', {
+                strategyName: strategy?.name,
+                timeframe:    strategy?.timeframe || '5m',
+                coinCount:    (strategy?.coins || []).length,
+            }).catch(() => {});
+        }).catch(() => {});
 
         // Run immediately on first candle check
         pollCandle(userId);
@@ -711,4 +803,69 @@ async function resumeActiveBots() {
     }
 }
 
-module.exports = { setIO, startBot, stopBot, getStatus, getLogs, resumeActiveBots };
+function notifyManualClose(userId, symbol) {
+    addLog(userId, 'info', `Position manually closed${symbol ? ` (${symbol})` : ''} — bot resuming scan`);
+    const bot = bots.get(userId);
+    if (bot && bot.status === 'idle') pollCandle(userId);
+}
+
+async function closeTradeManually(userId, tradeId) {
+    const trade = await BotTrade.findOne({ _id: tradeId, userId }).lean();
+    if (!trade)              throw new Error('Trade not found');
+    if (trade.status !== 'open') throw new Error('Trade already closed');
+
+    const rawStore = await BybitStore.findOne({ userId }).lean();
+    const _env  = rawStore?.activeEnv || 'mainnet';
+    const _cred = rawStore?.[_env] || {};
+    const store = (_cred.apiKey && _cred.apiSecret)
+        ? { apiKey: _cred.apiKey, apiSecret: _cred.apiSecret, env: _env }
+        : null;
+
+    let exitPrice = trade.entryPrice;
+
+    if (store) {
+        // Fetch current market price
+        try {
+            const pr = await bybitRequest(store.apiKey, store.apiSecret, store.env,
+                'GET', '/v5/market/tickers', { category: 'linear', symbol: trade.symbol });
+            exitPrice = parseFloat(pr?.result?.list?.[0]?.lastPrice) || trade.entryPrice;
+        } catch (_) {}
+
+        // Place market close order
+        const closeSide = trade.side === 'LONG' ? 'Sell' : 'Buy';
+        const closeRes  = await bybitRequest(store.apiKey, store.apiSecret, store.env,
+            'POST', '/v5/order/create', {
+                category: 'linear', symbol: trade.symbol,
+                side: closeSide, orderType: 'Market',
+                qty: String(trade.quantity || 0.01),
+                timeInForce: 'GTC', reduceOnly: true,
+            });
+        if (closeRes.retCode !== 0) throw new Error(closeRes.retMsg);
+    }
+
+    const pnl = (exitPrice - trade.entryPrice) * (trade.quantity || 0.01) * (trade.side === 'LONG' ? 1 : -1);
+    const updated = await BotTrade.findByIdAndUpdate(trade._id,
+        { status: 'closed', exitPrice, closedAt: new Date(), pnl },
+        { new: true }
+    ).lean();
+
+    notifyManualClose(userId, trade.symbol);
+
+    // Discord manual close notification
+    const pnlPct = (trade.entryPrice && trade.quantity)
+        ? pnl / (trade.entryPrice * trade.quantity) * 100
+        : null;
+    getStrategyBotWebhook(userId).then(async wh => {
+        if (!wh) return;
+        const strategyDoc = await Strategy.findById(trade.strategyId).lean().catch(() => null);
+        sendStrategyBotAlert(wh, 'manual_close', {
+            symbol: trade.symbol, direction: trade.side,
+            entryPrice: trade.entryPrice, exitPrice,
+            pnl, pnlPct, strategyName: strategyDoc?.name,
+        }).catch(() => {});
+    }).catch(() => {});
+
+    return updated;
+}
+
+module.exports = { setIO, startBot, stopBot, getStatus, getLogs, resumeActiveBots, closeTradeManually };

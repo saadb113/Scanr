@@ -84,4 +84,82 @@ function priceAlertEmbed(data) {
     };
 }
 
-module.exports = { sendDiscordAlert, orderSummaryEmbed, positionClosedEmbed, autopilotMilestoneEmbed, priceAlertEmbed };
+function pktTime() {
+    return new Date(Date.now() + 5 * 3600000).toISOString().replace('T', ' ').slice(0, 19) + ' PKT';
+}
+
+function stratBotStartEmbed(data) {
+    return {
+        title:  '🤖 Strategy Bot Started',
+        color:  0x3b82f6,
+        fields: [
+            { name: 'Strategy',  value: data.strategyName || 'Unknown',  inline: true },
+            { name: 'Timeframe', value: data.timeframe || '—',           inline: true },
+            { name: 'Coins',     value: String(data.coinCount || 0),     inline: true },
+            { name: 'Time',      value: pktTime(),                       inline: false },
+        ],
+        footer:    { text: 'Scanr Strategy Bot' },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+function stratBotTradeEmbed(data) {
+    const isLong = data.direction === 'LONG';
+    const rr = (data.sl != null && data.tp != null && data.entryPrice)
+        ? Math.abs((data.tp - data.entryPrice) / (data.entryPrice - data.sl)).toFixed(2)
+        : '—';
+    return {
+        title:  isLong ? '📈 Bot Trade Opened — LONG' : '📉 Bot Trade Opened — SHORT',
+        color:  isLong ? 0x22c55e : 0xef4444,
+        fields: [
+            { name: 'Coin',          value: data.symbol || '—',                      inline: true },
+            { name: 'Direction',     value: data.direction || '—',                   inline: true },
+            { name: 'Entry Price',   value: String(data.entryPrice ?? '—'),          inline: true },
+            { name: 'Stop Loss',     value: data.sl != null ? String(data.sl) : 'Not set', inline: true },
+            { name: 'Take Profit',   value: data.tp != null ? String(data.tp) : 'Not set', inline: true },
+            { name: 'RR',            value: String(rr),                              inline: true },
+            { name: 'Position Size', value: String(data.qty ?? '—'),                 inline: true },
+            { name: 'Strategy',      value: data.strategyName || '—',               inline: true },
+            { name: 'Time',          value: pktTime(),                               inline: false },
+        ],
+        footer:    { text: 'Scanr Strategy Bot' },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+function stratBotCloseEmbed(type, data) {
+    const pnlStr    = data.pnl != null ? `${data.pnl >= 0 ? '+' : ''}${data.pnl.toFixed(4)} USDT` : '—';
+    const pnlPctStr = data.pnlPct != null ? ` (${data.pnlPct >= 0 ? '+' : ''}${data.pnlPct.toFixed(2)}%)` : '';
+    const meta = {
+        tp_hit:       { title: '✅ Bot Trade — Take Profit Hit', color: 0x22c55e },
+        sl_hit:       { title: '❌ Bot Trade — Stop Loss Hit',   color: 0xef4444 },
+        manual_close: { title: '🔒 Bot Trade — Manually Closed', color: 0xf97316 },
+    }[type] || { title: 'Bot Trade Closed', color: 0x6b7280 };
+    return {
+        title:  meta.title,
+        color:  meta.color,
+        fields: [
+            { name: 'Coin',      value: data.symbol || '—',                    inline: true },
+            { name: 'Direction', value: data.direction || '—',                 inline: true },
+            { name: 'Entry',     value: String(data.entryPrice ?? '—'),        inline: true },
+            { name: 'Exit',      value: String(data.exitPrice ?? '—'),         inline: true },
+            { name: 'PnL',       value: pnlStr + pnlPctStr,                   inline: true },
+            { name: 'Strategy',  value: data.strategyName || '—',             inline: true },
+            { name: 'Time',      value: pktTime(),                             inline: false },
+        ],
+        footer:    { text: 'Scanr Strategy Bot' },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+async function sendStrategyBotAlert(webhookUrl, type, data) {
+    if (!webhookUrl) return;
+    let embed;
+    if (type === 'bot_start')   embed = stratBotStartEmbed(data);
+    else if (type === 'trade_placed') embed = stratBotTradeEmbed(data);
+    else if (['tp_hit', 'sl_hit', 'manual_close'].includes(type)) embed = stratBotCloseEmbed(type, data);
+    else return;
+    await sendDiscordAlert(webhookUrl, embed);
+}
+
+module.exports = { sendDiscordAlert, orderSummaryEmbed, positionClosedEmbed, autopilotMilestoneEmbed, priceAlertEmbed, sendStrategyBotAlert };

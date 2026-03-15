@@ -749,6 +749,7 @@ async function discLoadConfig() {
             document.getElementById('discAlertOrder').checked     = j.alerts.orderSummary !== false;
             document.getElementById('discAlertAutopilot').checked = j.alerts.autopilotMilestone !== false;
             document.getElementById('discAlertTpSl').checked      = j.alerts.tpSlHit !== false;
+            document.getElementById('discAlertStratBot').checked   = j.alerts.strategyBotAlerts !== false;
         }
     } catch(e) { console.warn('discLoadConfig', e); }
 }
@@ -761,6 +762,7 @@ async function discSaveConfig() {
             orderSummary:       document.getElementById('discAlertOrder').checked,
             autopilotMilestone: document.getElementById('discAlertAutopilot').checked,
             tpSlHit:            document.getElementById('discAlertTpSl').checked,
+            strategyBotAlerts:  document.getElementById('discAlertStratBot').checked,
         },
     };
     try {
@@ -999,6 +1001,10 @@ function resetAccentColor() {
       <div class="disc-toggle-row">
         <div class="disc-toggle-info"><span class="disc-toggle-label">🎯 TP / SL Hit</span><span class="disc-toggle-desc">When a position closes by hitting TP or SL</span></div>
         <label class="toggle-switch"><input type="checkbox" id="discAlertTpSl" checked><span class="slider"></span></label>
+      </div>
+      <div class="disc-toggle-row">
+        <div class="disc-toggle-info"><span class="disc-toggle-label">🤖 Strategy Bot Alerts</span><span class="disc-toggle-desc">Trade notifications from the strategy bot</span></div>
+        <label class="toggle-switch"><input type="checkbox" id="discAlertStratBot" checked><span class="slider"></span></label>
       </div>
 
       <button onclick="discSaveConfig()" style="width:100%;margin-top:1.2rem;background:linear-gradient(135deg,#5865f2,#7983f5);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">💾 Save Discord Settings</button>

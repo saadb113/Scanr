@@ -1452,7 +1452,7 @@ async function loadTrades(strategyId) {
 function renderTrades(trades) {
   const tbody = $('stratHistBody');
   if (!trades?.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#2a3545;padding:1.5rem">No trades yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#2a3545;padding:1.5rem">No trades yet</td></tr>';
     updateHistSummary([]);
     return;
   }
@@ -1461,17 +1461,34 @@ function renderTrades(trades) {
     const cls = (t.pnl || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
     const pnlStr = t.pnl != null ? ((t.pnl >= 0 ? '+' : '') + pnl) : '—';
     const date = t.openedAt ? new Date(t.openedAt).toLocaleString('en-PK', { timeZone: 'Asia/Karachi', dateStyle: 'short', timeStyle: 'short' }) : '—';
+    const closeBtn = t.status === 'open'
+      ? `<button onclick="closeBotTrade('${t._id}')" style="background:#3a1a1a;border:1px solid #7f3a3a;border-radius:5px;color:#f56565;font-family:inherit;font-size:0.72rem;font-weight:700;padding:0.18rem 0.55rem;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f56565';this.style.color='#fff'" onmouseout="this.style.background='#3a1a1a';this.style.color='#f56565'">Close</button>`
+      : '';
     return `<tr>
       <td>${date}</td>
       <td style="font-weight:700;color:#e5e9f2">${t.symbol}</td>
-      <td><span class="badge badge-${t.side}">${t.side.toUpperCase()}</span></td>
+      <td><span class="badge badge-${(t.side||'').toLowerCase()}">${(t.side||'').toUpperCase()}</span></td>
       <td>${t.entryPrice != null ? t.entryPrice.toFixed(4) : '—'}</td>
       <td>${t.exitPrice != null ? t.exitPrice.toFixed(4) : '—'}</td>
       <td class="${cls}">${pnlStr} USDT</td>
       <td><span class="badge badge-${t.status}">${t.status}</span></td>
+      <td>${closeBtn}</td>
     </tr>`;
   }).join('');
   updateHistSummary(trades);
+}
+
+async function closeBotTrade(tradeId) {
+  if (!confirm('Close this position now? A market close order will be placed immediately.')) return;
+  try {
+    const r = await fetch(`/api/strategy/close-trade/${tradeId}`, { method: 'POST' });
+    const d = await r.json();
+    if (d.ok) {
+      if (_currentStrategyId) loadTrades(_currentStrategyId);
+    } else {
+      alert('Failed to close: ' + (d.error || 'Unknown error'));
+    }
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 function updateHistSummary(trades) {

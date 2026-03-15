@@ -25,10 +25,11 @@ const SettingsSchema = new mongoose.Schema({
     discord: {
         webhookUrl: { type: String, default: '' },
         alerts: {
-            priceAlert:         { type: Boolean, default: true },
-            orderSummary:       { type: Boolean, default: true },
-            autopilotMilestone: { type: Boolean, default: true },
-            tpSlHit:            { type: Boolean, default: true },
+            priceAlert:          { type: Boolean, default: true },
+            orderSummary:        { type: Boolean, default: true },
+            autopilotMilestone:  { type: Boolean, default: true },
+            tpSlHit:             { type: Boolean, default: true },
+            strategyBotAlerts:   { type: Boolean, default: true },
         },
     },
     ai: {

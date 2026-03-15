@@ -42,6 +42,14 @@ router.post('/', async (req, res) => {
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
+// POST /api/strategy/close-trade/:tradeId — manually close an open position
+router.post('/close-trade/:tradeId', async (req, res) => {
+    try {
+        const updated = await bot.closeTradeManually(req.session.userId, req.params.tradeId);
+        res.json({ ok: true, trade: updated });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // PUT /api/strategy/:id — update
 router.put('/:id', async (req, res) => {
     try {

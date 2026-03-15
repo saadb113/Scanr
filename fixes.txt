@@ -1,8 +1,48 @@
+Add Discord notifications for the strategy bot and add a toggle for it in Discord settings.
 
-password changing functionality is working but the first name and last name is not working correcrly
+1. Discord Settings UI (settings page — Discord modal):
+   - Add a new toggle: "Strategy Bot Alerts" (on/off)
+   - Save this toggle to DB alongside existing Discord alert toggles
+   - Only send strategy bot Discord notifications if this toggle is ON
 
-for example i registered the account with firt name standard
-it shwos welcome Saad heading on dashoard 
-now i goto settings and profile tab and i change the first name to saad23. now the dashboard heading is sstill showing welcome Saad
+2. Bot Start Notification:
+   - When bot starts successfully, send a Discord embed:
+     - Title: "🤖 Strategy Bot Started"
+     - Fields: Strategy Name, Timeframe, Coins being scanned (count), Time (PKT)
+     - Color: Blue
 
-and also i updated the profile picture in settings. and that picture should show in the ehader top right proie icon
+3. Trade Placed Notification:
+   - When bot finds a matching coin and places a trade, send embed:
+     - Title: "📈 Bot Trade Opened" or "📉 Bot Trade Opened" (based on LONG/SHORT)
+     - Fields: Coin, Direction (LONG/SHORT), Entry Price, SL, TP, RR, Position Size, Strategy Name, Time (PKT)
+     - Color: Green for LONG, Red for SHORT
+
+4. TP Hit Notification:
+   - When TP is hit send embed:
+     - Title: "✅ Bot Trade — Take Profit Hit"
+     - Fields: Coin, Direction, Entry, Exit, PnL (USDT + %), Strategy Name, Time (PKT)
+     - Color: Green
+
+5. SL Hit Notification:
+   - When SL is hit send embed:
+     - Title: "❌ Bot Trade — Stop Loss Hit"
+     - Fields: Coin, Direction, Entry, Exit, PnL (USDT + %), Strategy Name, Time (PKT)
+     - Color: Red
+
+6. Manual Close Notification (from the close position button we just added):
+   - When user manually closes a bot trade send embed:
+     - Title: "🔒 Bot Trade — Manually Closed"
+     - Fields: Coin, Direction, Entry, Exit, PnL (USDT + %), Strategy Name, Time (PKT)
+     - Color: Orange
+
+7. Implementation:
+   - Reuse the existing discordNotifier.js sendEmbed function
+   - Add a new function sendStrategyBotAlert(userId, type, data) in discordNotifier.js
+   - Fetch user's Discord webhook URL and strategyBotAlerts toggle from DB before sending
+   - If toggle is off or no webhook URL set, skip silently
+   - All times must be in PKT (UTC+5)
+
+   add the strategy builder button in the quick actions on the dashbord sidebar.
+   remove the streaks logic functionality from the project
+
+   push it to both branches

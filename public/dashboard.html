@@ -31,16 +31,6 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
   border-right:1px solid var(--border);
 }
 
-/* Sidebar streaks */
-.sb-streaks{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:0.85rem 1rem}
-.sb-streaks-title{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:0.55rem}
-.sb-streak-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.35rem}
-.sb-streak-row:last-child{margin-bottom:0}
-.sb-streak-label{font-size:0.75rem;color:var(--text-secondary)}
-.sb-streak-val{font-size:1.1rem;font-weight:800;font-family:var(--font-mono);color:var(--green)}
-.sb-streak-val.zero{color:var(--text-muted)}
-.sb-streak-best{font-size:0.68rem;color:var(--text-muted);margin-top:0.15rem;text-align:right}
-
 /* Sidebar quick actions */
 .sb-actions-title{font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);padding-left:0.1rem}
 .sb-action-btn{
@@ -175,24 +165,6 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
   <!-- ── Sidebar ── -->
   <div class="db-sidebar" id="dbSidebar">
 
-    <!-- Streaks -->
-    <div class="sb-streaks">
-      <div class="sb-streaks-title">🔥 Streaks</div>
-      <div class="sb-streak-row">
-        <span class="sb-streak-label">Current</span>
-        <span class="sb-streak-val" id="sbCurrentStreak">—</span>
-      </div>
-      <div class="sb-streak-best" id="sbBestStreak" style="margin-bottom:0.5rem">Best: —</div>
-      <div class="sb-streak-row">
-        <span class="sb-streak-label" style="font-size:0.68rem;color:var(--text-muted)">Green days</span>
-        <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--green)" id="sbGreenStreak">—</span>
-      </div>
-      <div class="sb-streak-row">
-        <span class="sb-streak-label" style="font-size:0.68rem;color:var(--text-muted)">Rule streak</span>
-        <span style="font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--blue)" id="sbRuleStreak">—</span>
-      </div>
-    </div>
-
     <!-- Quick Actions -->
     <div class="sb-actions-title">Quick Actions</div>
     <a class="sb-action-btn" href="/scanner">
@@ -200,6 +172,9 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
     </a>
     <a class="sb-action-btn" href="/setups">
       <span class="sb-action-icon">🔍</span>Scan Setups
+    </a>
+    <a class="sb-action-btn" href="/strategy">
+      <span class="sb-action-icon">🧩</span>Strategy Builder
     </a>
     <a class="sb-action-btn" href="/terminal">
       <span class="sb-action-icon">⚡</span>Trade
@@ -422,17 +397,6 @@ async function dbLoadTab(tab) {
     }
   } catch(e) { pane.innerHTML = `<div class="db-tab-empty" style="color:var(--red)">Error: ${e.message}</div>`; }
 }
-
-// ── Streaks ────────────────────────────────────────────────────
-fetch('/api/streak').then(r => r.json()).then(d => {
-  if (!d.ok) return;
-  const cv = document.getElementById('sbCurrentStreak');
-  cv.textContent = d.currentStreak ?? d.ruleStreak ?? 0;
-  if ((d.currentStreak||0) === 0) cv.classList.add('zero'); else cv.classList.remove('zero');
-  document.getElementById('sbBestStreak').textContent = 'Best: ' + (d.bestStreak || d.bestRuleStreak || 0) + ' days';
-  document.getElementById('sbGreenStreak').textContent = d.greenStreak ?? 0;
-  document.getElementById('sbRuleStreak').textContent  = d.ruleStreak  ?? 0;
-}).catch(() => {});
 
 // ── Init ──────────────────────────────────────────────────────
 fetch('/api/auth/me')
