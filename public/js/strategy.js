@@ -1213,6 +1213,7 @@ async function loadStrategies() {
     } else {
       _botActive = false;
       _botStrategyId = null;
+      loadAllTrades();
     }
     updateBotUI();
     botStratSelChanged(); // sync Start button enable state
@@ -1441,41 +1442,127 @@ function updateBotStatusPanel(d) {
 }
 
 // ── Trade history ──────────────────────────────────────────────────────────
-async function loadTrades(strategyId) {
+let _allTrades     = [];
+let _filterStrategy = 'all';
+let _filterDir      = 'all';
+let _filterStatus   = 'all';
+let _sortPnl        = 'default';
+let _pnlInterval    = null;
+
+async function loadAllTrades() {
   try {
-    const r = await fetch(`/api/strategy/${strategyId}/trades`);
+    const r = await fetch('/api/strategy/bot/trades');
     const d = await r.json();
-    if (d.ok) renderTrades(d.trades);
+    if (d.ok) {
+      _allTrades = d.trades;
+      populateStrategyFilter();
+      applyFilters();
+      startPnlUpdater();
+    }
   } catch (_) {}
+}
+
+// Keep old name as alias so existing callers still work
+function loadTrades() { return loadAllTrades(); }
+
+function populateStrategyFilter() {
+  const sel = document.getElementById('filterStrategy');
+  if (!sel) return;
+  const seen = new Set();
+  const opts = [{ id: 'all', name: 'All Strategies' }];
+  _allTrades.forEach(t => {
+    if (!seen.has(t.strategyId)) {
+      seen.add(t.strategyId);
+      const strat = _strategies.find(s => s._id === t.strategyId);
+      opts.push({ id: t.strategyId, name: strat?.name || t.strategyId?.slice(-6) || '?' });
+    }
+  });
+  const current = sel.value;
+  sel.innerHTML = opts.map(o => `<option value="${o.id}"${o.id === current ? ' selected' : ''}>${o.name}</option>`).join('');
+}
+
+function applyFilters() {
+  let filtered = [..._allTrades];
+  if (_filterStrategy !== 'all') filtered = filtered.filter(t => t.strategyId === _filterStrategy);
+  if (_filterDir !== 'all') filtered = filtered.filter(t => (t.side || '').toLowerCase() === _filterDir);
+  if (_filterStatus !== 'all') filtered = filtered.filter(t => t.status === _filterStatus);
+  if (_sortPnl === 'high') filtered.sort((a, b) => (b.pnl || 0) - (a.pnl || 0));
+  else if (_sortPnl === 'low') filtered.sort((a, b) => (a.pnl || 0) - (b.pnl || 0));
+  renderTrades(filtered);
+  const countEl = document.getElementById('tradeCount');
+  if (countEl) countEl.textContent = `Showing ${filtered.length} trade${filtered.length !== 1 ? 's' : ''}`;
 }
 
 function renderTrades(trades) {
   const tbody = $('stratHistBody');
   if (!trades?.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#2a3545;padding:1.5rem">No trades yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#2a3545;padding:1.5rem">No trade history yet</td></tr>';
     updateHistSummary([]);
     return;
   }
   tbody.innerHTML = trades.map(t => {
-    const pnl = t.pnl != null ? t.pnl.toFixed(2) : '—';
-    const cls = (t.pnl || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
-    const pnlStr = t.pnl != null ? ((t.pnl >= 0 ? '+' : '') + pnl) : '—';
+    const isOpen = t.status === 'open';
+    const pnlVal = t.pnl != null ? t.pnl : 0;
+    const cls = pnlVal >= 0 ? 'pnl-pos' : 'pnl-neg';
+    const pnlStr = t.pnl != null ? ((pnlVal >= 0 ? '+' : '') + pnlVal.toFixed(2)) : '—';
+    const pnlPct = t.pnl != null && t.entryPrice && t.quantity
+      ? (t.pnl / (t.entryPrice * t.quantity) * 100).toFixed(2) : null;
+    const pnlCell = `${pnlStr} USDT${pnlPct != null ? ` <span style="font-size:0.8em;opacity:0.8">(${parseFloat(pnlPct) >= 0 ? '+' : ''}${pnlPct}%)</span>` : ''}`;
     const date = t.openedAt ? new Date(t.openedAt).toLocaleString('en-PK', { timeZone: 'Asia/Karachi', dateStyle: 'short', timeStyle: 'short' }) : '—';
-    const closeBtn = t.status === 'open'
+    const strat = _strategies.find(s => s._id === t.strategyId);
+    const stratName = strat?.name || '—';
+    const closeBtn = isOpen
       ? `<button onclick="closeBotTrade('${t._id}')" style="background:#3a1a1a;border:1px solid #7f3a3a;border-radius:5px;color:#f56565;font-family:inherit;font-size:0.72rem;font-weight:700;padding:0.18rem 0.55rem;cursor:pointer;white-space:nowrap" onmouseover="this.style.background='#f56565';this.style.color='#fff'" onmouseout="this.style.background='#3a1a1a';this.style.color='#f56565'">Close</button>`
       : '';
-    return `<tr>
+    return `<tr data-trade-id="${t._id}" data-symbol="${t.symbol}" data-side="${t.side}" data-entry="${t.entryPrice}" data-qty="${t.quantity}" data-status="${t.status}">
       <td>${date}</td>
       <td style="font-weight:700;color:#e5e9f2">${t.symbol}</td>
       <td><span class="badge badge-${(t.side||'').toLowerCase()}">${(t.side||'').toUpperCase()}</span></td>
       <td>${t.entryPrice != null ? t.entryPrice.toFixed(4) : '—'}</td>
       <td>${t.exitPrice != null ? t.exitPrice.toFixed(4) : '—'}</td>
-      <td class="${cls}">${pnlStr} USDT</td>
+      <td id="pnl-${t._id}" class="${cls}" style="font-weight:700">${pnlCell}</td>
       <td><span class="badge badge-${t.status}">${t.status}</span></td>
+      <td style="color:#8a95a8;font-size:0.8rem;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${stratName}</td>
       <td>${closeBtn}</td>
     </tr>`;
   }).join('');
   updateHistSummary(trades);
+}
+
+function startPnlUpdater() {
+  if (_pnlInterval) clearInterval(_pnlInterval);
+  _pnlInterval = setInterval(updateOpenPnl, 3000);
+}
+
+async function updateOpenPnl() {
+  const openRows = document.querySelectorAll('#stratHistBody tr[data-status="open"]');
+  if (!openRows.length) return;
+  const symbols = [...new Set([...openRows].map(r => r.dataset.symbol))];
+  const prices = {};
+  await Promise.all(symbols.map(async sym => {
+    try {
+      const r = await fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${sym}`);
+      const d = await r.json();
+      const price = parseFloat(d?.result?.list?.[0]?.lastPrice);
+      if (!isNaN(price)) prices[sym] = price;
+    } catch (_) {}
+  }));
+  openRows.forEach(row => {
+    const currentPrice = prices[row.dataset.symbol];
+    if (!currentPrice) return;
+    const side  = (row.dataset.side || '').toLowerCase();
+    const entry = parseFloat(row.dataset.entry);
+    const qty   = parseFloat(row.dataset.qty);
+    if (isNaN(entry) || isNaN(qty) || qty === 0) return;
+    const pnl    = side === 'long' ? (currentPrice - entry) * qty : (entry - currentPrice) * qty;
+    const pnlPct = pnl / (entry * qty) * 100;
+    const cls    = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+    const cell   = document.getElementById(`pnl-${row.dataset.tradeId}`);
+    if (cell) {
+      cell.className = cls;
+      cell.innerHTML = `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)} USDT <span style="font-size:0.8em;opacity:0.8">(${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)</span>`;
+    }
+  });
 }
 
 async function closeBotTrade(tradeId) {
@@ -1484,9 +1571,25 @@ async function closeBotTrade(tradeId) {
     const r = await fetch(`/api/strategy/close-trade/${tradeId}`, { method: 'POST' });
     const d = await r.json();
     if (d.ok) {
-      if (_currentStrategyId) loadTrades(_currentStrategyId);
+      await loadAllTrades();
     } else {
       alert('Failed to close: ' + (d.error || 'Unknown error'));
+    }
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function clearTradeHistory() {
+  if (!confirm('This will permanently delete all closed trade history for all strategies.\nOpen trades will NOT be deleted.\n\nAre you sure?')) return;
+  try {
+    const r = await fetch('/api/strategy/trades/clear', { method: 'DELETE' });
+    const d = await r.json();
+    if (d.ok) {
+      let msg = `Cleared ${d.deleted} trade(s).`;
+      if (d.openSkipped > 0) msg += ` ${d.openSkipped} open trade(s) were not cleared.`;
+      showToast(msg);
+      await loadAllTrades();
+    } else {
+      alert('Failed to clear: ' + (d.error || 'Unknown error'));
     }
   } catch (e) { alert('Error: ' + e.message); }
 }
@@ -1510,7 +1613,8 @@ function connectSocket() {
     _socket.on('strategy:scan_started',   d => addLog({ level: 'info',    message: `Scanning ${d.total} coins…` }));
     _socket.on('strategy:scan_complete',  d => { addLog({ level: 'success', message: `Scan done — ${d.found} signal(s) in ${d.duration}s` }); fetchBotStatus(); });
     _socket.on('strategy:conditions_met', d => addLog({ level: 'success', message: `✔ ${d.symbol} — ${d.side} signal` }));
-    _socket.on('strategy:order_placed',   d => { addLog({ level: 'success', message: `Order: ${d.symbol} ${d.side} @ ${d.entry}` }); if (_currentStrategyId) loadTrades(_currentStrategyId); });
+    _socket.on('strategy:order_placed',   d => { addLog({ level: 'success', message: `Order: ${d.symbol} ${d.side} @ ${d.entry}` }); loadAllTrades(); });
+    _socket.on('strategy:trade_closed',   d => { addLog({ level: 'info',    message: `Closed: ${d.symbol} ${d.type} PnL: ${d.pnl?.toFixed(2)}` }); loadAllTrades(); });
     _socket.on('strategy:order_failed',   d => addLog({ level: 'error',   message: `Order failed ${d.symbol}: ${d.error}` }));
   } catch (_) {}
 }

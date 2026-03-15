@@ -24,6 +24,27 @@ router.get('/bot/log', (req, res) => {
     res.json({ ok: true, logs: bot.getLogs(req.session.userId) });
 });
 
+// GET /api/strategy/bot/trades — all bot trades for user (all strategies)
+router.get('/bot/trades', async (req, res) => {
+    try {
+        const trades = await BotTrade.find({ userId: req.session.userId })
+            .sort({ openedAt: -1 }).limit(500).lean();
+        res.json({ ok: true, trades });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// DELETE /api/strategy/trades/clear — clear all closed bot trades for user
+router.delete('/trades/clear', async (req, res) => {
+    try {
+        const result = await BotTrade.deleteMany({
+            userId: req.session.userId,
+            status: { $ne: 'open' },
+        });
+        const openCount = await BotTrade.countDocuments({ userId: req.session.userId, status: 'open' });
+        res.json({ ok: true, deleted: result.deletedCount, openSkipped: openCount });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
 // POST /api/strategy — create new
 router.post('/', async (req, res) => {
     try {

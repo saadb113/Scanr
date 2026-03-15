@@ -558,6 +558,46 @@
     .badge-open { background: #1a2a3a; color: #60a5fa; }
     .badge-closed { background: #1a2030; color: #6b7897; }
 
+    /* ── History filters row ── */
+    .hist-filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .hist-filter-sel {
+      background: #111827;
+      border: 1px solid #1e2d40;
+      border-radius: 5px;
+      color: #9aa5b4;
+      font-family: inherit;
+      font-size: 0.75rem;
+      padding: 0.28rem 0.6rem;
+      cursor: pointer;
+      outline: none;
+    }
+    .hist-filter-sel:focus { border-color: #29b6ff; color: #e5e9f2; }
+    .hist-trade-count {
+      margin-left: auto;
+      color: #4a5568;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+    .btn-clear-hist {
+      background: transparent;
+      border: 1px solid #7f3a3a;
+      border-radius: 5px;
+      color: #f56565;
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.28rem 0.7rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-clear-hist:hover { background: #f56565; color: #fff; }
+
     /* ── Block Edit Modal ── */
     .strat-modal-bg {
       display: none;
@@ -895,14 +935,37 @@
         Bot Trade History
         <div class="strat-hist-summary" id="stratHistSummary" style="margin:0"></div>
       </div>
+      <!-- Filter / sort controls -->
+      <div class="hist-filters">
+        <select id="filterStrategy" class="hist-filter-sel" onchange="_filterStrategy=this.value;applyFilters()">
+          <option value="all">All Strategies</option>
+        </select>
+        <select id="filterDir" class="hist-filter-sel" onchange="_filterDir=this.value;applyFilters()">
+          <option value="all">All Directions</option>
+          <option value="long">Long</option>
+          <option value="short">Short</option>
+        </select>
+        <select id="filterStatus" class="hist-filter-sel" onchange="_filterStatus=this.value;applyFilters()">
+          <option value="all">All Status</option>
+          <option value="open">Open</option>
+          <option value="closed">Closed</option>
+        </select>
+        <select id="filterSortPnl" class="hist-filter-sel" onchange="_sortPnl=this.value;applyFilters()">
+          <option value="default">Sort: Default</option>
+          <option value="high">PnL: High → Low</option>
+          <option value="low">PnL: Low → High</option>
+        </select>
+        <span id="tradeCount" class="hist-trade-count">Showing 0 trades</span>
+        <button class="btn-clear-hist" onclick="clearTradeHistory()">Clear History</button>
+      </div>
       <table class="strat-hist-table">
         <thead>
           <tr>
-            <th>Date</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>PnL</th><th>Status</th><th></th>
+            <th>Date</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Exit</th><th>PnL</th><th>Status</th><th>Strategy</th><th></th>
           </tr>
         </thead>
         <tbody id="stratHistBody">
-          <tr><td colspan="8" style="text-align:center;color:#2a3545;padding:1.5rem">No trades yet</td></tr>
+          <tr><td colspan="9" style="text-align:center;color:#2a3545;padding:1.5rem">No trade history yet</td></tr>
         </tbody>
       </table>
     </div>
