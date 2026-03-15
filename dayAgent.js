@@ -219,7 +219,13 @@ class DayAgent {
             agLog('info', `Resuming with open trade: ${openTrade.symbol}`);
             this._startMonitor();
         } else {
-            this._startScan(0);
+            // Respect scan interval on resume — calculate remaining time from last scan
+            const state = await AgentState.findOne({ userId: this.userId }).lean();
+            const lastScan = state?.lastScanAt ? new Date(state.lastScanAt).getTime() : 0;
+            const elapsed = lastScan ? (Date.now() - lastScan) / 1000 : Infinity;
+            const scanIntervalSec = (this.settings.scanInterval || 30) * 60;
+            const delay = Math.max(0, scanIntervalSec - elapsed);
+            this._startScan(delay > 30 ? delay : 0);
         }
 
         return { ok: true };
@@ -293,6 +299,8 @@ class DayAgent {
 
         // Re-fetch latest agent settings each scan cycle so user changes take effect without restart
         this.settings = await AgentSettings.findOne({ userId: this.userId }).lean() || this.settings;
+        // Record scan time so resume/restart can respect the scan interval
+        await dbSaveState(this.userId, { lastScanAt: new Date().toISOString() });
 
         const maxTrades = this.settings.maxTrades || 3;
         if (this.tradesTaken >= maxTrades) { await this.stop('max_trades_reached'); return; }

@@ -136,19 +136,20 @@ async function getBybitOpenSymbols(creds) {
 async function applyHardFilters(sym, agentSettings, openSyms) {
     if (openSyms.includes(sym)) return null;
 
-    const [ticker, c4h, c1h, c5m] = await Promise.all([
+    const tf = agentSettings.timeframe || '5m';
+    const [ticker, c4h, c1h, cEntry] = await Promise.all([
         fetchTicker(sym),
         fetchCandles(sym, '4h', 50),
         fetchCandles(sym, '1h', 50),
-        fetchCandles(sym, '5m', 100),
+        fetchCandles(sym, tf, 100),
     ]);
 
     // 1. Volume > 30M
     if (parseFloat(ticker.quoteVolume) < (agentSettings.minVolume || 30) * 1e6) return null;
 
-    // 2. ATR(14) on 5m within threshold
-    const atr5m = calcATR(c5m, 14);
-    if (atr5m < (agentSettings.atrMin || 0) || atr5m > (agentSettings.atrMax || 9999999)) return null;
+    // 2. ATR(14) on entry timeframe within threshold
+    const atrEntry = calcATR(cEntry, 14);
+    if (atrEntry < (agentSettings.atrMin || 0) || atrEntry > (agentSettings.atrMax || 9999999)) return null;
 
     // 3. 4H EMA20 vs EMA50 — clear trend (not flat)
     const cls4h = c4h.map(c => c.close);
@@ -166,25 +167,26 @@ async function applyHardFilters(sym, agentSettings, openSyms) {
     const trend1h = e20_1[e20_1.length - 1] > e50_1[e50_1.length - 1] ? 'long' : 'short';
     if (trend1h !== trend4h) return null;
 
-    // 5. RSI(14) on 5m < 38 for long OR > 62 for short
-    const cls5m = c5m.map(c => c.close);
-    const rsi5m = calcRSI(cls5m, 14);
-    if (trend4h === 'long'  && rsi5m >= 38) return null;
-    if (trend4h === 'short' && rsi5m <= 62) return null;
+    // 5. RSI(14) on entry timeframe < 38 for long OR > 62 for short
+    const clsEntry = cEntry.map(c => c.close);
+    const rsiEntry = calcRSI(clsEntry, 14);
+    if (trend4h === 'long'  && rsiEntry >= 38) return null;
+    if (trend4h === 'short' && rsiEntry <= 62) return null;
 
-    return { symbol: sym, direction: trend4h, ticker, c4h, c1h, c5m, rsi5m, atr5m };
+    return { symbol: sym, direction: trend4h, ticker, c4h, c1h, cEntry, rsiEntry, atrEntry, timeframe: tf };
 }
 
 // ── Phase 2: AI quality scoring ───────────────────────────────
 
 async function scoreWithAI(candidate, userSettings) {
-    const cls5m  = candidate.c5m.map(c => c.close);
-    const macd   = calcMACD(cls5m);
-    const rsiSer = calcRSISeries(cls5m, 14);
-    const diverg = detectDivergence(cls5m, rsiSer);
-    const swings = swingHighsLows(candidate.c5m);
-    const vol20  = candidate.c5m.slice(-20).reduce((s, c) => s + c.volume, 0) / 20;
-    const volR   = (candidate.c5m[candidate.c5m.length - 1].volume / (vol20 || 1)).toFixed(2);
+    const tf     = candidate.timeframe || '5m';
+    const clsEntry = candidate.cEntry.map(c => c.close);
+    const macd   = calcMACD(clsEntry);
+    const rsiSer = calcRSISeries(clsEntry, 14);
+    const diverg = detectDivergence(clsEntry, rsiSer);
+    const swings = swingHighsLows(candidate.cEntry);
+    const vol20  = candidate.cEntry.slice(-20).reduce((s, c) => s + c.volume, 0) / 20;
+    const volR   = (candidate.cEntry[candidate.cEntry.length - 1].volume / (vol20 || 1)).toFixed(2);
     const cls4h  = candidate.c4h.map(c => c.close);
     const e20_4  = calcEMASeries(cls4h, 20);
     const e50_4  = calcEMASeries(cls4h, 50);
@@ -203,15 +205,15 @@ ${JSON.stringify(fmtC(candidate.c4h.slice(-30)))}
 1H candles (last 30, oldest first):
 ${JSON.stringify(fmtC(candidate.c1h.slice(-30)))}
 
-5m candles (last 50, oldest first):
-${JSON.stringify(fmtC(candidate.c5m.slice(-50)))}
+${tf} candles (last 50, oldest first):
+${JSON.stringify(fmtC(candidate.cEntry.slice(-50)))}
 
 Indicators:
-- RSI(14) 5m: ${candidate.rsi5m.toFixed(2)}
-- MACD 5m: macd=${f4(macd.macd)} signal=${f4(macd.signal)} hist=${f4(macd.hist)}
-- ATR(14) 5m: ${f4(candidate.atr5m)}
+- RSI(14) ${tf}: ${candidate.rsiEntry.toFixed(2)}
+- MACD ${tf}: macd=${f4(macd.macd)} signal=${f4(macd.signal)} hist=${f4(macd.hist)}
+- ATR(14) ${tf}: ${f4(candidate.atrEntry)}
 - Volume ratio vs 20-avg: ${volR}x
-- Divergence (5m): ${diverg}
+- Divergence (${tf}): ${diverg}
 - 4H EMA20: ${f4(e20_4[e20_4.length - 1])}, EMA50: ${f4(e50_4[e50_4.length - 1])}
 - S/R swing highs: ${JSON.stringify(swings.highs.map(f4))}
 - S/R swing lows:  ${JSON.stringify(swings.lows.map(f4))}
@@ -232,11 +234,17 @@ Return ONLY this JSON object (no extra text):
 // ── Main scan function ────────────────────────────────────────
 
 async function runScan(creds, agentSettings, userSettings, emitFn) {
-    const settingsDoc = await Settings.findOne({ userId: 'default' }).lean();
-    const symbols     = (settingsDoc?.symbols || []).filter(Boolean);
+    let symbols;
+    const customList = (agentSettings.customCoins || '').trim();
+    if (customList) {
+        symbols = customList.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+    } else {
+        const settingsDoc = await Settings.findOne({ userId: 'default' }).lean();
+        symbols = (settingsDoc?.symbols || []).filter(Boolean);
+    }
 
     if (!symbols.length) {
-        emitFn('agent:log', { level: 'warn', message: 'No coins in scanner list. Add coins in Settings → Coins.' });
+        emitFn('agent:log', { level: 'warn', message: 'No coins configured. Add coins in Settings → Coins or set custom coins in Agent settings.' });
         return [];
     }
 
@@ -251,7 +259,7 @@ async function runScan(creds, agentSettings, userSettings, emitFn) {
             const res = await applyHardFilters(sym, agentSettings, openSyms);
             if (res) {
                 candidates.push(res);
-                emitFn('agent:log', { level: 'info', message: `✓ ${sym} passed — ${res.direction.toUpperCase()} RSI=${res.rsi5m.toFixed(1)}` });
+                emitFn('agent:log', { level: 'info', message: `✓ ${sym} passed — ${res.direction.toUpperCase()} RSI=${res.rsiEntry.toFixed(1)}` });
             }
             await new Promise(r => setTimeout(r, 120)); // Binance rate-limit courtesy
         } catch (e) {

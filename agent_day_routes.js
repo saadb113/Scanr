@@ -42,7 +42,7 @@ router.post('/settings', async (req, res) => {
         const allowed = [
             'startTime','endTime','maxTrades','scanInterval','cooldownMinutes','minScore',
             'basePositionSize','maxLossPerTradePct','dailyDrawdownPct','maxConsecutiveLosses',
-            'minVolume','atrMin','atrMax','emailRecipient',
+            'minVolume','atrMin','atrMax','timeframe','customCoins','emailRecipient',
             'notifyOnAgentShutdown','notifyOnTradePlaced','notifyOnTradeClosed','notifyOnDailySummary',
         ];
         const update = {};

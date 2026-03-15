@@ -333,6 +333,17 @@
         <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Min AI Score (0-100)</label>
         <input type="number" id="agMinScore" class="s-input-full" value="75" min="0" max="100">
       </div>
+      <div>
+        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Scan Timeframe</label>
+        <select id="agTimeframe" class="s-input-full">
+          <option value="1m">1m</option>
+          <option value="3m">3m</option>
+          <option value="5m" selected>5m</option>
+          <option value="15m">15m</option>
+          <option value="30m">30m</option>
+          <option value="1h">1h</option>
+        </select>
+      </div>
     </div>
 
     <!-- Position Sizing -->
@@ -373,6 +384,12 @@
         <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">ATR Max</label>
         <input type="number" id="agAtrMax" class="s-input-full" value="9999999" min="0" step="any">
       </div>
+    </div>
+
+    <!-- Custom Coin List -->
+    <div style="margin-bottom:0.8rem">
+      <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Custom Coin List (blank = use global list)</label>
+      <input type="text" id="agCustomCoins" class="s-input-full" placeholder="e.g. BTCUSDT, ETHUSDT, SOLUSDT">
     </div>
 
     <!-- Email Notifications -->
@@ -435,6 +452,8 @@ async function agLoadSettings() {
         if (s.minVolume)             document.getElementById('agMinVol').value         = s.minVolume;
         if (s.atrMin !== undefined)  document.getElementById('agAtrMin').value         = s.atrMin;
         if (s.atrMax !== undefined)  document.getElementById('agAtrMax').value         = s.atrMax;
+        if (s.timeframe)             document.getElementById('agTimeframe').value      = s.timeframe;
+        if (s.customCoins !== undefined) document.getElementById('agCustomCoins').value = s.customCoins || '';
         if (s.emailRecipient)        document.getElementById('agEmailRecipient').value = s.emailRecipient;
         document.getElementById('agNotifyStart').checked   = s.notifyOnAgentShutdown !== false;
         document.getElementById('agNotifyTrade').checked   = s.notifyOnTradePlaced   !== false;
@@ -458,6 +477,8 @@ async function agSaveSettings() {
         minVolume:              parseFloat(document.getElementById('agMinVol').value),
         atrMin:                 parseFloat(document.getElementById('agAtrMin').value) || 0,
         atrMax:                 parseFloat(document.getElementById('agAtrMax').value) || 9999999,
+        timeframe:              document.getElementById('agTimeframe').value || '5m',
+        customCoins:            document.getElementById('agCustomCoins').value.trim(),
         emailRecipient:         document.getElementById('agEmailRecipient').value.trim(),
         notifyOnAgentShutdown:  document.getElementById('agNotifyStart').checked,
         notifyOnTradePlaced:    document.getElementById('agNotifyTrade').checked,

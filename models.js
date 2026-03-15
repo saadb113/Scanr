@@ -170,6 +170,8 @@ const AgentSettingsSchema = new mongoose.Schema({
     minVolume:             { type: Number, default: 30 },
     atrMin:                { type: Number, default: 0 },
     atrMax:                { type: Number, default: 9999999 },
+    timeframe:             { type: String, default: '5m' },
+    customCoins:           { type: String, default: '' },
     whatsappRecipient:     String,
     emailRecipient:        String,
     notifyOnTradePlaced:   { type: Boolean, default: true },
@@ -225,6 +227,7 @@ const AgentStateSchema = new mongoose.Schema({
     date:         String,
     tradesTaken:  { type: Number, default: 0 },
     startBalance: { type: Number, default: 0 },
+    lastScanAt:   { type: String, default: '' },
 }, { timestamps: true });
 AgentStateSchema.index({ userId: 1 }, { unique: true });
 
