@@ -172,6 +172,7 @@ const AgentSettingsSchema = new mongoose.Schema({
     atrMax:                { type: Number, default: 9999999 },
     timeframe:             { type: String, default: '5m' },
     customCoins:           { type: String, default: '' },
+    demoMode:              { type: Boolean, default: false },
     whatsappRecipient:     String,
     emailRecipient:        String,
     notifyOnTradePlaced:   { type: Boolean, default: true },

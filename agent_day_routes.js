@@ -14,14 +14,14 @@ router.post('/start', async (req, res) => {
 });
 
 router.post('/stop', async (req, res) => {
-    const result = await agent.stopAgent('manual');
+    const result = await agent.stopAgent(req.session.userId, 'manual');
     res.json(result);
 });
 
 // ── Status ────────────────────────────────────────────────────
 
 router.get('/status', (req, res) => {
-    res.json(agent.getStatus());
+    res.json(agent.getStatus(req.session.userId));
 });
 
 // ── Settings ──────────────────────────────────────────────────
@@ -42,7 +42,7 @@ router.post('/settings', async (req, res) => {
         const allowed = [
             'startTime','endTime','maxTrades','scanInterval','cooldownMinutes','minScore',
             'basePositionSize','maxLossPerTradePct','dailyDrawdownPct','maxConsecutiveLosses',
-            'minVolume','atrMin','atrMax','timeframe','customCoins','emailRecipient',
+            'minVolume','atrMin','atrMax','timeframe','customCoins','demoMode','emailRecipient',
             'notifyOnAgentShutdown','notifyOnTradePlaced','notifyOnTradeClosed','notifyOnDailySummary',
         ];
         const update = {};
@@ -105,12 +105,33 @@ router.get('/history/:sessionId', async (req, res) => {
 
 router.get('/today', async (req, res) => {
     try {
-        const status = agent.getStatus();
+        const status = agent.getStatus(req.session.userId);
         if (!status.sessionId) return res.json({ ok: true, trades: [] });
         const trades = await AgentTrade.find({ sessionId: status.sessionId, userId: req.session.userId })
             .sort({ openedAt: 1 })
             .lean();
         res.json({ ok: true, trades });
+    } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+// ── Clear history ─────────────────────────────────────────────
+
+router.post('/clear-history', async (req, res) => {
+    try {
+        const status = agent.getStatus(req.session.userId);
+        const hasOpenTrade = !!(status.running && status.currentTrade);
+
+        if (hasOpenTrade) {
+            // Keep the current session + its open trade; delete everything else
+            await AgentTrade.deleteMany({ userId: req.session.userId, closedAt: { $exists: true } });
+            await AgentSession.deleteMany({ userId: req.session.userId, _id: { $ne: status.sessionId } });
+        } else {
+            await AgentTrade.deleteMany({ userId: req.session.userId });
+            await AgentSession.deleteMany({ userId: req.session.userId });
+        }
+        res.json({ ok: true });
     } catch (e) {
         res.status(500).json({ ok: false, error: e.message });
     }

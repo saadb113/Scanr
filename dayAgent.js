@@ -1,10 +1,14 @@
 'use strict';
 
 /**
- * dayAgent.js — Autonomous Day Trading Agent (server-side)
+ * dayAgent.js — AI Day Trading Agent (server-side, candle-based)
  *
- * Survives browser close. Stores state in MongoDB.
- * All times in Pakistan Standard Time (UTC+5, no DST).
+ * Architecture:
+ * - Module-level Map keyed by userId — one agent instance per user
+ * - Scans on candle close of the selected timeframe (polls every 30s)
+ * - Survives tab close and server restarts (PM2 + DB state persistence)
+ * - Fresh settings fetched from DB on every poll cycle
+ * - All times in Pakistan Standard Time (UTC+5, no DST)
  */
 
 const crypto     = require('crypto');
@@ -15,7 +19,14 @@ const discordNotifier = require('./discordNotifier');
 
 const PST_OFFSET_MS = 5 * 60 * 60 * 1000; // UTC+5
 
-let _activeUserId = null; // tracks the running agent's user, used to scope Socket.io emits
+// Candle duration in milliseconds per timeframe
+const TF_MS = {
+    '1m': 60000, '3m': 180000, '5m': 300000, '15m': 900000, '30m': 1800000,
+    '1h': 3600000, '2h': 7200000, '4h': 14400000, '1D': 86400000,
+};
+
+// Module-level agents Map — one entry per running user
+const agents = new Map();
 
 // ── PST helpers ───────────────────────────────────────────────
 
@@ -28,10 +39,13 @@ function todayPST() {
     const d = nowPST();
     return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
 }
-function minsUntilEndOfDay(endTime = '18:00') {
-    const [eh, em] = endTime.split(':').map(Number);
+function pstMinutes() {
     const d = nowPST();
-    return (eh * 60 + em) - (d.getUTCHours() * 60 + d.getUTCMinutes());
+    return d.getUTCHours() * 60 + d.getUTCMinutes();
+}
+function timeToMins(timeStr) {
+    const [h, m] = (timeStr || '00:00').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
 }
 
 // ── Bybit API helpers ─────────────────────────────────────────
@@ -113,16 +127,10 @@ async function getInstrumentInfo(sym) {
 let _io = null;
 function setIO(io) { _io = io; }
 
-function emit(event, data) {
+function emit(userId, event, data) {
     if (!_io) return;
     const payload = { ...data, ts: new Date().toISOString() };
-    if (_activeUserId) _io.to(_activeUserId).emit(event, payload);
-    else _io.emit(event, payload);
-}
-
-function agLog(level, message) {
-    console.log(`[Agent][${level.toUpperCase()}] ${message}`);
-    emit('agent:log', { level, message, ts: pstTimeStr() });
+    _io.to(userId).emit(event, payload);
 }
 
 // ── DB state helpers ──────────────────────────────────────────
@@ -131,11 +139,18 @@ async function dbSaveState(uid, update) {
     await AgentState.findOneAndUpdate({ userId: uid }, { $set: update }, { upsert: true });
 }
 
+// ── Candle-close detection ────────────────────────────────────
+
+function candleEpoch(tf) {
+    const ms = TF_MS[tf] || 300000;
+    return Math.floor(Date.now() / ms);
+}
+
 // ── DayAgent class ────────────────────────────────────────────
 
 class DayAgent {
-    constructor() {
-        this.userId            = null;
+    constructor(userId) {
+        this.userId            = userId;
         this.running           = false;
         this.status            = 'idle';
         this.sessionId         = null;
@@ -147,27 +162,38 @@ class DayAgent {
         this.consecutiveLosses = 0;
         this.currentTrade      = null;
         this.settings          = {};
-        this._scanTimer        = null;
-        this._monitorTimer     = null;
-        this._shutdownTimer    = null;
+        this._pollTimer        = null;   // candle-close poller (setInterval 30s)
+        this._monitorTimer     = null;   // position monitor (setInterval 30s)
+        this._shutdownTimer    = null;   // auto-stop at end time
+        this._lastCandleEpoch  = 0;      // last scanned candle epoch
+        this._scanning         = false;  // prevents concurrent scans
+        this._lastScanAt       = null;   // ISO timestamp of last scan
     }
 
-    async start(userId) {
+    log(level, msg) {
+        const ts = pstTimeStr();
+        console.log(`[Agent][${level.toUpperCase()}] ${msg}`);
+        emit(this.userId, 'agent:log', { level, message: msg, ts });
+    }
+
+    async start() {
         if (this.running) return { ok: false, error: 'Agent already running' };
-        this.userId = userId;
-        _activeUserId = userId;
 
-        const settingsDoc = await AgentSettings.findOne({ userId: this.userId }).lean();
-        this.settings = settingsDoc || {};
+        // Load settings fresh from DB
+        this.settings = await AgentSettings.findOne({ userId: this.userId }).lean() || {};
 
+        // Check Bybit credentials
         const creds = await getCreds(this.userId);
         if (!creds) return { ok: false, error: 'Bybit API credentials not configured' };
 
-        const minsLeft = minsUntilEndOfDay(this.settings.endTime || '18:00');
-        if (minsLeft <= 0) return { ok: false, error: 'Past configured trading end time' };
+        // Check trading end time
+        const nowMins = pstMinutes();
+        const endMins = timeToMins(this.settings.endTime || '18:00');
+        if (nowMins >= endMins) return { ok: false, error: 'Past configured trading end time' };
 
-        const today   = todayPST();
-        let session   = await AgentSession.findOne({ userId: this.userId, date: today });
+        // Resume or create today's session
+        const today  = todayPST();
+        let session  = await AgentSession.findOne({ userId: this.userId, date: today });
         if (!session) {
             this.startBalance = await getBalance(creds);
             session = await AgentSession.create({
@@ -177,10 +203,10 @@ class DayAgent {
                 maxTrades: this.settings.maxTrades || 3,
             });
         } else {
-            this.startBalance      = session.startBalance || 0;
-            this.tradesTaken       = session.tradesTaken  || 0;
-            this.wins              = session.wins          || 0;
-            this.losses            = session.losses        || 0;
+            this.startBalance      = session.startBalance      || 0;
+            this.tradesTaken       = session.tradesTaken       || 0;
+            this.wins              = session.wins              || 0;
+            this.losses            = session.losses            || 0;
             this.totalPnl          = parseFloat(session.totalPnl) || 0;
             this.consecutiveLosses = session.consecutiveLosses || 0;
         }
@@ -191,23 +217,27 @@ class DayAgent {
 
         this.running = true;
         this.status  = 'scanning';
-        await dbSaveState(this.userId, { running: true, status: 'scanning', sessionId: this.sessionId, date: today, tradesTaken: this.tradesTaken, startBalance: this.startBalance });
 
-        this._scheduleShutdown();
+        const tf   = this.settings.timeframe || '15m';
+        const demo = this.settings.demoMode ? 'DEMO' : 'LIVE';
 
-        if (this.settings.notifyOnAgentShutdown !== false) {
-            notifier.notifyAgentStarted(this.settings).catch(() => {});
-        }
+        await dbSaveState(this.userId, {
+            running: true, status: 'scanning', sessionId: this.sessionId,
+            date: today, tradesTaken: this.tradesTaken, startBalance: this.startBalance,
+        });
+
         discordNotifier.sendAgentAlert(this.userId, 'agent_start', {
-            mode:      'Live',
-            timeframe: this.settings.timeframe || '5m',
-            minScore:  this.settings.minScore  || 75,
-            maxTrades: this.settings.maxTrades || 3,
+            mode: demo, timeframe: tf,
+            minScore: this.settings.minScore || 75,
+            maxTrades,
         }).catch(() => {});
 
-        emit('agent:started', { tradesTaken: this.tradesTaken, maxTrades, startBalance: this.startBalance });
-        agLog('success', `Agent started. Balance: $${this.startBalance.toFixed(2)} | Trades: ${this.tradesTaken}/${maxTrades}`);
-        agLog('info', `Settings — minScore: ${this.settings.minScore || 75}, maxTrades: ${this.settings.maxTrades || 3}, DD limit: ${this.settings.dailyDrawdownPct || 5}%, position size: ${this.settings.basePositionSize || 'auto (risk-based)'}`);
+        emit(this.userId, 'agent:started', { tradesTaken: this.tradesTaken, maxTrades, startBalance: this.startBalance });
+        this.log('success', `AI Agent started — scanning ${tf} — min score: ${this.settings.minScore || 75} — mode: ${demo}`);
+        this.log('info', `Trading window: ${this.settings.startTime || '08:00'}–${this.settings.endTime || '18:00'} PKT | maxTrades: ${maxTrades} | DD limit: ${this.settings.dailyDrawdownPct || 5}%`);
+
+        // Schedule auto-shutdown at end time
+        this._scheduleShutdown();
 
         // Resume open trade if any
         const openTrade = await AgentTrade.findOne({
@@ -216,16 +246,10 @@ class DayAgent {
         if (openTrade) {
             this.currentTrade = openTrade;
             this.status = 'in_trade';
-            agLog('info', `Resuming with open trade: ${openTrade.symbol}`);
+            this.log('info', `Resuming with open trade: ${openTrade.symbol}`);
             this._startMonitor();
         } else {
-            // Respect scan interval on resume — calculate remaining time from last scan
-            const state = await AgentState.findOne({ userId: this.userId }).lean();
-            const lastScan = state?.lastScanAt ? new Date(state.lastScanAt).getTime() : 0;
-            const elapsed = lastScan ? (Date.now() - lastScan) / 1000 : Infinity;
-            const scanIntervalSec = (this.settings.scanInterval || 30) * 60;
-            const delay = Math.max(0, scanIntervalSec - elapsed);
-            this._startScan(delay > 30 ? delay : 0);
+            this._startPoller();
         }
 
         return { ok: true };
@@ -233,8 +257,9 @@ class DayAgent {
 
     async stop(reason = 'manual') {
         this._clearTimers();
-        this.running = false;
-        this.status  = 'idle';
+        this.running   = false;
+        this.status    = 'idle';
+        this._scanning = false;
 
         let endBalance = this.startBalance;
         try {
@@ -246,7 +271,8 @@ class DayAgent {
             await AgentSession.findByIdAndUpdate(this.sessionId, {
                 $set: {
                     endBalance, endedAt: new Date().toISOString(), endReason: reason,
-                    tradesTaken: this.tradesTaken, wins: this.wins, losses: this.losses, totalPnl: this.totalPnl,
+                    tradesTaken: this.tradesTaken, wins: this.wins,
+                    losses: this.losses, totalPnl: this.totalPnl,
                 },
             });
         }
@@ -257,82 +283,104 @@ class DayAgent {
             if (this.sessionId && this.settings.notifyOnDailySummary !== false) {
                 const session = await AgentSession.findById(this.sessionId).lean();
                 const trades  = await AgentTrade.find({ sessionId: this.sessionId, userId: this.userId }).lean();
-                if (session) {
-                    await notifier.notifyDailySummary({ ...session, endBalance, endReason: reason }, trades);
-                }
+                if (session) await notifier.notifyDailySummary({ ...session, endBalance, endReason: reason }, trades);
             }
         } catch {}
 
-        emit('agent:stopped', { reason, totalPnl: this.totalPnl, tradesTaken: this.tradesTaken });
-        agLog('warn', `Agent stopped. Reason: ${reason} | PnL: ${this.totalPnl >= 0 ? '+' : ''}$${this.totalPnl.toFixed(2)}`);
-        _activeUserId = null;
-        agentInstance = null;
+        emit(this.userId, 'agent:stopped', { reason, totalPnl: this.totalPnl, tradesTaken: this.tradesTaken });
+        this.log('warn', `Agent stopped. Reason: ${reason} | PnL: ${this.totalPnl >= 0 ? '+' : ''}$${this.totalPnl.toFixed(2)}`);
+        agents.delete(this.userId);
     }
 
     _clearTimers() {
-        if (this._scanTimer)     { clearTimeout(this._scanTimer);     this._scanTimer    = null; }
-        if (this._monitorTimer)  { clearInterval(this._monitorTimer);  this._monitorTimer = null; }
+        if (this._pollTimer)     { clearInterval(this._pollTimer);    this._pollTimer     = null; }
+        if (this._monitorTimer)  { clearInterval(this._monitorTimer);  this._monitorTimer  = null; }
         if (this._shutdownTimer) { clearTimeout(this._shutdownTimer);  this._shutdownTimer = null; }
     }
 
     _scheduleShutdown() {
-        const minsLeft = minsUntilEndOfDay(this.settings.endTime || '18:00');
+        const nowMins  = pstMinutes();
+        const endMins  = timeToMins(this.settings.endTime || '18:00');
+        const minsLeft = endMins - nowMins;
         if (minsLeft <= 0) { this.stop('end_time_cutoff'); return; }
-        this._shutdownTimer = setTimeout(() => this.stop('end_time_cutoff'), minsLeft * 60 * 1000);
-        agLog('info', `Auto-shutdown in ${minsLeft} min (${this.settings.endTime || '18:00'} PST)`);
+        this._shutdownTimer = setTimeout(() => this.stop('end_time_cutoff'), minsLeft * 60000);
+        this.log('info', `Auto-shutdown in ${minsLeft} min (${this.settings.endTime || '18:00'} PKT)`);
     }
 
-    _startScan(delaySec = 0) {
-        if (!this.running) return;
-        this.status = 'scanning';
-        emit('agent:status_update', this._statusObj());
-        if (delaySec > 0) {
-            agLog('info', `Next scan in ${Math.round(delaySec / 60)} min...`);
-            this._scanTimer = setTimeout(() => this._doScan(), delaySec * 1000);
-        } else {
-            setImmediate(() => this._doScan());
+    _startPoller() {
+        if (this._pollTimer) clearInterval(this._pollTimer);
+        // Init epoch now so we don't immediately scan on first tick
+        const tf = this.settings.timeframe || '15m';
+        this._lastCandleEpoch = candleEpoch(tf);
+        this._pollTimer = setInterval(() => this._poll(), 30000);
+        this.log('info', `Candle poller active — waiting for ${tf} close`);
+    }
+
+    async _poll() {
+        if (!this.running || this._scanning || this.currentTrade) return;
+
+        // Re-fetch settings each cycle so live changes take effect without restart
+        this.settings = await AgentSettings.findOne({ userId: this.userId }).lean() || this.settings;
+
+        const tf    = this.settings.timeframe || '15m';
+        const epoch = candleEpoch(tf);
+
+        // No new candle yet
+        if (epoch === this._lastCandleEpoch) return;
+        this._lastCandleEpoch = epoch;
+
+        // Trading hours check
+        const nowMins   = pstMinutes();
+        const startMins = timeToMins(this.settings.startTime || '08:00');
+        const endMins   = timeToMins(this.settings.endTime   || '18:00');
+        if (nowMins < startMins || nowMins >= endMins) {
+            this.log('info', `Outside trading hours (${pstTimeStr()} PKT) — skipping scan`);
+            return;
         }
+
+        await this._doScan();
     }
 
     async _doScan() {
-        if (!this.running) return;
-
-        // Re-fetch latest agent settings each scan cycle so user changes take effect without restart
-        this.settings = await AgentSettings.findOne({ userId: this.userId }).lean() || this.settings;
-        // Record scan time so resume/restart can respect the scan interval
-        await dbSaveState(this.userId, { lastScanAt: new Date().toISOString() });
+        if (!this.running || this._scanning) return;
+        this._scanning = true;
 
         const maxTrades = this.settings.maxTrades || 3;
-        if (this.tradesTaken >= maxTrades) { await this.stop('max_trades_reached'); return; }
 
-        // Consecutive losses guardrail
+        // Guardrail: max trades reached
+        if (this.tradesTaken >= maxTrades) {
+            this.log('warn', `Max trades reached for today — agent paused until midnight PKT`);
+            await this.stop('max_trades_reached');
+            return;
+        }
+
+        // Guardrail: consecutive losses
         const maxCL = this.settings.maxConsecutiveLosses || 3;
         if (this.consecutiveLosses >= maxCL) {
-            this.status = 'paused';
-            emit('agent:paused', { reason: 'consecutive_losses' });
-            agLog('warn', `${this.consecutiveLosses} consecutive losses — pausing for the day`);
+            this.log('warn', `${this.consecutiveLosses} consecutive losses — stopping for the day`);
             await this.stop('consecutive_losses');
             return;
         }
 
-        // Daily drawdown guardrail
+        // Guardrail: daily drawdown
         try {
             const creds = await getCreds(this.userId);
             if (creds && this.startBalance > 0) {
                 const bal = await getBalance(creds);
                 const dd  = ((this.startBalance - bal) / this.startBalance) * 100;
                 if (dd >= (this.settings.dailyDrawdownPct || 5)) {
-                    agLog('error', `Daily drawdown limit hit: ${dd.toFixed(2)}%`);
+                    this.log('error', `Daily drawdown limit hit: ${dd.toFixed(2)}%`);
                     await this.stop('daily_drawdown');
                     return;
                 }
             }
         } catch {}
 
-        const scanInterval = (this.settings.scanInterval || 30) * 60;
-        const creds        = await getCreds(this.userId);
+        await dbSaveState(this.userId, { lastScanAt: new Date().toISOString() });
+        this._lastScanAt = new Date().toISOString();
+        emit(this.userId, 'agent:status_update', this._statusObj());
 
-        // Get user AI settings (with migration from legacy KimiSettings)
+        // Get user AI settings (with legacy Kimi migration)
         let userSettings = await Settings.findOne({ userId: this.userId }).lean() || {};
         if (!userSettings.ai?.kimiApiKey) {
             const legacy = await KimiSettings.findOne({ userId: this.userId }).lean();
@@ -342,23 +390,40 @@ class DayAgent {
             }
         }
 
+        const creds = await getCreds(this.userId);
+        const tf    = this.settings.timeframe || '15m';
+
         try {
-            const qualified = await runScan(creds, this.settings, userSettings, emit);
+            const coins = this._getCoinList();
+            this.log('info', `Scanning ${coins.length} coins on ${tf}`);
+
+            const qualified = await runScan(creds, this.settings, userSettings,
+                (ev, d) => emit(this.userId, ev, d));
+
             if (!qualified.length) {
-                agLog('info', `No qualifying setups. Rescanning in ${this.settings.scanInterval || 30} min`);
-                this._startScan(scanInterval);
-                return;
+                this.log('info', `No qualifying coins this cycle — waiting for next ${tf} candle`);
+            } else {
+                const best = qualified[0]; // already sorted by score desc
+                this.log('success', `Best setup: ${best.symbol} ${(best.direction || '').toUpperCase()} — score: ${best.score}`);
+                await this._executeTrade(best, creds);
             }
-            await this._executeTrade(qualified[0], creds);
         } catch (e) {
-            agLog('error', `Scan error: ${e.message}`);
-            this._startScan(scanInterval);
+            this.log('error', `Scan error: ${e.message}`);
+        } finally {
+            this._scanning = false;
         }
+    }
+
+    _getCoinList() {
+        const customList = (this.settings.customCoins || '').trim();
+        if (customList) return customList.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        return [];
     }
 
     async _executeTrade(setup, creds) {
         if (!this.running) return;
-        agLog('info', `Executing ${setup.direction.toUpperCase()} on ${setup.symbol} | score=${setup.score}`);
+        const demo = !!this.settings.demoMode;
+        this.log('info', `${demo ? '[DEMO] ' : ''}Placing ${(setup.direction || '').toUpperCase()} on ${setup.symbol} | score=${setup.score}`);
 
         if (this.settings.notifyOnTradePlaced !== false) {
             notifier.notifyPreTrade(setup).catch(() => {});
@@ -379,36 +444,40 @@ class DayAgent {
             }
 
             if (!qty || qty < minQty) {
-                agLog('error', `Qty too small (${qty}, min=${minQty}) for ${setup.symbol}. Skipping.`);
-                this._startScan(300);
+                this.log('error', `Qty too small (${qty}, min=${minQty}) for ${setup.symbol}. Skipping.`);
                 return;
             }
 
-            // Set leverage
-            try {
-                await bybitReq(creds, 'POST', '/v5/position/set-leverage', {}, {
-                    category: 'linear', symbol: setup.symbol, buyLeverage: '10', sellLeverage: '10',
+            if (!demo) {
+                // Set leverage
+                try {
+                    await bybitReq(creds, 'POST', '/v5/position/set-leverage', {}, {
+                        category: 'linear', symbol: setup.symbol, buyLeverage: '10', sellLeverage: '10',
+                    });
+                } catch {}
+
+                const side = (setup.direction || '').toLowerCase() === 'long' ? 'Buy' : 'Sell';
+                const tp   = setup.tp1 || setup.tp;
+                const r    = await bybitReq(creds, 'POST', '/v5/order/create', {}, {
+                    category: 'linear', symbol: setup.symbol, side,
+                    orderType: 'Market', qty: qty.toString(), timeInForce: 'IOC',
+                    stopLoss: setup.sl.toString(), takeProfit: tp.toString(),
+                    slTriggerBy: 'MarkPrice', tpTriggerBy: 'MarkPrice',
                 });
-            } catch {}
 
-            const side = setup.direction === 'long' ? 'Buy' : 'Sell';
-            const r    = await bybitReq(creds, 'POST', '/v5/order/create', {}, {
-                category: 'linear', symbol: setup.symbol, side,
-                orderType: 'Market', qty: qty.toString(), timeInForce: 'IOC',
-                stopLoss: setup.sl.toString(), takeProfit: setup.tp1.toString(),
-                slTriggerBy: 'MarkPrice', tpTriggerBy: 'MarkPrice',
-            });
-
-            if (r.retCode !== 0) {
-                agLog('error', `Order rejected: ${r.retMsg}`);
-                this._startScan(300);
-                return;
+                if (r.retCode !== 0) {
+                    this.log('error', `Order rejected: ${r.retMsg}`);
+                    return;
+                }
+            } else {
+                this.log('info', `[DEMO] Simulated ${(setup.direction || '').toUpperCase()} ${qty} ${setup.symbol} @ ${setup.entry}`);
             }
 
+            const tp = setup.tp1 || setup.tp;
             const tradeDoc = await AgentTrade.create({
                 userId: this.userId, sessionId: this.sessionId,
                 symbol: setup.symbol, side: setup.direction,
-                entryPrice: setup.entry, sl: setup.sl, tp: setup.tp1,
+                entryPrice: setup.entry, sl: setup.sl, tp,
                 aiScore: setup.score, aiConfidence: setup.confidence, aiReasoning: setup.reasoning,
                 openedAt: new Date().toISOString(),
             });
@@ -419,32 +488,30 @@ class DayAgent {
             await dbSaveState(this.userId, { status: 'in_trade', tradesTaken: this.tradesTaken });
             await AgentSession.findByIdAndUpdate(this.sessionId, { $set: { tradesTaken: this.tradesTaken } });
 
-            emit('agent:trade_placed', {
+            emit(this.userId, 'agent:trade_placed', {
                 symbol: setup.symbol, direction: setup.direction,
-                entry: setup.entry, sl: setup.sl, tp: setup.tp1, score: setup.score, qty,
+                entry: setup.entry, sl: setup.sl, tp, score: setup.score, qty, demo,
             });
-            agLog('success', `Trade placed: ${setup.symbol} ${setup.direction.toUpperCase()} qty=${qty}`);
+            this.log('success', `Trade placed — ${setup.symbol} ${(setup.direction || '').toUpperCase()} — score: ${setup.score} — entry: ${setup.entry} SL: ${setup.sl} TP: ${tp}`);
+
             discordNotifier.sendAgentAlert(this.userId, 'trade_placed', {
-                symbol:    setup.symbol,
-                direction: setup.direction,
-                score:     setup.score,
-                entry:     setup.entry,
-                sl:        setup.sl,
-                tp:        setup.tp1,
-                qty,
-                reasoning: setup.reasoning,
+                symbol: setup.symbol, direction: setup.direction,
+                score: setup.score, entry: setup.entry,
+                sl: setup.sl, tp, qty, reasoning: setup.reasoning,
             }).catch(() => {});
+
+            // Stop poll loop and monitor the open position
+            if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null; }
             this._startMonitor();
 
         } catch (e) {
-            agLog('error', `Trade execution failed: ${e.message}`);
-            this._startScan((this.settings.scanInterval || 30) * 60);
+            this.log('error', `Trade execution failed: ${e.message}`);
         }
     }
 
     _startMonitor() {
         if (this._monitorTimer) clearInterval(this._monitorTimer);
-        this._monitorTimer = setInterval(() => this._checkPosition(), 15000);
+        this._monitorTimer = setInterval(() => this._checkPosition(), 30000);
     }
 
     async _checkPosition() {
@@ -452,6 +519,12 @@ class DayAgent {
         try {
             const creds = await getCreds(this.userId);
             if (!creds) return;
+
+            if (this.settings.demoMode) {
+                // Demo mode: emit live status updates but no real position to check
+                emit(this.userId, 'agent:status_update', this._statusObj());
+                return;
+            }
 
             const pos = await getOpenPosition(creds, this.currentTrade.symbol);
             if (!pos) {
@@ -463,22 +536,23 @@ class DayAgent {
             const balance    = await getBalance(creds);
             const maxLossAmt = -(balance * (this.settings.maxLossPerTradePct || 1) / 100);
             if (pos.unrealisedPnl < maxLossAmt) {
-                agLog('warn', `Max loss hit on ${this.currentTrade.symbol} (${pos.unrealisedPnl.toFixed(2)} USDT). Force closing.`);
+                this.log('warn', `Max loss hit on ${this.currentTrade.symbol} (${pos.unrealisedPnl.toFixed(2)} USDT). Force closing.`);
                 await this._forceClose(creds, pos);
                 return;
             }
 
-            // Time-in-loss guardrail (>20 × 5m candles ≈ 100 min)
+            // Time-in-loss guardrail (>20 candles in loss)
             const elapsedMin = (Date.now() - new Date(this.currentTrade.openedAt).getTime()) / 60000;
-            if (elapsedMin > 100 && pos.unrealisedPnl < 0) {
-                agLog('warn', `${this.currentTrade.symbol} in loss >20 candles. Force closing.`);
+            const tfMins     = (TF_MS[this.settings.timeframe || '15m'] || 900000) / 60000;
+            if (elapsedMin > tfMins * 20 && pos.unrealisedPnl < 0) {
+                this.log('warn', `${this.currentTrade.symbol} in loss >20 candles. Force closing.`);
                 await this._forceClose(creds, pos);
                 return;
             }
 
-            emit('agent:status_update', this._statusObj());
+            emit(this.userId, 'agent:status_update', { ...this._statusObj(), livePnl: pos.unrealisedPnl });
         } catch (e) {
-            agLog('warn', `Monitor error: ${e.message}`);
+            this.log('warn', `Monitor error: ${e.message}`);
         }
     }
 
@@ -489,10 +563,10 @@ class DayAgent {
                 category: 'linear', symbol: pos.symbol, side: cs,
                 orderType: 'Market', qty: pos.size.toString(), timeInForce: 'IOC', reduceOnly: true,
             });
-            agLog('info', `Force close submitted for ${pos.symbol}`);
+            this.log('info', `Force close submitted for ${pos.symbol}`);
             setTimeout(() => this._handleTradeClosed(creds), 3000);
         } catch (e) {
-            agLog('error', `Force close failed: ${e.message}`);
+            this.log('error', `Force close failed: ${e.message}`);
         }
     }
 
@@ -506,8 +580,8 @@ class DayAgent {
             const r      = await bybitReq(creds, 'GET', '/v5/position/closed-pnl', { category: 'linear', symbol: trade.symbol, limit: 5 });
             const closed = r.result?.list?.[0];
             if (closed) {
-                pnl        = parseFloat(closed.closedPnl)     || 0;
-                closePrice = parseFloat(closed.avgExitPrice)  || trade.entryPrice;
+                pnl        = parseFloat(closed.closedPnl)    || 0;
+                closePrice = parseFloat(closed.avgExitPrice) || trade.entryPrice;
             }
         } catch {}
 
@@ -524,29 +598,28 @@ class DayAgent {
             $set: { wins: this.wins, losses: this.losses, totalPnl: this.totalPnl, consecutiveLosses: this.consecutiveLosses },
         });
 
+        const isTP  = closePrice >= (trade.tp || 0) && isWin;
+        const event = isTP ? 'tp_hit' : 'sl_hit';
         const result = { symbol: trade.symbol, direction: trade.side, entryPrice: trade.entryPrice, closePrice, pnl, pnlPercent: pnlPct, aiScore: trade.aiScore };
-        emit('agent:trade_closed', result);
-        agLog(isWin ? 'success' : 'error', `Trade closed ${trade.symbol}: ${isWin ? 'WIN' : 'LOSS'} PnL=${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`);
+
+        emit(this.userId, 'agent:trade_closed', result);
+        this.log(isWin ? 'success' : 'error',
+            `${trade.symbol} ${isTP ? 'TP' : 'SL'} hit — PnL: ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${pnlPct >= 0 ? '+' : ''}${pnlPct.toFixed(2)}%)`);
 
         if (this.settings.notifyOnTradeClosed !== false) {
             notifier.notifyTradeClosed(result, this.tradesTaken, this.settings.maxTrades || 3).catch(() => {});
         }
-        discordNotifier.sendAgentAlert(this.userId, isWin ? 'tp_hit' : 'sl_hit', {
-            symbol:     trade.symbol,
-            direction:  trade.side,
-            aiScore:    trade.aiScore,
-            entryPrice: trade.entryPrice,
-            closePrice,
-            pnl,
-            pnlPercent: pnlPct,
+        discordNotifier.sendAgentAlert(this.userId, event, {
+            symbol: trade.symbol, direction: trade.side, aiScore: trade.aiScore,
+            entryPrice: trade.entryPrice, closePrice, pnl, pnlPercent: pnlPct,
         }).catch(() => {});
 
         const maxTrades = this.settings.maxTrades || 3;
         if (this.tradesTaken >= maxTrades) { await this.stop('max_trades_reached'); return; }
 
-        const cooldown = (this.settings.cooldownMinutes || 15) * 60;
-        agLog('info', `Cooldown ${this.settings.cooldownMinutes || 15} min before next scan`);
-        this._startScan(cooldown);
+        // Resume candle-close polling
+        this.status = 'scanning';
+        this._startPoller();
     }
 
     _statusObj() {
@@ -556,6 +629,9 @@ class DayAgent {
             wins: this.wins, losses: this.losses, totalPnl: this.totalPnl,
             startBalance: this.startBalance, consecutiveLosses: this.consecutiveLosses,
             pstTime: pstTimeStr(), sessionId: this.sessionId,
+            timeframe: this.settings.timeframe || '15m',
+            demoMode: !!this.settings.demoMode,
+            lastScan: this._lastScanAt,
             currentTrade: this.currentTrade ? {
                 symbol: this.currentTrade.symbol, direction: this.currentTrade.side,
                 entry: this.currentTrade.entryPrice, sl: this.currentTrade.sl, tp: this.currentTrade.tp,
@@ -567,27 +643,28 @@ class DayAgent {
     getStatus() { return this._statusObj(); }
 }
 
-// ── Singleton public API ──────────────────────────────────────
-
-let agentInstance = null;
+// ── Public API ────────────────────────────────────────────────
 
 async function startAgent(userId) {
-    if (agentInstance) return { ok: false, error: 'Agent already running' };
-    agentInstance = new DayAgent();
-    const result = await agentInstance.start(userId);
-    if (!result.ok) agentInstance = null;
+    if (agents.has(userId)) return { ok: false, error: 'Agent already running' };
+    const agent = new DayAgent(userId);
+    agents.set(userId, agent);
+    const result = await agent.start();
+    if (!result.ok) agents.delete(userId);
     return result;
 }
 
-async function stopAgent(reason = 'manual') {
-    if (!agentInstance) return { ok: false, error: 'No agent running' };
-    await agentInstance.stop(reason);
+async function stopAgent(userId, reason = 'manual') {
+    const agent = agents.get(userId);
+    if (!agent) return { ok: false, error: 'No agent running' };
+    await agent.stop(reason);
     return { ok: true };
 }
 
-function getStatus() {
-    if (!agentInstance) return { running: false, status: 'idle', pstTime: pstTimeStr() };
-    return agentInstance.getStatus();
+function getStatus(userId) {
+    const agent = agents.get(userId);
+    if (!agent) return { running: false, status: 'idle', pstTime: pstTimeStr() };
+    return agent.getStatus();
 }
 
 async function resumeOnBoot() {
@@ -596,11 +673,12 @@ async function resumeOnBoot() {
         for (const state of states) {
             if (!state?.userId) continue;
             if (state.date !== todayPST()) continue;
-            if (minsUntilEndOfDay() <= 0) continue;
+            const settings = await AgentSettings.findOne({ userId: state.userId }).lean() || {};
+            const nowMins  = pstMinutes();
+            const endMins  = timeToMins(settings.endTime || '18:00');
+            if (nowMins >= endMins) continue;
             console.log(`[Agent] Resuming session for user ${state.userId}…`);
-            agentInstance = new DayAgent();
-            const result = await agentInstance.start(state.userId);
-            if (!result.ok) agentInstance = null;
+            await startAgent(state.userId);
         }
     } catch (e) {
         console.error('[Agent] Resume error:', e.message);

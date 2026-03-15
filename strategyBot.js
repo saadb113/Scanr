@@ -128,7 +128,7 @@ function detectCandlePattern(candles, pattern) {
         case 'shooting_star':
             return p.upper >= p.body * 2 && p.lower <= p.body * 0.5 && p.body > 0;
         case 'doji':
-            return p.body <= p.range * 0.001;
+            return p.body <= p.range * 0.1;
         case 'bullish_engulfing':
             return p.bull && !p1.bull && c.close > c1.open && c.open < c1.close;
         case 'bearish_engulfing':

@@ -129,9 +129,10 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1
       <div class="stat-cell"><div class="label">Trades</div><div class="value" id="stTrades">—</div></div>
       <div class="stat-cell"><div class="label">Wins</div><div class="value win" id="stWins">—</div></div>
       <div class="stat-cell"><div class="label">Losses</div><div class="value loss" id="stLosses">—</div></div>
+      <div class="stat-cell"><div class="label">Win Rate</div><div class="value" id="stWinRate">—</div></div>
       <div class="stat-cell"><div class="label">Daily PnL</div><div class="value" id="stPnl">—</div></div>
-      <div class="stat-cell"><div class="label">Con. Losses</div><div class="value" id="stConLoss">—</div></div>
       <div class="stat-cell"><div class="label">Balance</div><div class="value" id="stBal">—</div></div>
+      <div class="stat-cell"><div class="label">Last Scan</div><div class="value" style="font-size:0.82rem" id="stLastScan">—</div></div>
     </div>
 
     <!-- Active trade (hidden when no trade) -->
@@ -146,6 +147,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1
         <div class="trade-stat"><label>Stop Loss</label><span id="trSl">—</span></div>
         <div class="trade-stat"><label>Take Profit</label><span id="trTp">—</span></div>
         <div class="trade-stat"><label>AI Score</label><span id="trScore" style="color:var(--purple)">—</span></div>
+        <div class="trade-stat"><label>Live PnL</label><span id="trLivePnl" style="font-weight:800">—</span></div>
       </div>
     </div>
 
@@ -156,19 +158,35 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1
   </div>
 
   <!-- ── Today's Trades ── -->
-  <div class="section-title" id="todayTitle">Today's Trades</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.5rem">
+    <div class="section-title" id="todayTitle" style="margin-bottom:0">Today's Trades</div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+      <select id="fDir" onchange="applyFilters()" style="background:var(--bg-raised);border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;padding:0.25rem 0.5rem;font-size:0.8rem;font-family:var(--font-ui)">
+        <option value="">All Dirs</option><option value="LONG">LONG</option><option value="SHORT">SHORT</option>
+      </select>
+      <select id="fStatus" onchange="applyFilters()" style="background:var(--bg-raised);border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;padding:0.25rem 0.5rem;font-size:0.8rem;font-family:var(--font-ui)">
+        <option value="">All Status</option><option value="WIN">WIN</option><option value="LOSS">LOSS</option><option value="OPEN">OPEN</option>
+      </select>
+      <select id="fSort" onchange="applyFilters()" style="background:var(--bg-raised);border:1px solid var(--border);color:var(--text-secondary);border-radius:6px;padding:0.25rem 0.5rem;font-size:0.8rem;font-family:var(--font-ui)">
+        <option value="time">Sort: Time</option><option value="pnl_desc">PnL ↓</option><option value="pnl_asc">PnL ↑</option><option value="score_desc">Score ↓</option>
+      </select>
+    </div>
+  </div>
   <div class="card" style="padding:0;overflow:hidden">
     <table class="trades-tbl" id="todayTable">
       <thead><tr>
-        <th>Time</th><th>Symbol</th><th>Dir</th><th>Entry</th><th>Exit</th><th>PnL</th><th>Score</th><th>Result</th>
+        <th>Time</th><th>Symbol</th><th>Dir</th><th>Score</th><th>Entry</th><th>SL</th><th>TP</th><th>Exit</th><th>PnL</th><th>Status</th>
       </tr></thead>
-      <tbody id="todayTbody"><tr><td colspan="8" class="empty-row">No trades this session</td></tr></tbody>
+      <tbody id="todayTbody"><tr><td colspan="10" class="empty-row">No trades this session</td></tr></tbody>
     </table>
     <div id="todayTbody_pg" class="pg-bar"></div>
   </div>
 
   <!-- ── Session History ── -->
-  <div class="section-title" style="margin-top:0.5rem">Session History</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:0.5rem;margin-bottom:0.4rem">
+    <div class="section-title" style="margin-bottom:0">Session History</div>
+    <button onclick="clearHistory()" style="background:var(--red-dim);color:var(--red);border:1px solid rgba(255,77,106,0.3);border-radius:6px;padding:0.3rem 0.85rem;font-size:0.8rem;font-weight:700;font-family:var(--font-ui);cursor:pointer">Clear History</button>
+  </div>
   <div class="card" style="padding:0;overflow:hidden">
     <div class="loader" id="histLoader">Loading sessions…</div>
     <table class="hist-table" id="histTable" style="display:none">
@@ -220,8 +238,9 @@ function applyStatus(st) {
 
   if (st.running) {
     dot.className  = 'status-dot ' + (st.status === 'scanning' ? 'scanning' : 'running');
-    lbl.textContent = st.status === 'scanning' ? 'Scanning…' : st.status === 'paused' ? 'Paused' : 'Running';
-    sub.textContent = `${st.tradesTaken||0}/${st.maxTrades||3} trades  •  PST ${st.pstTime||''}`;
+    const modeTag  = st.demoMode ? ' · DEMO' : '';
+    lbl.textContent = (st.status === 'scanning' ? 'Scanning…' : st.status === 'paused' ? 'Paused' : 'Running') + modeTag;
+    sub.textContent = `${st.tradesTaken||0}/${st.maxTrades||3} trades  •  ${st.timeframe||'15m'}  •  PST ${st.pstTime||''}`;
     btnS.disabled = true;
     btnX.disabled = false;
   } else {
@@ -233,14 +252,18 @@ function applyStatus(st) {
   }
 
   // Stats
-  const pnl = parseFloat(st.totalPnl)||0;
+  const pnl     = parseFloat(st.totalPnl)||0;
+  const total   = (st.wins||0) + (st.losses||0);
+  const winRate = total > 0 ? Math.round((st.wins||0) / total * 100) + '%' : '—';
   $('stTrades').textContent   = (st.tradesTaken||0) + '/' + (st.maxTrades||3);
   $('stWins').textContent     = st.wins   != null ? st.wins   : '—';
   $('stLosses').textContent   = st.losses != null ? st.losses : '—';
+  $('stWinRate').textContent  = winRate;
+  $('stWinRate').className    = 'value ' + (total > 0 && (st.wins||0)/total >= 0.5 ? 'win' : total > 0 ? 'loss' : '');
   $('stPnl').textContent      = st.totalPnl != null ? fmtP(pnl) : '—';
   $('stPnl').className        = 'value ' + (pnl >= 0 ? 'win' : 'loss');
-  $('stConLoss').textContent  = st.consecutiveLosses != null ? st.consecutiveLosses : '—';
   $('stBal').textContent      = st.startBalance ? '$'+parseFloat(st.startBalance).toFixed(2) : '—';
+  if (st.lastScan) $('stLastScan').textContent = new Date(st.lastScan).toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'});
 
   // Active trade
   if (st.currentTrade) {
@@ -255,6 +278,11 @@ function applyStatus(st) {
     $('trSl').textContent    = t.sl    ? '$'+parseFloat(t.sl).toFixed(4)    : '—';
     $('trTp').textContent    = t.tp    ? '$'+parseFloat(t.tp).toFixed(4)    : '—';
     $('trScore').textContent = t.score != null ? t.score : '—';
+    if (st.livePnl != null) {
+      const lp = parseFloat(st.livePnl)||0;
+      $('trLivePnl').textContent = fmtP(lp);
+      $('trLivePnl').style.color = lp >= 0 ? 'var(--green)' : 'var(--red)';
+    }
   } else {
     $('activeTrade').style.display = 'none';
   }
@@ -262,22 +290,18 @@ function applyStatus(st) {
 
 // ── Today's trades ───────────────────────────────────────────
 function renderTodayTrade(t) {
-  const tbody  = $('todayTbody');
-  // Remove "No trades" placeholder
-  const empty = tbody.querySelector('.empty-row');
-  if (empty) empty.parentElement.remove();
+  const pnl  = parseFloat(t.pnl)||0;
+  const st   = t.closedAt ? (pnl>=0?'badge-win':'badge-loss') : 'badge-open';
+  const sl   = t.closedAt ? (pnl>=0?'WIN':'LOSS') : 'OPEN';
+  const dir  = (t.direction||t.side||'').toUpperCase();
+  const dc   = dir==='LONG'?'var(--green)':'var(--red)';
+  const pnlC = pnl>=0?'var(--green)':'var(--red)';
+  const pnlT = t.closedAt ? fmtP(pnl) : '—';
+  const tm   = t.openedAt ? new Date(t.openedAt).toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'}) : '—';
+  const f4   = v => v ? parseFloat(v).toFixed(4) : '—';
 
-  const pnl = parseFloat(t.pnl)||0;
-  const st  = t.closedAt ? (pnl>=0?'badge-win':'badge-loss') : 'badge-open';
-  const sl  = t.closedAt ? (pnl>=0?'WIN':'LOSS') : 'OPEN';
-  const dir = (t.direction||t.side||'').toUpperCase();
-  const dc  = dir==='LONG'?'var(--green)':'var(--red)';
-  const pnlC= pnl>=0?'var(--green)':'var(--red)';
-  const pnlT= t.closedAt ? fmtP(pnl) : '—';
-  const tm  = t.openedAt ? new Date(t.openedAt).toLocaleTimeString('en-US',{hour12:false,hour:'2-digit',minute:'2-digit'}) : '—';
-
-  // Check if row exists (for update)
-  let tr = document.getElementById('td-' + t._id || t.symbol);
+  const tbody = $('todayTbody');
+  let tr = document.getElementById('td-' + (t._id||t.symbol));
   if (!tr) {
     tr = document.createElement('tr');
     if (t._id) tr.id = 'td-' + t._id;
@@ -287,10 +311,12 @@ function renderTodayTrade(t) {
     <td style="color:var(--text-muted)">${tm}</td>
     <td style="color:var(--text-primary);font-weight:800">${t.symbol}</td>
     <td style="color:${dc};font-weight:700">${dir}</td>
-    <td style="color:var(--text-secondary)">${t.entryPrice||'—'}</td>
-    <td style="color:var(--text-secondary)">${t.closePrice||'—'}</td>
-    <td style="color:${pnlC};font-weight:700">${pnlT}</td>
     <td style="color:var(--purple)">${t.aiScore||'—'}</td>
+    <td style="color:var(--text-secondary)">${f4(t.entryPrice)}</td>
+    <td style="color:var(--text-muted)">${f4(t.sl)}</td>
+    <td style="color:var(--text-muted)">${f4(t.tp)}</td>
+    <td style="color:var(--text-secondary)">${t.closePrice ? f4(t.closePrice) : '—'}</td>
+    <td style="color:${pnlC};font-weight:700">${pnlT}</td>
     <td><span class="badge ${st}">${sl}</span></td>
   `;
 }
@@ -302,19 +328,48 @@ async function loadTodayTrades() {
     const j = await r.json();
     if (j.ok) {
       _todayTrades = j.trades || [];
-      pgSetup('todayTbody', _todayTrades, _doRenderTodayPage);
+      applyFilters();
     }
   } catch {}
 }
 
-function _doRenderTodayPage(slice) {
-  const tbody = $('todayTbody');
-  tbody.innerHTML = '';
-  if (!_todayTrades.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty-row">No trades this session</td></tr>';
-    return;
-  }
-  slice.forEach(renderTodayTrade);
+function applyFilters() {
+  const dir    = $('fDir').value;
+  const status = $('fStatus').value;
+  const sort   = $('fSort').value;
+
+  let filtered = _todayTrades.filter(t => {
+    const d = (t.direction||t.side||'').toUpperCase();
+    const s = t.closedAt ? (parseFloat(t.pnl)>=0?'WIN':'LOSS') : 'OPEN';
+    if (dir    && d !== dir)    return false;
+    if (status && s !== status) return false;
+    return true;
+  });
+
+  if (sort === 'pnl_desc')   filtered.sort((a,b) => (parseFloat(b.pnl)||0) - (parseFloat(a.pnl)||0));
+  else if (sort === 'pnl_asc')  filtered.sort((a,b) => (parseFloat(a.pnl)||0) - (parseFloat(b.pnl)||0));
+  else if (sort === 'score_desc') filtered.sort((a,b) => (b.aiScore||0) - (a.aiScore||0));
+
+  pgSetup('todayTbody', filtered, slice => {
+    const tbody = $('todayTbody');
+    tbody.innerHTML = '';
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-row">No trades match filters</td></tr>';
+      return;
+    }
+    slice.forEach(renderTodayTrade);
+  });
+}
+
+// ── Clear history ─────────────────────────────────────────────
+async function clearHistory() {
+  if (!confirm('Clear all trade history? Open trades will be kept.')) return;
+  try {
+    const r = await fetch('/api/agent/clear-history', { method: 'POST' });
+    const j = await r.json();
+    if (j.ok) { _todayTrades = []; applyFilters(); loadHistory(); }
+    else agAddLog('error', j.error || 'Clear failed', '');
+  } catch (e) { agAddLog('error', e.message, ''); }
 }
 
 // ── Start / Stop ─────────────────────────────────────────────
@@ -373,7 +428,8 @@ try {
   });
 
   sock.on('agent:trade_placed', data => {
-    agAddLog('success', `Trade placed: ${data.symbol} ${(data.direction||'').toUpperCase()}`, '');
+    agAddLog('success', `Trade placed: ${data.symbol} ${(data.direction||'').toUpperCase()}${data.demo?' [DEMO]':''}`, '');
+    loadTodayTrades();
   });
 
   sock.on('agent:trade_closed', data => {

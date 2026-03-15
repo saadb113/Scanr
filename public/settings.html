@@ -392,6 +392,14 @@
       <input type="text" id="agCustomCoins" class="s-input-full" placeholder="e.g. BTCUSDT, ETHUSDT, SOLUSDT">
     </div>
 
+    <!-- Demo / Live Mode -->
+    <div style="margin-bottom:0.8rem">
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem;color:#9ca3af">
+        <input type="checkbox" id="agDemoMode">
+        <span>Demo Mode <span style="color:#f59e0b;font-size:0.75rem">(simulate trades, no real orders placed)</span></span>
+      </label>
+    </div>
+
     <!-- Email Notifications -->
     <div style="margin-bottom:0.8rem">
       <div style="font-size:0.68rem;color:#6b7280;margin-bottom:0.35rem;font-weight:600">Email Notifications</div>
@@ -454,6 +462,7 @@ async function agLoadSettings() {
         if (s.atrMax !== undefined)  document.getElementById('agAtrMax').value         = s.atrMax;
         if (s.timeframe)             document.getElementById('agTimeframe').value      = s.timeframe;
         if (s.customCoins !== undefined) document.getElementById('agCustomCoins').value = s.customCoins || '';
+        if (s.demoMode !== undefined) document.getElementById('agDemoMode').checked = !!s.demoMode;
         if (s.emailRecipient)        document.getElementById('agEmailRecipient').value = s.emailRecipient;
         document.getElementById('agNotifyStart').checked   = s.notifyOnAgentShutdown !== false;
         document.getElementById('agNotifyTrade').checked   = s.notifyOnTradePlaced   !== false;
@@ -479,6 +488,7 @@ async function agSaveSettings() {
         atrMax:                 parseFloat(document.getElementById('agAtrMax').value) || 9999999,
         timeframe:              document.getElementById('agTimeframe').value || '5m',
         customCoins:            document.getElementById('agCustomCoins').value.trim(),
+        demoMode:               document.getElementById('agDemoMode').checked,
         emailRecipient:         document.getElementById('agEmailRecipient').value.trim(),
         notifyOnAgentShutdown:  document.getElementById('agNotifyStart').checked,
         notifyOnTradePlaced:    document.getElementById('agNotifyTrade').checked,

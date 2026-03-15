@@ -1170,7 +1170,7 @@ function blockToPine(block) {
     }
     case 'CANDLE_PATTERN': {
       const pat = p.pattern || 'hammer';
-      if (pat === 'doji')              return 'math.abs(close - open) <= (high - low) * 0.001';
+      if (pat === 'doji')              return 'math.abs(close - open) <= (high - low) * 0.1';
       if (pat === 'hammer')            return '(math.min(open,close) - low >= math.abs(close-open)*2) and (high - math.max(open,close) <= math.abs(close-open)*0.5)';
       if (pat === 'shooting_star')     return '(high - math.max(open,close) >= math.abs(close-open)*2) and (math.min(open,close) - low <= math.abs(close-open)*0.5)';
       if (pat === 'bullish_engulfing') return '(close > open) and (close[1] < open[1]) and (close > open[1]) and (open < close[1])';
@@ -1183,10 +1183,10 @@ function blockToPine(block) {
     case 'NEAR_SUPPORT':    return `(close >= ta.lowest(low, 50) and close <= ta.lowest(low, 50) * (1 + ${+(p.pct??1)} / 100))`;
     case 'NEAR_RESISTANCE': return `(close <= ta.highest(high, 50) and close >= ta.highest(high, 50) * (1 - ${+(p.pct??1)} / 100))`;
     case 'HIGHER_HIGH': {
-      return 'ta.pivothigh(high, 2, 2) > ta.pivothigh(high[1], 2, 2)';
+      return '(not na(ta.pivothigh(high, 2, 2)) and not na(ta.pivothigh(high[1], 2, 2)) and ta.pivothigh(high, 2, 2) > ta.pivothigh(high[1], 2, 2))';
     }
     case 'LOWER_LOW': {
-      return 'ta.pivotlow(low, 2, 2) < ta.pivotlow(low[1], 2, 2)';
+      return '(not na(ta.pivotlow(low, 2, 2)) and not na(ta.pivotlow(low[1], 2, 2)) and ta.pivotlow(low, 2, 2) < ta.pivotlow(low[1], 2, 2))';
     }
     case 'TREND_MTF': {
       const v = `mtf${(p.timeframe||'4h').replace(/[^a-zA-Z0-9]/g,'')}`;
