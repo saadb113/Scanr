@@ -3,7 +3,8 @@
 const express    = require('express');
 const router     = express.Router();
 const bot        = require('./strategyBot');
-const { Strategy, BotTrade } = require('./models');
+const { Strategy, BotTrade, Settings } = require('./models');
+const { analyzeTradeWithAI } = require('./aiAnalysis');
 
 // GET /api/strategy — all strategies for user
 router.get('/', async (req, res) => {
@@ -109,6 +110,18 @@ router.post('/:id/stop', async (req, res) => {
     try {
         const result = await bot.stopBot(req.session.userId);
         res.json(result);
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// POST /api/strategy/trade/:tradeId/analyze — AI trade review
+router.post('/trade/:tradeId/analyze', async (req, res) => {
+    try {
+        const trade    = await BotTrade.findOne({ _id: req.params.tradeId, userId: req.session.userId }).lean();
+        if (!trade) return res.status(404).json({ ok: false, error: 'Trade not found' });
+        const strategy = await Strategy.findById(trade.strategyId).lean().catch(() => null);
+        const settings = await Settings.findOne({ userId: req.session.userId }).lean();
+        const analysis = await analyzeTradeWithAI(trade, strategy, settings);
+        res.json({ ok: true, analysis });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

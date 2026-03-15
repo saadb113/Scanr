@@ -605,6 +605,68 @@
     }
     .btn-clear-hist:hover { background: #f56565; color: #fff; }
 
+    /* ── Trade Analysis Section ── */
+    .strat-trade-analysis {
+      display: none;
+      border-top: 2px solid #29b6ff22;
+      background: #0a0d12;
+      padding: 1rem;
+    }
+    .strat-trade-analysis.visible { display: block; }
+    .strat-ta-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #29b6ff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.9rem;
+    }
+    .strat-ta-close {
+      background: none; border: none; color: #4a5568;
+      font-size: 1.1rem; cursor: pointer; padding: 0; line-height: 1;
+    }
+    .strat-ta-close:hover { color: #e5e9f2; }
+    .td-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem 1rem;
+      margin-bottom: 1rem;
+    }
+    .td-stat { display: flex; flex-direction: column; gap: 0.15rem; }
+    .td-stat-label { font-size: 0.65rem; font-weight: 800; color: #4a5568; text-transform: uppercase; letter-spacing: 0.4px; }
+    .td-stat-value { font-size: 0.82rem; font-weight: 700; color: #e5e9f2; }
+    .btn-ai-analyze {
+      display: flex; align-items: center; gap: 0.4rem;
+      background: linear-gradient(135deg, #1a2a3e, #1e3a52);
+      border: 1px solid #29b6ff55;
+      border-radius: 6px;
+      color: #29b6ff;
+      font-family: inherit; font-size: 0.8rem; font-weight: 700;
+      padding: 0.45rem 1rem; cursor: pointer; width: 100%;
+      justify-content: center; margin-bottom: 0.75rem;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .btn-ai-analyze:hover { background: #29b6ff22; border-color: #29b6ff; }
+    .btn-ai-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+    .ai-analysis-box {
+      background: #0c1017;
+      border: 1px solid #1e2d40;
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: #9aa5b4;
+      min-height: 60px;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .ai-analysis-box.visible { display: block; }
+    .ai-analysis-box.loading { color: #4a5568; font-style: italic; }
+    .ai-analysis-box.error { color: #f56565; }
+
     /* ── Block Edit Modal ── */
     .strat-modal-bg {
       display: none;
@@ -977,6 +1039,17 @@
         </tbody>
       </table>
       </div>
+    </div><!-- /.strat-history -->
+
+    <!-- Trade Analysis — inline section, revealed when Details clicked -->
+    <div class="strat-trade-analysis" id="stratTradeAnalysis">
+      <div class="strat-ta-header">
+        <span id="tdModalTitle">Trade Analysis</span>
+        <button class="strat-ta-close" onclick="$('stratTradeAnalysis').classList.remove('visible')">✕</button>
+      </div>
+      <div class="td-grid" id="tdGrid"></div>
+      <button class="btn-ai-analyze" id="btnAiAnalyze" onclick="analyzeTradeAI()">✦ AI Analyze this Trade</button>
+      <div class="ai-analysis-box" id="aiAnalysisBox"></div>
     </div>
 
   </div><!-- .strat-page -->
