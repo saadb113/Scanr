@@ -939,6 +939,29 @@
 
     @media (max-width: 1024px) { .strat-lib-outer { flex: 0 0 230px; } }
     @media (max-width: 768px)  { .strat-lib-outer { display: none !important; } }
+
+    /* Discord toggle row */
+    .bot-discord-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.55rem 0; margin: 0.5rem 0;
+      border: 1px solid #2b2f3e; border-radius: 8px; padding: 0.6rem 0.85rem;
+      background: #12151c;
+    }
+    .bot-discord-label { font-size: 0.82rem; font-weight: 700; color: #e5e9f2; }
+    .bot-discord-sub   { font-size: 0.7rem; color: #6b7897; margin-top: 0.1rem; }
+    .bot-toggle { position: relative; display: inline-flex; width: 38px; height: 22px; flex-shrink: 0; }
+    .bot-toggle input { opacity: 0; width: 0; height: 0; }
+    .bot-toggle-slider {
+      position: absolute; inset: 0; cursor: pointer;
+      background: #2b2f3e; border-radius: 22px; transition: background 0.2s;
+    }
+    .bot-toggle-slider::before {
+      content: ''; position: absolute;
+      width: 16px; height: 16px; left: 3px; top: 3px;
+      background: #6b7897; border-radius: 50%; transition: transform 0.2s, background 0.2s;
+    }
+    .bot-toggle input:checked + .bot-toggle-slider { background: #1a3a1a; }
+    .bot-toggle input:checked + .bot-toggle-slider::before { transform: translateX(16px); background: #0ecb81; }
   </style>
 </head>
 <body>
@@ -1117,6 +1140,36 @@
           <div class="strat-bot-row"><span>Last scan</span><span id="outLastScan">—</span></div>
           <div class="strat-bot-row"><span>Trades today</span><span id="outTradesToday">—</span></div>
           <button class="strat-btn danger strat-btn-full" onclick="stratToggleBot()">⏹ Stop Bot</button>
+        </div>
+
+        <!-- Today's stats -->
+        <div class="bot-stats-row">
+          <div class="bot-stat-cell">
+            <span>Trades Today</span>
+            <strong id="statTradesToday">—</strong>
+          </div>
+          <div class="bot-stat-cell">
+            <span>Win Rate</span>
+            <strong id="statWinRate">—</strong>
+          </div>
+          <div class="bot-stat-cell">
+            <span>Today's PnL</span>
+            <strong id="statTodayPnl" style="color:#e5e9f2">—</strong>
+          </div>
+        </div>
+
+        <!-- Discord toggle (shown only if webhook configured) -->
+        <div id="discordAlertRow" style="display:none">
+          <div class="bot-discord-row">
+            <div>
+              <div class="bot-discord-label">Discord Alerts</div>
+              <div class="bot-discord-sub">Strategy bot trade notifications</div>
+            </div>
+            <label class="bot-toggle">
+              <input type="checkbox" id="discordAlertToggle" onchange="saveDiscordToggle(this.checked)">
+              <span class="bot-toggle-slider"></span>
+            </label>
+          </div>
         </div>
 
         <hr class="bot-divider">
@@ -1313,7 +1366,11 @@
   }
   function closePineModal() { document.getElementById('pineModal').classList.remove('open'); }
 
-  function openBotModal()  { document.getElementById('botModal').classList.add('open'); }
+  function openBotModal() {
+    document.getElementById('botModal').classList.add('open');
+    loadBotStats();
+    loadDiscordToggle();
+  }
   function closeBotModal() { document.getElementById('botModal').classList.remove('open'); }
 
   // ── Bot modal tab switching ────────────────────────────────────────────
@@ -1322,6 +1379,60 @@
     document.querySelectorAll('.bot-modal-tab').forEach(b => b.classList.remove('active'));
     document.getElementById('botPane-' + tab).classList.add('active');
     btn.classList.add('active');
+  }
+
+  // ── Today's stats ──────────────────────────────────────────────────────
+  async function loadBotStats() {
+    try {
+      const r = await fetch('/api/strategy/bot/trades');
+      const d = await r.json();
+      if (!d.ok) return;
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const todayTrades = (d.trades || []).filter(t => t.openedAt && new Date(t.openedAt) >= today);
+      const closed = todayTrades.filter(t => t.status === 'closed');
+      const wins = closed.filter(t => (t.pnl || 0) > 0).length;
+      const totalPnl = closed.reduce((s, t) => s + (t.pnl || 0), 0);
+      const winRate = closed.length ? Math.round(wins / closed.length * 100) : null;
+
+      const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+      setEl('statTradesToday', todayTrades.length);
+      setEl('statWinRate', winRate !== null ? winRate + '%' : '—');
+      const pnlEl = document.getElementById('statTodayPnl');
+      if (pnlEl) {
+        pnlEl.textContent = closed.length ? (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2) + ' USDT' : '—';
+        pnlEl.style.color = closed.length ? (totalPnl >= 0 ? '#0ecb81' : '#f6465d') : '#e5e9f2';
+      }
+    } catch (_) {}
+  }
+
+  // ── Discord toggle ─────────────────────────────────────────────────────
+  async function loadDiscordToggle() {
+    try {
+      const r = await fetch('/api/discord/config');
+      const d = await r.json();
+      const row = document.getElementById('discordAlertRow');
+      const cb  = document.getElementById('discordAlertToggle');
+      if (d.webhookUrl) {
+        if (row) row.style.display = '';
+        if (cb) cb.checked = d.alerts?.strategyBotAlerts !== false;
+      } else {
+        if (row) row.style.display = 'none';
+      }
+    } catch (_) {}
+  }
+
+  async function saveDiscordToggle(checked) {
+    try {
+      const cur = await fetch('/api/discord/config').then(r => r.json()).catch(() => ({}));
+      await fetch('/api/discord/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          webhookUrl: cur.webhookUrl || '',
+          alerts: { ...(cur.alerts || {}), strategyBotAlerts: checked },
+        }),
+      });
+    } catch (_) {}
   }
 
   // ── Collapsible library categories ────────────────────────────────────
