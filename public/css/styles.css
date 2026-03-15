@@ -72,7 +72,14 @@
         }
 
         /* ── Header ── */
-        header { margin-bottom: 1rem; }
+        header { margin-bottom: 1rem;
+        }
+        .grid-container,
+        .filter-bar,
+        .header-row{
+            margin-left: 1rem;
+            margin-right: 1rem;
+        }
         .header-row {
             display: flex; flex-wrap: wrap; align-items: center;
             gap: 0.5rem;
@@ -158,7 +165,7 @@
         .leg-line { width: 12px; height: 2px; border-radius: 1px; }
 
         /* ── Grid ── */
-        .grid-container { display: grid; gap: 10px; width: 100%; }
+        .grid-container { display: grid; gap: 10px; width: calc(100% - 2rem); }
 
         .cell {
             height: 255px !important;
@@ -526,6 +533,13 @@
             .draw-tf-del { min-width: 24px; min-height: 24px; display: flex; align-items: center; justify-content: center; }
             .modal-close { font-size: 1.8rem; padding: 0 0.4rem; }
         }
+        @media (max-width: 450px) {
+            .ai-analyze-btn{
+                width : 100%;
+                justify-content: center;
+            }
+          
+        }
         @media (max-width: 380px) {
             .search-input { width: 95px; }
             .title-main { font-size: 0.9rem; }
@@ -727,6 +741,7 @@
         .byt-empty { text-align: center; padding: 2.5rem; color: var(--text-dim); font-size: 16px; }
 
         @media (max-width: 700px) {
+        
             .byt-order-grid { grid-template-columns: 1fr; }
             .byt-summary-card { display: none; }
             .byt-page { padding: 0.75rem; }
