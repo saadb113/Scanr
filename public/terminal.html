@@ -509,9 +509,27 @@
 
     /* ── Responsive ── */
     @media (max-width: 860px) {
-      .byt-top-layout  { flex-direction: column; }
-      .byt-chart-col   { flex: none; border-right: none; border-bottom: 1px solid var(--byt-border); }
-      .byt-order-sidebar { flex: none; }
+      .byt-top-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .byt-chart-col {
+        grid-column: 1;
+        grid-row: 1;
+        border-right: none;
+        border-bottom: 1px solid var(--byt-border);
+      }
+      .byt-bottom-section {
+        grid-column: 1;
+        grid-row: 3;
+        border-top: 1px solid var(--byt-border);
+      }
+      .byt-order-sidebar {
+        grid-column: 1;
+        grid-row: 2;
+        flex: none;
+        border-bottom: 1px solid var(--byt-border);
+      }
     }
   </style>
 </head>
