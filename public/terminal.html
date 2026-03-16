@@ -65,17 +65,21 @@
 
     /* ── Top layout ── */
     .byt-top-layout {
-      display: flex;
+      display: grid;
+      grid-template-columns: 65% 35%;
+      gap: 0;
       flex: 1 0 auto;
       min-height: 0;
     }
 
     .byt-chart-col {
-      flex: 0 0 65%;
+      flex: 0 0 100%;
       min-width: 0;
       display: flex;
       flex-direction: column;
       border-right: 1px solid var(--byt-border);
+      grid-column: 1;
+      grid-row: 1;
     }
 
     .byt-sym-bar {
@@ -104,12 +108,13 @@
 
     /* ── Order sidebar ── */
     .byt-order-sidebar {
-      flex: 0 0 35%;
       min-width: 0;
       overflow-y: auto;
       background: var(--byt-panel);
       display: flex;
       flex-direction: column;
+      grid-column: 2;
+      grid-row: 1 / -1;
     }
     .byt-order-sidebar::-webkit-scrollbar { width: 4px; }
     .byt-order-sidebar::-webkit-scrollbar-track { background: transparent; }
@@ -416,6 +421,10 @@
     .byt-bottom-section {
       border-top: 1px solid var(--byt-border);
       background: var(--byt-panel);
+      grid-column: 1;
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
     }
     .byt-tabs {
       display: flex;
@@ -509,10 +518,27 @@
 
     /* ── Responsive ── */
     @media (max-width: 860px) {
-      .byt-top-layout  { flex-direction: column; }
-      .byt-chart-col   { flex: none; border-right: none; border-bottom: 1px solid var(--byt-border); order: 1; }
-      .byt-bottom-section { order: 3; }
-      .byt-order-sidebar { flex: none; order: 2; border-bottom: 1px solid var(--byt-border); }
+      .byt-top-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .byt-chart-col {
+        grid-column: 1;
+        grid-row: 1;
+        border-right: none;
+        border-bottom: 1px solid var(--byt-border);
+      }
+      .byt-bottom-section {
+        grid-column: 1;
+        grid-row: 3;
+        border-top: 1px solid var(--byt-border);
+      }
+      .byt-order-sidebar {
+        grid-column: 1;
+        grid-row: 2;
+        flex: none;
+        border-bottom: 1px solid var(--byt-border);
+      }
     }
   </style>
 </head>
@@ -557,7 +583,7 @@
         <div id="bytSymInfo" style="font-size:11px;color:#4a5568;position:absolute;right:10px;top:50%;transform:translateY(-50%);min-height:12px"></div>
       </div>
       <div id="bytTvChartWrap" style="flex:1;min-height:0"></div>
-    </div>
+    </div><!-- /byt-chart-col -->
 
     <!-- ── BOTTOM: Tabs ── -->
     <div class="byt-bottom-section">
@@ -714,7 +740,6 @@
     </div>
 
   </div><!-- /byt-bottom-section -->
-    </div>
 
     <!-- Right: Order sidebar -->
     <div class="byt-order-sidebar">
