@@ -1,35 +1,64 @@
-Fix Pine Script modal not displaying code:
+Make strategy bot use the EXACT same indicator values as the scanner page.
 
-The Pine Script modal opens but shows blank/empty code area.
-However the copy button works perfectly — meaning the Pine Script 
-is being generated correctly, it just isn't being rendered in the UI.
+Bot is calculating RSI/MACD/EMA on incomplete or mismatched candle data.
+At 13:33:22 bot shows RSI 37.4 but actual RSI was 33.7
 
-This is a pure frontend rendering bug. Fix:
+The scanner page (coinScanner.js) already calculates RSI, MACD, EMA 
+and other indicators correctly and accurately. The strategy bot is 
+calculating them separately with a different implementation causing 
+mismatched values.
 
-1. Check the modal code display element:
-   - Find the element where Pine Script code is supposed to render
-     (likely a <pre>, <code>, or <textarea> tag)
-   - Check if the generated script is being assigned to the correct 
-     element's textContent/innerHTML/value property
-   - The copy button works so it is reading from somewhere — find 
-     exactly what element/variable the copy button reads from and 
-     make sure the display element reads from that same source
+Fix — single source of truth for all indicators:
 
-2. Common causes to check:
-   - Modal opens BEFORE the code is generated and injected — 
-     fix by generating code first then opening modal
-   - Code is being set on an element that doesn't exist yet in DOM 
-     when the assignment runs — fix by ensuring modal is rendered 
-     before trying to populate it
-   - Wrong element ID or class selector being used for display 
-     vs what copy button uses
-   - Code has special characters (<, >, &) that are being interpreted 
-     as HTML and breaking the display — fix by using textContent 
-     not innerHTML, or escape the content properly
+1. EXTRACT ALL INDICATOR FUNCTIONS FROM coinScanner.js:
+   - Move these functions into a new shared file: utils/indicators.js
+   - Functions to extract:
+     * calculateRSI(candles, period)
+     * calculateMACD(candles, fast, slow, signal)
+     * calculateEMA(candles, period)
+     * calculateSMA(candles, period)
+     * calculateATR(candles, period)
+     * calculateBollingerBands(candles, period, stdDev)
+     * calculateStochastic(candles, period)
+     * calculateVolume(candles)
+   - Export all functions from utils/indicators.js
+   - Import them in coinScanner.js (replace existing implementations)
+   - Import them in strategyBot.js (replace existing implementations)
+   - This guarantees both pages use identical calculation logic
 
-3. Fix:
-   - Make display element use the exact same source as copy button
-   - Use textContent to set the code (not innerHTML) to avoid 
-     HTML parsing issues
-   - Trigger code generation and display population when modal 
-     opens, not before
+2. MATCH CANDLE FETCHING EXACTLY:
+   - Check exactly how many candles coinScanner.js fetches from Binance
+   - Use the exact same limit in strategyBot.js
+   - Use the exact same Binance endpoint and params
+   - Always slice off last candle (current open candle) in both:
+     candles = candles.slice(0, -1)
+
+3. ADD 500ms DELAY AFTER CANDLE CLOSE:
+   - After candle close event fires, wait 500ms before fetching candles
+   - Ensures Binance has finalized the closed candle data
+   - setTimeout(() => fetchAndScan(), 500)
+
+4. FIX ALL STRATEGY BLOCK EVALUATIONS to use shared indicators:
+   - RSI block: use calculateRSI from utils/indicators.js
+   - MACD block: use calculateMACD from utils/indicators.js
+   - Price vs MA block: use calculateEMA or calculateSMA
+   - ATR block: use calculateATR
+   - Bollinger Band block: use calculateBollingerBands
+   - Stochastic block: use calculateStochastic
+   - Volume block: use calculateVolume
+   - Candle Pattern blocks: evaluate on closed candles only 
+     (last candle in sliced array)
+   - Price Near Support: ta.lowest equivalent on closed candles
+   - Price Near Resistance: ta.highest equivalent on closed candles
+   - Higher High / Lower Low: pivot detection on closed candles
+   - Multi-timeframe Trend block: fetch correct timeframe candles 
+     separately, slice last candle, calculate EMA50 using shared function
+   - Trend Alignment: use same shared EMA function for both timeframes
+
+5. VERIFY VALUES MATCH:
+   - Add a one-time debug log on first scan showing indicator values 
+     side by side for verification:
+     "BTCUSDT indicators — RSI: 33.7 | MACD: -120.4 | EMA100: 73254 | 
+      ATR: 266.3 | Volume: 1234567"
+   - These should match what scanner page card shows for same coin
+   - Remove this debug log after verification

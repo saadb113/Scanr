@@ -6,6 +6,16 @@ const { Strategy, BotTrade, BybitStore } = require('./models');
 const { Settings, BotLog }               = require('./models');
 const notifier                            = require('./notifier');
 const { sendStrategyBotAlert }            = require('./discordNotifier');
+const {
+    calcEMASeries,
+    calcSMASeries,
+    calcRSI,
+    calcMACD,
+    calcATR,
+    calcStochastic,
+    calcVolumeRatio,
+    fetchCandles,
+} = require('./utils/indicators');
 
 // PKT day start helper (midnight Pakistan Standard Time = UTC+5)
 function getPKTDayStart() {
@@ -16,88 +26,7 @@ function getPKTDayStart() {
     ) - pktOffset);
 }
 
-// ── Shared indicator utilities (reused from coinScanner) ─────
-function calcEMASeries(values, period) {
-    if (values.length < period) return values.map(() => null);
-    const k = 2 / (period + 1);
-    const out = new Array(values.length).fill(null);
-    let ema = values.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    out[period - 1] = ema;
-    for (let i = period; i < values.length; i++) {
-        ema = values[i] * k + ema * (1 - k);
-        out[i] = ema;
-    }
-    return out;
-}
-
-function calcSMASeries(values, period) {
-    if (values.length < period) return values.map(() => null);
-    const out = new Array(values.length).fill(null);
-    let sum = values.slice(0, period).reduce((a, b) => a + b, 0);
-    out[period - 1] = sum / period;
-    for (let i = period; i < values.length; i++) {
-        sum += values[i] - values[i - period];
-        out[i] = sum / period;
-    }
-    return out;
-}
-
-function calcRSI(closes, period = 14) {
-    if (closes.length < period + 1) return 50;
-    let gains = 0, losses = 0;
-    for (let i = 1; i <= period; i++) {
-        const d = closes[i] - closes[i - 1];
-        d > 0 ? (gains += d) : (losses -= d);
-    }
-    let avgG = gains / period, avgL = losses / period;
-    for (let i = period + 1; i < closes.length; i++) {
-        const d = closes[i] - closes[i - 1];
-        avgG = (avgG * (period - 1) + Math.max(d, 0)) / period;
-        avgL = (avgL * (period - 1) + Math.max(-d, 0)) / period;
-    }
-    return avgL === 0 ? 100 : 100 - 100 / (1 + avgG / avgL);
-}
-
-function calcMACD(closes) {
-    const ema12 = calcEMASeries(closes, 12);
-    const ema26 = calcEMASeries(closes, 26);
-    const macdLine = ema12.map((v, i) => (v != null && ema26[i] != null) ? v - ema26[i] : null);
-    const valid = macdLine.filter(v => v != null);
-    const signalSeries = calcEMASeries(valid, 9);
-    const macd   = macdLine[macdLine.length - 1] ?? 0;
-    const signal = signalSeries[signalSeries.length - 1] ?? 0;
-    const macdPrev = macdLine[macdLine.length - 2] ?? 0;
-    const validPrev = valid[valid.length - 2] ?? 0;
-    const signalSeriesPrev = signalSeries[signalSeries.length - 2] ?? 0;
-    return { macd, signal, hist: macd - signal, macdPrev, histPrev: macdPrev - signalSeriesPrev };
-}
-
-function calcATR(candles, period = 14) {
-    if (candles.length < 2) return 0;
-    const trs = candles.slice(1).map((c, i) => {
-        const prev = candles[i];
-        return Math.max(c.high - c.low, Math.abs(c.high - prev.close), Math.abs(c.low - prev.close));
-    });
-    return trs.slice(-period).reduce((a, b) => a + b, 0) / Math.min(period, trs.length);
-}
-
-function calcStochastic(candles, kPeriod = 14, dPeriod = 3) {
-    if (candles.length < kPeriod) return { k: 50, d: 50, prevK: 50, prevD: 50 };
-    const kValues = [];
-    for (let i = kPeriod - 1; i < candles.length; i++) {
-        const slice   = candles.slice(i - kPeriod + 1, i + 1);
-        const lowest  = Math.min(...slice.map(c => c.low));
-        const highest = Math.max(...slice.map(c => c.high));
-        const k = highest === lowest ? 50 : ((candles[i].close - lowest) / (highest - lowest)) * 100;
-        kValues.push(k);
-    }
-    const dSeries = calcSMASeries(kValues, dPeriod);
-    const k     = kValues[kValues.length - 1];
-    const d     = dSeries[dSeries.length - 1] ?? 50;
-    const prevK = kValues.length >= 2 ? kValues[kValues.length - 2] : k;
-    const prevD = dSeries.length >= 2 ? (dSeries[dSeries.length - 2] ?? 50) : d;
-    return { k, d, prevK, prevD };
-}
+// ── Local helpers (not in shared indicators) ─────────────────
 
 function getTrend(candles) {
     if (candles.length < 26) return 'neutral';
@@ -186,7 +115,6 @@ function getSwingLows(candles, lookback = 20) {
 
 // ── Multi-timeframe trend cache ───────────────────────────────
 const _mtfCache = new Map(); // key: `${symbol}:${tf}` → { trend, cachedAt }
-const TF_TO_BYBIT = { '15m':'15','30m':'30','1h':'60','2h':'120','4h':'240','1D':'D','1W':'W' };
 const TF_TTL_MS   = { '15m':900000,'30m':1800000,'1h':3600000,'2h':7200000,'4h':14400000,'1D':86400000,'1W':604800000 };
 
 async function getMtfTrend(symbol, tf) {
@@ -194,9 +122,9 @@ async function getMtfTrend(symbol, tf) {
     const cached = _mtfCache.get(key);
     const ttl    = TF_TTL_MS[tf] || 3600000;
     if (cached && (Date.now() - cached.cachedAt) < ttl) return cached.trend;
-    const interval = TF_TO_BYBIT[tf] || '60';
     try {
-        const candles = await fetchBybitKlines(symbol, interval, 60);
+        // Use Binance (same as scanner) — slice last open candle
+        const candles = (await fetchCandles(symbol, tf, 62)).slice(0, -1);
         const closes  = candles.map(c => c.close);
         const ema50   = calcEMASeries(closes, 50);
         const last    = closes[closes.length - 1];
@@ -533,33 +461,40 @@ function evaluateConditionBlocks(blocks, ind) {
 }
 
 // ── Per-coin indicators ──────────────────────────────────────
-async function calcIndicators(symbol, emaPeriods, smaPeriods, mtfTimeframes = []) {
-    const [c5m, c1h, c4h] = await Promise.all([
-        fetchBybitKlines(symbol, '5', 200),
-        fetchBybitKlines(symbol, '60', 60),
-        fetchBybitKlines(symbol, '240', 60),
+// _debugFirstScan tracks whether the one-time indicator debug log has fired
+const _debugFirstScan = new Set();
+
+async function calcIndicators(symbol, timeframe, emaPeriods, smaPeriods, mtfTimeframes = []) {
+    // Fetch from Binance Futures (same exchange as scanner) with +1 candle so
+    // we can safely drop the last open candle via slice(0, -1).
+    const [cRaw, c1hRaw, c4hRaw] = await Promise.all([
+        fetchCandles(symbol, timeframe, 201),
+        fetchCandles(symbol, '1h', 61),
+        fetchCandles(symbol, '4h', 61),
     ]);
 
-    const closes5m = c5m.map(c => c.close);
-    const rsi      = calcRSI(closes5m);
-    const prevRsi  = calcRSI(closes5m.slice(0, -1));
-    const macd     = calcMACD(closes5m);
-    const atr      = calcATR(c5m);
-    const price    = closes5m[closes5m.length - 1] ?? 0;
-    const stoch    = calcStochastic(c5m);
+    // Always drop last (currently open) candle — matches scanner behavior
+    const candles  = cRaw.slice(0, -1);
+    const c1h      = c1hRaw.slice(0, -1);
+    const c4h      = c4hRaw.slice(0, -1);
 
-    const volumes = c5m.slice(-20).map(c => c.volume);
-    const avgVol  = volumes.slice(0, -1).reduce((a, b) => a + b, 0) / (volumes.length - 1);
-    const volumeRatio = avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 0;
+    const closes = candles.map(c => c.close);
+    const rsi    = calcRSI(closes);
+    const prevRsi = calcRSI(closes.slice(0, -1));
+    const macd   = calcMACD(closes);
+    const atr    = calcATR(candles);
+    const price  = closes[closes.length - 1] ?? 0;
+    const stoch  = calcStochastic(candles);
+    const volumeRatio = calcVolumeRatio(candles);
 
     const emas = {};
     for (const p of emaPeriods) {
-        const ser = calcEMASeries(closes5m, p);
+        const ser = calcEMASeries(closes, p);
         emas[p] = ser[ser.length - 1];
     }
     const smas = {};
     for (const p of smaPeriods) {
-        const ser = calcSMASeries(closes5m, p);
+        const ser = calcSMASeries(closes, p);
         smas[p] = ser[ser.length - 1];
     }
 
@@ -576,7 +511,7 @@ async function calcIndicators(symbol, emaPeriods, smaPeriods, mtfTimeframes = []
         trend4h:  getTrend(c4h),
         trend1h:  getTrend(c1h),
         trendMtf,
-        candles5m: c5m,
+        candles5m: candles,
     };
 }
 
@@ -813,6 +748,7 @@ async function runScanCycle(userId) {
         const blocks    = strategy.blocks || { filters: [], ifBlocks: [], exitConditions: [] };
         const coins     = strategy.coins?.length ? strategy.coins : ['BTCUSDT', 'ETHUSDT'];
         const maxTPD    = strategy.maxTradesPerDay || 3;
+        const tf        = strategy.timeframe || '5m';
 
         // Guardrail: max trades per day (counted from PKT midnight)
         const dayStart    = getPKTDayStart();
@@ -901,7 +837,13 @@ async function runScanCycle(userId) {
             emit(userId, 'strategy:scan_progress', { scanned: i + 1, total: coins.length, symbol: sym });
 
             try {
-                const ind = await calcIndicators(sym, emaPeriods, smaPeriods, mtfTimeframes);
+                const ind = await calcIndicators(sym, tf, emaPeriods, smaPeriods, mtfTimeframes);
+
+                // One-time debug log on first scan — verify values match scanner
+                if (!_debugFirstScan.has(userId) && sym === coins[0]) {
+                    _debugFirstScan.add(userId);
+                    addLog(userId, 'info', `DEBUG ${sym} indicators — RSI: ${ind.rsi?.toFixed(1)} | MACD hist: ${ind.macd?.hist?.toFixed(4)} | ATR: ${ind.atr?.toFixed(4)} | Vol×: ${ind.volumeRatio?.toFixed(2)} | Price: ${ind.price}`);
+                }
                 ind._logMsgs = [];
 
                 // ── Filters ──
@@ -1038,8 +980,6 @@ async function runScanCycle(userId) {
 }
 
 // ── Public API ───────────────────────────────────────────────
-// TF → Bybit interval string
-const TF_INTERVAL = { '1m':'1','3m':'3','5m':'5','15m':'15','30m':'30','1h':'60','2h':'120','4h':'240','1d':'D' };
 
 // Continuous candle-close polling (every 30s)
 async function pollCandle(userId) {
@@ -1056,18 +996,19 @@ async function pollCandle(userId) {
         if (bots.get(userId) !== bot) return;
         if (!strategy || !strategy.isActive) { await stopBot(userId); return; }
 
-        const tf       = strategy.timeframe || '5m';
-        const interval = TF_INTERVAL[tf] || '5';
-        const refCoin  = strategy.coins?.[0] || 'BTCUSDT';
+        const tf      = strategy.timeframe || '5m';
+        const refCoin = strategy.coins?.[0] || 'BTCUSDT';
 
-        // Fetch latest 2 candles to detect a new closed candle
-        const candles = await fetchBybitKlines(refCoin, interval, 2);
+        // Use Binance (same source as indicator calculation) to detect candle close
+        const candles = await fetchCandles(refCoin, tf, 2);
         if (!candles.length) return;
 
         const latestTs = candles[candles.length - 1].time;
         if (!bot.lastCandleTs || latestTs > bot.lastCandleTs) {
             bot.lastCandleTs = latestTs;
             addLog(userId, 'info', `New ${tf} candle detected — scanning`);
+            // Wait 500ms for Binance to finalize the closed candle before scanning
+            await new Promise(r => setTimeout(r, 500));
             await runScanCycle(userId);
         }
     } catch (e) {

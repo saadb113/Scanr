@@ -9,63 +9,13 @@
 
 const { Settings, BybitStore } = require('./models');
 const { analyzeWithAI }        = require('./aiAnalysis');
-
-// ── Technical indicators ──────────────────────────────────────
-
-function calcEMASeries(values, period) {
-    if (!values.length) return [];
-    const k   = 2 / (period + 1);
-    const out = [values[0]];
-    for (let i = 1; i < values.length; i++) {
-        out.push(values[i] * k + out[i - 1] * (1 - k));
-    }
-    return out;
-}
-
-function calcRSI(closes, period = 14) {
-    if (closes.length < period + 1) return 50;
-    let gains = 0, losses = 0;
-    for (let i = 1; i <= period; i++) {
-        const d = closes[i] - closes[i - 1];
-        if (d > 0) gains += d; else losses -= d;
-    }
-    let avgG = gains / period, avgL = losses / period;
-    for (let i = period + 1; i < closes.length; i++) {
-        const d = closes[i] - closes[i - 1];
-        avgG = (avgG * (period - 1) + Math.max(0, d)) / period;
-        avgL = (avgL * (period - 1) + Math.max(0, -d)) / period;
-    }
-    if (avgL === 0) return 100;
-    return 100 - 100 / (1 + avgG / avgL);
-}
-
-function calcATR(candles, period = 14) {
-    if (candles.length < 2) return 0;
-    const trs = [];
-    for (let i = 1; i < candles.length; i++) {
-        const h = candles[i].high, l = candles[i].low, pc = candles[i - 1].close;
-        trs.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
-    }
-    if (trs.length < period) return trs[trs.length - 1] || 0;
-    let atr = trs.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    for (let i = period; i < trs.length; i++) {
-        atr = (atr * (period - 1) + trs[i]) / period;
-    }
-    return atr;
-}
-
-function calcMACD(closes) {
-    const ema12  = calcEMASeries(closes, 12);
-    const ema26  = calcEMASeries(closes, 26);
-    const macdL  = ema12.map((v, i) => v - ema26[i]);
-    const signal = calcEMASeries(macdL, 9);
-    const hist   = macdL.map((v, i) => v - signal[i]);
-    return {
-        macd:   macdL[macdL.length - 1],
-        signal: signal[signal.length - 1],
-        hist:   hist[hist.length - 1],
-    };
-}
+const {
+    calcEMASeries,
+    calcRSI,
+    calcATR,
+    calcMACD,
+    fetchCandles,
+} = require('./utils/indicators');
 
 function calcRSISeries(closes, period = 14) {
     const out = new Array(period).fill(50);
@@ -104,14 +54,6 @@ async function fetchTicker(sym) {
     return r.json();
 }
 
-async function fetchCandles(sym, interval, limit) {
-    const r = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${interval}&limit=${limit}`);
-    if (!r.ok) throw new Error(`Candles ${sym}/${interval}: HTTP ${r.status}`);
-    return (await r.json()).map(c => ({
-        time: c[0], open: +c[1], high: +c[2], low: +c[3], close: +c[4], volume: +c[5],
-    }));
-}
-
 // ── Bybit open positions ──────────────────────────────────────
 
 async function getBybitOpenSymbols(creds) {
@@ -144,15 +86,20 @@ async function applyHardFilters(sym, agentSettings, openSyms) {
         fetchCandles(sym, tf, 100),
     ]);
 
+    // Drop the last (currently open) candle for indicator calculation
+    const c4hClosed    = c4h.slice(0, -1);
+    const c1hClosed    = c1h.slice(0, -1);
+    const cEntryClosed = cEntry.slice(0, -1);
+
     // 1. Volume > 30M
     if (parseFloat(ticker.quoteVolume) < (agentSettings.minVolume || 30) * 1e6) return null;
 
     // 2. ATR(14) on entry timeframe within threshold
-    const atrEntry = calcATR(cEntry, 14);
+    const atrEntry = calcATR(cEntryClosed, 14);
     if (atrEntry < (agentSettings.atrMin || 0) || atrEntry > (agentSettings.atrMax || 9999999)) return null;
 
     // 3. 4H EMA20 vs EMA50 — clear trend (not flat)
-    const cls4h = c4h.map(c => c.close);
+    const cls4h = c4hClosed.map(c => c.close);
     const e20_4 = calcEMASeries(cls4h, 20);
     const e50_4 = calcEMASeries(cls4h, 50);
     const lE20  = e20_4[e20_4.length - 1];
@@ -161,18 +108,19 @@ async function applyHardFilters(sym, agentSettings, openSyms) {
     const trend4h = lE20 > lE50 ? 'long' : 'short';
 
     // 4. 1H trend agrees with 4H
-    const cls1h = c1h.map(c => c.close);
+    const cls1h = c1hClosed.map(c => c.close);
     const e20_1 = calcEMASeries(cls1h, 20);
     const e50_1 = calcEMASeries(cls1h, 50);
     const trend1h = e20_1[e20_1.length - 1] > e50_1[e50_1.length - 1] ? 'long' : 'short';
     if (trend1h !== trend4h) return null;
 
     // 5. RSI(14) on entry timeframe < 38 for long OR > 62 for short
-    const clsEntry = cEntry.map(c => c.close);
+    const clsEntry = cEntryClosed.map(c => c.close);
     const rsiEntry = calcRSI(clsEntry, 14);
     if (trend4h === 'long'  && rsiEntry >= 38) return null;
     if (trend4h === 'short' && rsiEntry <= 62) return null;
 
+    // Keep full candle arrays (including open candle) for AI prompt context
     return { symbol: sym, direction: trend4h, ticker, c4h, c1h, cEntry, rsiEntry, atrEntry, timeframe: tf };
 }
 
