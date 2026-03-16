@@ -1,43 +1,24 @@
-Fix strategy bot log display:
+Fix 2 log display bugs:
 
-1. REDUCE LOG VERBOSITY — too many lines per scan cycle:
-   Condense each scan cycle into maximum 2-3 lines instead of 6-8.
-   
-   Current (too verbose):
-   10:10:00 BTCUSDT — IF: RSI(14) < 70 → matched ✓
-   10:10:00 BTCUSDT ↳ RSI: 59.1 (condition: < 70) ✓
-   10:10:00 BTCUSDT — drawdown check: totalLoss=$-4.12, limit=$-50
-   10:10:00 BTCUSDT — actions: → ENTER LONG | Position Size: 2% capital
-   10:10:00 BTCUSDT — placing LONG order @ 73859.5 | ATR=266.3786
-   10:10:00 Order placed BTCUSDT LONG @ 73859.5 ...
+1. LOGS REVERTING TO TOP ON BOT START:
+   - When bot is stopped, new logs correctly append to bottom
+   - When bot is started again, logs flip back to showing newest on top
+   - This means the log rendering/sorting logic is being re-initialized 
+     on bot start and reverting to old behavior
+   - Fix: log order (newest at bottom) must be set ONCE globally on 
+     page load and never change regardless of bot start/stop state
+   - Bot start/stop events must NOT re-render or re-sort the log panel
+   - New logs always append to bottom, always, unconditionally
 
-   Replace with single summary lines:
-   
-   When scan runs and NO match:
-  "10:10:00 — BTCUSDT — IF (RSI 71.2 < 70) ✗ not matched"
-  "10:10:00 — BTCUSDT — ELSE IF (RSI 71.2 > 65 ✓ AND Price below EMA100 ✗) not matched"
-   
-   When condition matches and trade placed:
-   "10:10:00 — BTCUSDT matched IF (RSI 59.1 < 70) → LONG @ 73859.5 | SL: none | TP: none | Qty: 0.046"
-   
-   When skipping due to open position:
-   "10:10:29 — Skipping scan — BTCUSDT Buy position open"
-   
-   When skipping due to max trades:
-   "10:10:29 — Skipping scan — max trades reached (6/10)"
-   
-   Bot lifecycle logs (keep these as is, they are useful):
-   "10:09:58 — Bot started — strategy: test | coins: BTCUSDT | timeframe: 1m"
-   "10:09:58 — Bot stopped"
-   "10:12:01 — Position manually closed (BTCUSDT) — resuming scan"
-
-   Only show verbose condition details if there is an ERROR or 
-   unexpected behavior — not on every normal scan
-
-2. REVERSE LOG ORDER — newest logs at bottom not top:
-   - New logs must append to the BOTTOM of the log panel
-   - Scroll position should auto-scroll to bottom when new log arrives
-   - If user has scrolled up to read old logs, do NOT auto-scroll 
-     (detect if user is at bottom, only auto-scroll if they are)
-   - On page load: fetch logs from DB, display oldest at top, 
-     newest at bottom, auto-scroll to bottom
+2. DELETED LOGS REAPPEARING ON BOT START:
+   - User clicks "Clear All Logs" — logs cleared from UI
+   - Bot starts again — deleted logs reappear
+   - This means "Clear All Logs" is only clearing the UI/frontend 
+     array but NOT deleting from MongoDB
+   - Fix: "Clear All Logs" must call DELETE /api/strategy/logs/clear 
+     and wipe logs from DB for that strategy
+   - On bot start, logs are fetched fresh from DB — if DB is empty, 
+     panel stays empty
+   - Do not keep any in-memory log cache that survives a clear action
+   - After successful DB clear, reset the in-memory log array to [] 
+     as well so they cannot reappear

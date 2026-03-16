@@ -1501,10 +1501,9 @@ function botStratSelChanged() {
 
 async function fetchBotStatus() {
   try {
-    const [sr, lr] = await Promise.all([fetch('/api/strategy/bot/status'), fetch('/api/strategy/bot/log')]);
-    const [sd, ld] = await Promise.all([sr.json(), lr.json()]);
-    if (sd.ok) updateBotStatusPanel(sd);
-    if (ld.ok) renderLogs(ld.logs);
+    const r = await fetch('/api/strategy/bot/status');
+    const d = await r.json();
+    if (d.ok) updateBotStatusPanel(d);
   } catch (_) {}
 }
 
