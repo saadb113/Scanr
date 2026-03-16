@@ -3,7 +3,7 @@
 const express    = require('express');
 const router     = express.Router();
 const bot        = require('./strategyBot');
-const { Strategy, BotTrade } = require('./models');
+const { Strategy, BotTrade, BotLog } = require('./models');
 
 // GET /api/strategy — all strategies for user
 router.get('/', async (req, res) => {
@@ -19,9 +19,40 @@ router.get('/bot/status', (req, res) => {
     res.json({ ok: true, ...bot.getStatus(req.session.userId) });
 });
 
-// GET /api/strategy/bot/log
+// GET /api/strategy/bot/log — in-memory log (recent, for initial load fallback)
 router.get('/bot/log', (req, res) => {
     res.json({ ok: true, logs: bot.getLogs(req.session.userId) });
+});
+
+// GET /api/strategy/bot/logs — persistent logs from DB (supports ?from=&to=&strategyId=&limit=)
+router.get('/bot/logs', async (req, res) => {
+    try {
+        const { from, to, strategyId, limit = '500' } = req.query;
+        const filter = { userId: req.session.userId };
+        if (strategyId) filter.strategyId = strategyId;
+        if (from || to) {
+            filter.timestamp = {};
+            if (from) filter.timestamp.$gte = new Date(from);
+            if (to)   filter.timestamp.$lte = new Date(to);
+        }
+        const logs = await BotLog.find(filter)
+            .sort({ timestamp: -1 })
+            .limit(Math.min(parseInt(limit) || 500, 2000))
+            .lean();
+        logs.reverse(); // oldest first for display
+        res.json({ ok: true, logs, total: logs.length });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
+});
+
+// DELETE /api/strategy/bot/logs — clear all DB logs for this user (optionally scoped to strategyId)
+router.delete('/bot/logs', async (req, res) => {
+    try {
+        const { strategyId } = req.query;
+        const filter = { userId: req.session.userId };
+        if (strategyId) filter.strategyId = strategyId;
+        const result = await BotLog.deleteMany(filter);
+        res.json({ ok: true, deleted: result.deletedCount });
+    } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
 // GET /api/strategy/bot/trades — all bot trades for user (all strategies)

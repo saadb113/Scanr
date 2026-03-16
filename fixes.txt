@@ -1,80 +1,75 @@
-Redesign the strategy page layout completely:
+Improve strategy bot accuracy, fix all checks, and add persistent logging:
 
-LAYOUT:
-- Left sidebar (fixed 280px): Block Palette only
-- Main area (remaining width): Strategy Canvas only — maximum space, no clutter
-- Top bar (full width): page title left, buttons right
+1. ACCURATE STRATEGY CONDITION CHECKING:
+   - Before placing any trade, run ALL condition checks in strict order:
+     a) Trading hours check — is current PKT time within user's set hours?
+     b) Max trades per day check — has today's trade count reached the limit?
+     c) Open position check — is there an active Bybit position? (live API check)
+     d) Strategy condition check — do ALL blocks in IF/ELSEIF match current candle?
+     e) Guardrails check — is daily drawdown limit hit?
+   - ALL checks must pass before placing trade
+   - If any check fails, log exactly which check failed and why:
+     "BTCUSDT — skipped: max trades reached (3/3)"
+     "BTCUSDT — skipped: outside trading hours (current: 01:30 PKT)"
+     "BTCUSDT — skipped: open position exists (ETHUSDT LONG)"
+     "BTCUSDT — skipped: conditions not met (RSI: 45, required < 35)"
+     "BTCUSDT — matched: all conditions passed — placing trade"
 
-TOP BAR:
-- Left: "Strategy Builder" title + saved strategies dropdown to load existing
-- Right: these 4 buttons in a row:
-  * "💾 Save" — saves inline, no modal
-  * "📜 Pine Script" — opens Pine Script modal
-  * "🤖 Bot" — opens Bot modal  
-  * strategies dropdown to switch/load strategies
+2. ACCURATE CONDITION EVALUATION:
+   - Fetch fresh candle data for the coin on every scan cycle
+   - Calculate all indicators fresh: RSI, MACD, EMA, ATR, Volume on latest candles
+   - For multi-timeframe trend blocks: fetch correct timeframe candles separately
+   - For candle pattern blocks: check last 3 candles OHLC data
+   - For price near support/resistance: calculate from last 50 candles fresh
+   - For higher high/lower low: scan last 20 candles for swing points
+   - Never use cached indicator values — recalculate on every candle close
+   - Log indicator values when condition is checked:
+     "BTCUSDT — RSI: 32.4 (condition: < 35) ✓"
+     "BTCUSDT — EMA100: 45200, Price: 44800 (condition: below EMA) ✓"
 
-LEFT SIDEBAR (280px, fixed height, scrollable):
-- "Blocks" heading
-- Collapsible categories with arrow toggle:
-  * Indicators (RSI, MACD, Stochastic, MA Cross, Price vs MA, Volume, ATR, BB)
-  * Candle Patterns (Hammer, Shooting Star, Doji, Engulfing, Morning/Evening Star, Pinbar)
-  * Price Action (Near Support, Near Resistance, Higher High, Lower Low)
-  * Trend (Multi-timeframe trend block, Trend Alignment)
-  * Time (Trading Hours)
-  * Actions (Enter Long, Enter Short)
-  * Risk (Stop Loss, Take Profit, Position Size)
-- Compact draggable block chips
-- Dark scrollbar, clean spacing
+3. ACCURATE MAX TRADES PER DAY CHECK:
+   - Count trades placed TODAY only (midnight to midnight PKT)
+   - Query DB for trades where userId matches, strategy matches, 
+     and createdAt >= today midnight PKT
+   - Compare count against user's maxTradesPerDay setting
+   - If limit reached: stop scanning until next midnight PKT
+   - Reset count automatically at midnight PKT each day
+   - Log: "Trades today: 2/3 — continuing scan"
+   - Log: "Max trades reached: 3/3 — bot pausing until midnight PKT"
 
-MAIN CANVAS AREA:
-- Full remaining width and height
-- Filters bar at very top (collapsible, horizontal)
-- IF / ELSE IF / ELSE blocks rendered vertically with connecting lines
-- Each block is a clean dark card
-- Lots of breathing room
-- Drag and drop reordering of blocks and conditions
-- Add ELSE IF button between blocks
-- Empty state message when no blocks: "Drag blocks from the left to start building"
+4. ACCURATE BYBIT POSITION CHECK:
+   - Always call Bybit API live — never use cached/DB flag alone
+   - Fetch all open positions from Bybit futures account
+   - Check if ANY position is open (not just the current coin)
+   - One position at a time rule: if ANY position open, skip ALL coins
+   - If Bybit API call fails: log error, default to SKIP scan (safe behavior)
+   - Sync DB hasOpenPosition flag with live Bybit data on every check
+   - Log: "Bybit check — 0 open positions — proceeding with scan"
+   - Log: "Bybit check — 1 open position (ETHUSDT LONG) — skipping scan"
 
-PINE SCRIPT MODAL (opens on button click):
-- Large modal (~700px wide)
-- Title: "Pine Script Export"
-- Dark code block with monospace font showing full live-generated script
-- Copy to clipboard button top right
-- Close button
-- Auto updates as strategy changes
+5. PERSISTENT BOT LOGS — save all logs to DB:
+   - Every log line the bot generates must be saved to MongoDB immediately
+   - Log document structure:
+     { userId, strategyId, timestamp, level (info/warn/error), message }
+   - Logs persist forever — closing tab, refreshing, or restarting server 
+     must NOT delete logs
+   - On page open: fetch all logs from DB for the active strategy, 
+     display them in the log panel from oldest to newest
+   - New logs stream in real time via socket as before
+   - On bot start: save "Bot started" log to DB
+   - On bot stop: save "Bot stopped" log to DB
+   - Limit stored logs to last 10,000 entries per user to prevent DB bloat
+     (auto-delete oldest when limit exceeded)
 
-BOT MODAL (opens on button click):
-- Large modal (~800px wide, tall)
-- Two tabs inside modal: "Bot Controls" | "Trade History"
-
-  Bot Controls tab:
-  - Strategy name (read only, shows current strategy)
-  - Timeframe dropdown
-  - Trading hours display (from filter settings)
-  - Big Start/Stop bot button (green/red, full width)
-  - Bot status: running indicator + last scan time
-  - Today's stats row: Trades | Win Rate | Today's PnL
-  - Discord alerts toggle (if webhook is set)
-
-  Trade History tab:
-  - Filter dropdowns row: Strategy | Direction | Status | Sort by PnL
-  - "Clear History" button top right (small, red outline)
-  - Trade table:
-    Coin | Dir | Entry | SL | TP | Exit | PnL | Status | Action
-  - Green/red PnL values
-  - "Close Position" button on open trades
-  - Empty state if no trades
-  - Scrollable table
-
-STYLING:
-- Dark Bybit-like theme throughout
-- Background: #0b0e11
-- Panels/sidebar: #1a1d26  
-- Borders: #2b2f3e
-- Accent: #f0b90b (yellow) for active states
-- Green: #0ecb81 for LONG/profit
-- Red: #f6465d for SHORT/loss
-- Smooth modal open/close animations
-- Keep ALL existing JS functionality intact — this is layout and styling only
-- Mobile: sidebar becomes a bottom drawer, canvas takes full width
+6. LOG VIEWER — date/time filter:
+   - Add a date/time range filter above the log panel:
+     - "From" datetime input
+     - "To" datetime input  
+     - "Filter" button
+     - "Clear Filter" button to show all logs again
+   - On filter: fetch logs from DB between the two timestamps
+   - Display filtered logs in the panel
+   - Show count: "Showing 142 logs from 05:00 to 06:00 PKT"
+   - All times displayed and filtered in PKT (UTC+5)
+   - Add a "Clear All Logs" button (with confirmation dialog) 
+     to wipe logs from DB for that strategy

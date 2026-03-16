@@ -940,6 +940,19 @@
     @media (max-width: 1024px) { .strat-lib-outer { flex: 0 0 230px; } }
     @media (max-width: 768px)  { .strat-lib-outer { display: none !important; } }
 
+    /* Log filter row */
+    .log-filter-row {
+      display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+      padding: 0.5rem 0; margin-bottom: 0.4rem; border-bottom: 1px solid #2b2f3e;
+    }
+    .log-filter-dt {
+      background: #12151c; border: 1px solid #2b2f3e; color: #e5e9f2;
+      border-radius: 6px; padding: 0.28rem 0.5rem; font-size: 0.73rem;
+      font-family: inherit; flex: 1; min-width: 150px;
+    }
+    .log-filter-dt::-webkit-calendar-picker-indicator { filter: invert(0.6); }
+    .log-count-label { font-size: 0.7rem; color: #6b7897; margin-left: auto; white-space: nowrap; }
+
     /* Discord toggle row */
     .bot-discord-row {
       display: flex; align-items: center; justify-content: space-between;
@@ -1174,6 +1187,15 @@
 
         <hr class="bot-divider">
         <div class="strat-out-title" style="font-size:0.75rem;font-weight:700;color:#6b7897;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:0.4rem">Bot Log</div>
+        <div class="log-filter-row">
+          <input type="datetime-local" id="logFilterFrom" class="log-filter-dt" title="From (PKT)">
+          <span style="color:#6b7897;font-size:0.72rem;flex-shrink:0">to</span>
+          <input type="datetime-local" id="logFilterTo" class="log-filter-dt" title="To (PKT)">
+          <button class="strat-btn" style="padding:0.28rem 0.7rem;font-size:0.75rem" onclick="applyLogFilter()">Filter</button>
+          <button class="strat-btn" style="padding:0.28rem 0.7rem;font-size:0.75rem" onclick="clearLogFilter()">Clear</button>
+          <button class="strat-btn danger" style="padding:0.28rem 0.7rem;font-size:0.75rem" onclick="clearAllLogs()">Clear All</button>
+          <span id="logCountLabel" class="log-count-label"></span>
+        </div>
         <div class="strat-log-feed" id="stratLogFeed"><span class="log-info">— No log entries —</span></div>
 
       </div><!-- /botPane-controls -->
@@ -1370,6 +1392,7 @@
     document.getElementById('botModal').classList.add('open');
     loadBotStats();
     loadDiscordToggle();
+    loadDbLogs();
   }
   function closeBotModal() { document.getElementById('botModal').classList.remove('open'); }
 
@@ -1432,6 +1455,66 @@
           alerts: { ...(cur.alerts || {}), strategyBotAlerts: checked },
         }),
       });
+    } catch (_) {}
+  }
+
+  // ── Persistent DB log functions ────────────────────────────────────────
+  async function loadDbLogs(from, to) {
+    try {
+      let url = '/api/strategy/bot/logs?limit=500';
+      if (from) url += `&from=${encodeURIComponent(from)}`;
+      if (to)   url += `&to=${encodeURIComponent(to)}`;
+      const r = await fetch(url);
+      const d = await r.json();
+      if (!d.ok) return;
+      const feed = document.getElementById('stratLogFeed');
+      if (!feed) return;
+      feed.innerHTML = '';
+      if (!d.logs?.length) {
+        feed.innerHTML = '<span class="log-info">— No log entries —</span>';
+        document.getElementById('logCountLabel').textContent = '';
+        return;
+      }
+      d.logs.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = `log-${entry.level || 'info'}`;
+        const ts = new Date(entry.timestamp).toLocaleString('en-PK', {
+          timeZone: 'Asia/Karachi', hour12: false,
+          dateStyle: 'short', timeStyle: 'medium',
+        });
+        div.textContent = `${ts} ${entry.message}`;
+        feed.appendChild(div);
+      });
+      feed.scrollTop = feed.scrollHeight;
+      document.getElementById('logCountLabel').textContent = `Showing ${d.logs.length} log${d.logs.length !== 1 ? 's' : ''}`;
+    } catch (_) {}
+  }
+
+  function applyLogFilter() {
+    const fromEl = document.getElementById('logFilterFrom');
+    const toEl   = document.getElementById('logFilterTo');
+    // datetime-local values are in local time; convert to ISO for PKT-consistent query
+    const from = fromEl.value ? new Date(fromEl.value).toISOString() : null;
+    const to   = toEl.value   ? new Date(toEl.value).toISOString()   : null;
+    loadDbLogs(from, to);
+  }
+
+  function clearLogFilter() {
+    document.getElementById('logFilterFrom').value = '';
+    document.getElementById('logFilterTo').value   = '';
+    loadDbLogs();
+  }
+
+  async function clearAllLogs() {
+    if (!confirm('Clear ALL bot logs from the database? This cannot be undone.')) return;
+    try {
+      const r = await fetch('/api/strategy/bot/logs', { method: 'DELETE' });
+      const d = await r.json();
+      if (d.ok) {
+        const feed = document.getElementById('stratLogFeed');
+        if (feed) feed.innerHTML = '<span class="log-info">— No log entries —</span>';
+        document.getElementById('logCountLabel').textContent = '';
+      }
     } catch (_) {}
   }
 

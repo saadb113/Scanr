@@ -1695,7 +1695,8 @@ function connectSocket() {
 function addLog(entry) {
   const feed = $('stratLogFeed');
   if (feed.querySelector('span')?.textContent?.includes('No log entries')) feed.innerHTML = '';
-  const ts = new Date().toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour12: false });
+  const tsRaw = entry.timestamp || entry.ts;
+  const ts = new Date(tsRaw || Date.now()).toLocaleTimeString('en-PK', { timeZone: 'Asia/Karachi', hour12: false });
   const div = document.createElement('div');
   div.className = `log-${entry.level || 'info'}`;
   div.textContent = `${ts} ${entry.message}`;

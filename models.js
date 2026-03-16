@@ -359,5 +359,12 @@ module.exports = {
     ChallengeTrade:   mongoose.model('ChallengeTrade',   ChallengeTradeSchema),
     Strategy:         mongoose.model('Strategy',         StrategySchema),
     BotTrade:         mongoose.model('BotTrade',         BotTradeSchema),
+    BotLog:           mongoose.model('BotLog',           new mongoose.Schema({
+        userId:     { type: String, required: true, index: true },
+        strategyId: { type: String, default: null },
+        timestamp:  { type: Date, default: Date.now },
+        level:      { type: String, default: 'info' }, // info|warn|error|trade|signal
+        message:    { type: String, required: true },
+    }, { timestamps: false }).index({ userId: 1, timestamp: -1 })),
     PriceAlert:       mongoose.model('PriceAlert',       PriceAlertSchema),
 };
