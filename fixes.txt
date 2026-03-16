@@ -1,24 +1,35 @@
-Fix 2 log display bugs:
+Fix Pine Script modal not displaying code:
 
-1. LOGS REVERTING TO TOP ON BOT START:
-   - When bot is stopped, new logs correctly append to bottom
-   - When bot is started again, logs flip back to showing newest on top
-   - This means the log rendering/sorting logic is being re-initialized 
-     on bot start and reverting to old behavior
-   - Fix: log order (newest at bottom) must be set ONCE globally on 
-     page load and never change regardless of bot start/stop state
-   - Bot start/stop events must NOT re-render or re-sort the log panel
-   - New logs always append to bottom, always, unconditionally
+The Pine Script modal opens but shows blank/empty code area.
+However the copy button works perfectly — meaning the Pine Script 
+is being generated correctly, it just isn't being rendered in the UI.
 
-2. DELETED LOGS REAPPEARING ON BOT START:
-   - User clicks "Clear All Logs" — logs cleared from UI
-   - Bot starts again — deleted logs reappear
-   - This means "Clear All Logs" is only clearing the UI/frontend 
-     array but NOT deleting from MongoDB
-   - Fix: "Clear All Logs" must call DELETE /api/strategy/logs/clear 
-     and wipe logs from DB for that strategy
-   - On bot start, logs are fetched fresh from DB — if DB is empty, 
-     panel stays empty
-   - Do not keep any in-memory log cache that survives a clear action
-   - After successful DB clear, reset the in-memory log array to [] 
-     as well so they cannot reappear
+This is a pure frontend rendering bug. Fix:
+
+1. Check the modal code display element:
+   - Find the element where Pine Script code is supposed to render
+     (likely a <pre>, <code>, or <textarea> tag)
+   - Check if the generated script is being assigned to the correct 
+     element's textContent/innerHTML/value property
+   - The copy button works so it is reading from somewhere — find 
+     exactly what element/variable the copy button reads from and 
+     make sure the display element reads from that same source
+
+2. Common causes to check:
+   - Modal opens BEFORE the code is generated and injected — 
+     fix by generating code first then opening modal
+   - Code is being set on an element that doesn't exist yet in DOM 
+     when the assignment runs — fix by ensuring modal is rendered 
+     before trying to populate it
+   - Wrong element ID or class selector being used for display 
+     vs what copy button uses
+   - Code has special characters (<, >, &) that are being interpreted 
+     as HTML and breaking the display — fix by using textContent 
+     not innerHTML, or escape the content properly
+
+3. Fix:
+   - Make display element use the exact same source as copy button
+   - Use textContent to set the code (not innerHTML) to avoid 
+     HTML parsing issues
+   - Trigger code generation and display population when modal 
+     opens, not before

@@ -998,7 +998,7 @@
         <button class="strat-btn accent" onclick="stratSave()">💾 Save</button>
         <button class="strat-btn accent" onclick="openPineModal()">📜 Pine Script</button>
         <button class="strat-btn accent" onclick="openBotModal()">🤖 Bot</button>
-        <button class="strat-btn danger" id="stratDeleteBtn" onclick="stratDelete()" style="display:none">Delete</button>
+        <button class="strat-btn danger" id="stratDeleteBtn" onclick="stratDelete()" >Delete</button>
       </div>
     </div>
 
@@ -1390,7 +1390,7 @@
   // ── Modal helpers ──────────────────────────────────────────────────────
   function openPineModal() {
     document.getElementById('pineModal').classList.add('open');
-    if (typeof stratExportPine === 'function') stratExportPine();
+    if (typeof updatePineScript === 'function') updatePineScript();
   }
   function closePineModal() { document.getElementById('pineModal').classList.remove('open'); }
 
