@@ -1002,7 +1002,7 @@ async function runScanCycle(userId) {
                         await BotTrade.create({
                             userId, strategyId: bot.strategyId, symbol: sym, side: dir,
                             entryPrice: ind.price, sl, tp, quantity: qty, status: 'open',
-                            conditionsMet: { conditions: conds },
+                            conditionsMet: { conditions: condSummaries },
                         });
                         addLog(userId, 'trade', `Order placed ${sym} ${dir} @ ${ind.price} — orderId: ${orderId} | SL: ${sl ?? 'none'} | TP: ${tp ?? 'none'} | qty: ${qty}`);
                         emit(userId, 'strategy:order_placed', { symbol: sym, side: dir, entry: ind.price, sl, tp });
