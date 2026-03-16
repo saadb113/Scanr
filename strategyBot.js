@@ -531,13 +531,13 @@ function getSizeBlock(actions) { return actions.find(b => b.type === 'POSITION_S
 
 async function getBybitPositions(store) {
     if (!store?.apiKey) return [];
-    try {
-        const res = await bybitRequest(
-            store.apiKey, store.apiSecret, store.env,
-            'GET', '/v5/position/list', { category: 'linear', settleCoin: 'USDT' }
-        );
-        return (res?.result?.list || []).filter(p => +p.size > 0);
-    } catch (_) { return []; }
+    // Let errors propagate to callers so they can handle grace-fully
+    // instead of silently returning [] on failure (which hides bugs).
+    const res = await bybitRequest(
+        store.apiKey, store.apiSecret, store.env,
+        'GET', '/v5/position/list', { category: 'linear', settleCoin: 'USDT' }
+    );
+    return (res?.result?.list || []).filter(p => +p.size > 0);
 }
 
 // ── Order placement ──────────────────────────────────────────
@@ -602,6 +602,30 @@ async function placeOrder(userId, symbol, side, price, atr, actions, store) {
 const bots   = new Map(); // userId → { timerId, status, strategyId, ... }
 const botLogs = new Map(); // userId → string[]
 let _io = null;
+
+// ── Strict singleton timer registry ──────────────────────────
+// Tracks the ONE active candle-poll interval per userId.
+// Separating this from the bot object prevents any race where
+// the timerId reference is lost before clearInterval is called.
+const _timers = new Map(); // userId → intervalId
+
+function clearBotTimer(userId) {
+    if (_timers.has(userId)) {
+        clearInterval(_timers.get(userId));
+        _timers.delete(userId);
+    }
+}
+
+function setBotTimer(userId) {
+    clearBotTimer(userId); // always evict the previous timer first
+    const id = setInterval(() => pollCandle(userId), 30000);
+    _timers.set(userId, id);
+    if (_timers.size > 1) {
+        // This should never be > total active users — log if something looks wrong
+        console.warn(`[strategyBot] ${_timers.size} candle timers active (expected ≤ active users)`);
+    }
+    return id;
+}
 
 function setIO(io) { _io = io; }
 
@@ -732,9 +756,40 @@ async function runScanCycle(userId) {
         ];
         const { emaPeriods, smaPeriods, mtfTimeframes } = getNeededPeriods(allCondBlocks);
 
-        // One position at a time: check if any real Bybit position is open
-        const openBybitPositions = store ? await getBybitPositions(store) : [];
-        const hasOpenPosition = openBybitPositions.length > 0;
+        // ── Position guard: must agree on BOTH Bybit API and DB ──
+        // Fetch live positions; if the API fails do NOT skip the scan.
+        let bybitPositions = [];
+        let posApiError    = null;
+        try {
+            bybitPositions = store ? await getBybitPositions(store) : [];
+        } catch (e) {
+            posApiError = e.message;
+            addLog(userId, 'warn', `Position API error — continuing scan: ${e.message}`);
+        }
+
+        // DB open-trade count for this strategy
+        const openDbCount = await BotTrade.countDocuments({ userId, strategyId: bot.strategyId, status: 'open' }).catch(() => 0);
+
+        const bybitHasPos = bybitPositions.length > 0;
+        const dbHasPos    = openDbCount > 0;
+
+        addLog(userId, 'info', `Position check — Bybit: ${bybitPositions.length} open position(s), DB: ${dbHasPos ? openDbCount + ' open trade(s)' : 'none'} — result: ${(bybitHasPos && dbHasPos && !posApiError) ? 'skip' : 'scan'}`);
+
+        // Only skip if BOTH sources confirm a position. A mismatch clears the DB flag.
+        let hasOpenPosition = false;
+        if (posApiError) {
+            // API unavailable: safe to scan (better to double-check than silently skip)
+            hasOpenPosition = false;
+        } else if (!bybitHasPos && dbHasPos) {
+            // Bybit shows no position but DB has open trades → stale DB flag
+            addLog(userId, 'warn', `Position flag mismatch — Bybit shows no position, clearing hasOpenPosition flag`);
+            // checkClosedTrades (called above) should reconcile these;
+            // in the meantime let the scan proceed so we don't block forever.
+            hasOpenPosition = false;
+        } else {
+            hasOpenPosition = bybitHasPos && dbHasPos;
+        }
+
         if (hasOpenPosition) {
             addLog(userId, 'info', `Open Bybit position detected — skipping entry scan`);
         }
@@ -924,7 +979,7 @@ async function startBot(userId, strategyId) {
 
         const bot = {
             strategyId, status: 'idle', lastScan: null, lastCandleTs: null,
-            timerId: setInterval(() => pollCandle(userId), 30000),
+            timerId: setBotTimer(userId),
         };
         bots.set(userId, bot);
         addLog(userId, 'info', `Bot started — strategy: "${strategy?.name}" | coins: ${(strategy?.coins || []).join(', ') || 'default'} | if-blocks: ${(strategy?.blocks?.ifBlocks || []).length}`);
@@ -948,9 +1003,10 @@ async function startBot(userId, strategyId) {
 }
 
 async function stopBot(userId) {
+    clearBotTimer(userId); // always clear the singleton timer first
     const bot = bots.get(userId);
     if (bot) {
-        clearInterval(bot.timerId);
+        clearInterval(bot.timerId); // belt-and-suspenders: clear bot ref too
         bots.delete(userId);
     }
     await Strategy.updateMany({ userId }, { isActive: false });
