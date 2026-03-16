@@ -65,17 +65,21 @@
 
     /* ── Top layout ── */
     .byt-top-layout {
-      display: flex;
+      display: grid;
+      grid-template-columns: 65% 35%;
+      gap: 0;
       flex: 1 0 auto;
       min-height: 0;
     }
 
     .byt-chart-col {
-      flex: 0 0 65%;
+      flex: 0 0 100%;
       min-width: 0;
       display: flex;
       flex-direction: column;
       border-right: 1px solid var(--byt-border);
+      grid-column: 1;
+      grid-row: 1;
     }
 
     .byt-sym-bar {
@@ -104,12 +108,13 @@
 
     /* ── Order sidebar ── */
     .byt-order-sidebar {
-      flex: 0 0 35%;
       min-width: 0;
       overflow-y: auto;
       background: var(--byt-panel);
       display: flex;
       flex-direction: column;
+      grid-column: 2;
+      grid-row: 1 / -1;
     }
     .byt-order-sidebar::-webkit-scrollbar { width: 4px; }
     .byt-order-sidebar::-webkit-scrollbar-track { background: transparent; }
@@ -416,6 +421,10 @@
     .byt-bottom-section {
       border-top: 1px solid var(--byt-border);
       background: var(--byt-panel);
+      grid-column: 1;
+      grid-row: 2;
+      display: flex;
+      flex-direction: column;
     }
     .byt-tabs {
       display: flex;
@@ -574,8 +583,10 @@
         <div id="bytSymInfo" style="font-size:11px;color:#4a5568;position:absolute;right:10px;top:50%;transform:translateY(-50%);min-height:12px"></div>
       </div>
       <div id="bytTvChartWrap" style="flex:1;min-height:0"></div>
-        <!-- ── BOTTOM: Tabs ── -->
-  <div class="byt-bottom-section">
+    </div><!-- /byt-chart-col -->
+
+    <!-- ── BOTTOM: Tabs ── -->
+    <div class="byt-bottom-section">
     <div class="byt-tabs">
       <button class="byt-tab active" data-byttab="positions"   onclick="bytSwitchTab('positions')">Positions <span id="bytPosCount" class="byt-badge">0</span></button>
       <button class="byt-tab"        data-byttab="orders"      onclick="bytSwitchTab('orders')">Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
@@ -729,7 +740,6 @@
     </div>
 
   </div><!-- /byt-bottom-section -->
-    </div>
 
     <!-- Right: Order sidebar -->
     <div class="byt-order-sidebar">
