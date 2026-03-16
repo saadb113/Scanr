@@ -310,6 +310,40 @@ function compareValue(val, op, threshold) {
     }
 }
 
+// ── Human-readable block summary ─────────────────────────────
+function blockSummary(block) {
+    const p = block.params || {};
+    switch (block.type) {
+        case 'RSI':           return `RSI(${p.period || 14}) ${p.condition || '<'} ${p.value ?? 30}`;
+        case 'RSI_CROSS':     return `RSI cross ${p.direction === 'cross_above' ? 'above' : 'below'} ${p.level ?? 50}`;
+        case 'MACD_CROSS':    return `MACD Cross ${p.direction || 'bullish'}`;
+        case 'MACD_HIST':     return `MACD Hist ${p.direction === 'above' ? '> 0' : '< 0'}`;
+        case 'EMA_CROSS':
+        case 'MA_CROSS':      return `${p.maType || 'EMA'}(${p.fastPeriod ?? 12}) ${p.direction === 'above' ? 'above' : 'below'} ${p.maType || 'EMA'}(${p.slowPeriod ?? 26})`;
+        case 'PRICE_EMA':
+        case 'PRICE_MA':      return `Price ${p.direction === 'below' ? 'below' : 'above'} ${p.maType || 'EMA'}(${p.period ?? 200})`;
+        case 'ATR_FILTER':    return `ATR(${p.period || 14}) ${p.condition || '>'} ${p.value ?? 0}`;
+        case 'VOLUME':        return `Volume(${p.period || 20}) ${p.condition || '>'} ${p.multiplier ?? 1}×avg`;
+        case 'CANDLE_PATTERN':return `Candle Pattern: ${p.pattern || 'any'}`;
+        case 'NEAR_SUPPORT':  return `Price near Support (tol: ${p.tolerance ?? 1}%)`;
+        case 'NEAR_RESISTANCE':return `Price near Resistance (tol: ${p.tolerance ?? 1}%)`;
+        case 'HIGHER_HIGH':   return `Higher High formed`;
+        case 'LOWER_LOW':     return `Lower Low formed`;
+        case 'TREND_MTF':     return `Trend(${p.timeframe || '4h'}): ${p.direction || 'bullish'}`;
+        case 'TREND_ALIGN':   return `Trend Alignment: ${p.timeframeA || '1h'} + ${p.timeframeB || '4h'}`;
+        case 'TRADING_HOURS': return `Trading Hours(PKT): ${p.startHour ?? 8}:00–${p.endHour ?? 18}:00`;
+        case 'DAY_OF_WEEK':   return `Day of Week: ${(p.days || []).join('/')}`;
+        case 'ENTER_LONG':    return `→ ENTER LONG`;
+        case 'ENTER_SHORT':   return `→ ENTER SHORT`;
+        case 'EXIT_POSITION': return `→ EXIT POSITION`;
+        case 'POSITION_SIZE': return `Position Size: ${p.value ?? 1}% capital`;
+        case 'STOP_LOSS':     return p.type === 'rr' ? `SL: ${p.value ?? 1}× RR` : `SL: ${p.value ?? 1}% ${p.type || 'pct'}`;
+        case 'TAKE_PROFIT':   return p.type === 'rr' ? `TP: ${p.value ?? 2}× RR` : `TP: ${p.value ?? 2}% ${p.type || 'pct'}`;
+        case 'ALERT_ONLY':    return `Alert Only`;
+        default:              return block.type;
+    }
+}
+
 function evaluateBlock(block, ind) {
     switch (block.type) {
         case 'RSI': {
@@ -776,14 +810,12 @@ async function runScanCycle(userId) {
         if (bots.get(userId) !== bot) return;
         if (!strategy || !strategy.isActive) { await stopBot(userId); return; }
 
-        const blocks  = strategy.blocks || { filters: [], ifBlocks: [], exitConditions: [] };
-        const coins   = strategy.coins?.length ? strategy.coins : ['BTCUSDT', 'ETHUSDT'];
-        const maxTPD  = strategy.maxTradesPerDay || 3;
-        const hoursFrom = strategy.tradingHoursFrom || '';
-        const hoursTo   = strategy.tradingHoursTo   || '';
+        const blocks    = strategy.blocks || { filters: [], ifBlocks: [], exitConditions: [] };
+        const coins     = strategy.coins?.length ? strategy.coins : ['BTCUSDT', 'ETHUSDT'];
+        const maxTPD    = strategy.maxTradesPerDay || 3;
 
         // Guardrail: max trades per day (counted from PKT midnight)
-        const dayStart = getPKTDayStart();
+        const dayStart    = getPKTDayStart();
         const tradesToday = await BotTrade.countDocuments({
             userId, strategyId: bot.strategyId, openedAt: { $gte: dayStart },
         });
@@ -791,23 +823,6 @@ async function runScanCycle(userId) {
         if (tradesToday >= maxTPD) {
             addLog(userId, 'warn', `Max trades reached: ${tradesToday}/${maxTPD} — bot pausing until midnight PKT`);
             return;
-        }
-
-        // Trading hours guard (PKT)
-        if (hoursFrom && hoursTo) {
-            const pkt    = new Date(Date.now() + 5 * 3600000);
-            const pktH   = pkt.getUTCHours();
-            const pktM   = pkt.getUTCMinutes();
-            const [fh, fm] = hoursFrom.split(':').map(Number);
-            const [th, tm] = hoursTo.split(':').map(Number);
-            const nowMins  = pktH * 60 + pktM;
-            const fromMins = fh * 60 + (fm || 0);
-            const toMins   = th * 60 + (tm || 0);
-            const pktStr   = `${String(pktH).padStart(2,'0')}:${String(pktM).padStart(2,'0')} PKT`;
-            if (nowMins < fromMins || nowMins > toMins) {
-                addLog(userId, 'info', `Outside trading hours (${hoursFrom}–${hoursTo} PKT), current: ${pktStr} — bot idle`);
-                return;
-            }
         }
 
         const rawStore = await BybitStore.findOne({ userId }).lean();
@@ -938,8 +953,12 @@ async function runScanCycle(userId) {
                     if (ifBlock.type === 'else') {
                         condMet = true; // ELSE always matches if we get here
                     } else {
+                        const blockCondSummary = (ifBlock.conditions || []).map(blockSummary).join(' AND ') || ifBlock.type;
                         condMet = evaluateConditionBlocks(ifBlock.conditions || [], ind);
-                        for (const m of (ind._logMsgs || [])) addLog(userId, 'info', `${sym} — ${m}`);
+                        if (!condMet) {
+                            addLog(userId, 'info', `${sym} — ${ifBlock.type.toUpperCase()}: ${blockCondSummary} → not matched ✗`);
+                        }
+                        for (const m of (ind._logMsgs || [])) addLog(userId, 'info', `${sym}   ↳ ${m}`);
                         ind._logMsgs = [];
                     }
 
@@ -948,13 +967,14 @@ async function runScanCycle(userId) {
                     const actions  = ifBlock.actions || [];
                     const dirBlock = actions.find(b => ['ENTER_LONG', 'ENTER_SHORT'].includes(b.type));
                     const isAlertOnly = actions.some(b => b.type === 'ALERT_ONLY') || alertOnly;
-                    const conds    = (ifBlock.conditions || []).map(b => b.type).join(', ') || ifBlock.type;
+                    const condSummaries = (ifBlock.conditions || []).map(blockSummary).join(' AND ') || ifBlock.type;
+                    const actionSummary = actions.map(blockSummary).filter(s => s !== ifBlock.type).join(' | ') || 'none';
                     const side     = dirBlock?.type === 'ENTER_SHORT' ? 'Sell' : 'Buy';
                     const dir      = side === 'Buy' ? 'LONG' : 'SHORT';
 
-                    addLog(userId, 'signal', `${sym} — ${ifBlock.type.toUpperCase()} block matched (${conds})`);
-                    emit(userId, 'strategy:conditions_met', { symbol: sym, side: dir, conditions: conds });
-                    addLog(userId, 'info', `${sym} — actions: [${actions.map(a => a.type).join(', ') || 'none'}] | alertOnly=${isAlertOnly} | dirBlock=${dirBlock?.type || 'none'}`);
+                    addLog(userId, 'signal', `${sym} — ${ifBlock.type.toUpperCase()}: ${condSummaries} → matched ✓`);
+                    emit(userId, 'strategy:conditions_met', { symbol: sym, side: dir, conditions: condSummaries });
+                    addLog(userId, 'info', `${sym} — actions: ${actionSummary}${isAlertOnly ? ' | alert-only' : ''}`);
 
                     if (isAlertOnly) {
                         addLog(userId, 'info', `${sym} — alert-only: no Bybit credentials, skipping order`);
@@ -1076,7 +1096,9 @@ async function startBot(userId, strategyId) {
         };
         bots.set(userId, bot);
         addLog(userId, 'info', `Bot started — strategy: "${strategy?.name}" | coins: ${(strategy?.coins || []).join(', ') || 'default'} | if-blocks: ${(strategy?.blocks?.ifBlocks || []).length}`);
-        addLog(userId, 'info', `Loaded blocks: ${JSON.stringify(strategy?.blocks)}`);
+        const _maxTPD = strategy?.maxTradesPerDay;
+        if (!_maxTPD) addLog(userId, 'warn', `maxTradesPerDay not set — defaulting to 3`);
+        else          addLog(userId, 'info', `Max trades per day: ${_maxTPD} (loaded from strategy)`);
 
         // Discord bot start notification
         getStrategyBotWebhook(userId).then(wh => {
