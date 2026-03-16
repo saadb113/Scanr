@@ -134,7 +134,9 @@ const StrategySchema = new mongoose.Schema({
     coins:           { type: [String], default: [] },
     timeframe:       { type: String, default: '5m' },
     scanInterval:    { type: Number, default: 30 },
-    maxTradesPerDay: { type: Number, default: 3 },
+    maxTradesPerDay:  { type: Number, default: 3 },
+    tradingHoursFrom: { type: String, default: '' },
+    tradingHoursTo:   { type: String, default: '' },
 }, { timestamps: true });
 
 const BotTradeSchema = new mongoose.Schema({

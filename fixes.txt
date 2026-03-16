@@ -1,75 +1,53 @@
-Improve strategy bot accuracy, fix all checks, and add persistent logging:
+Fix 2 things:
 
-1. ACCURATE STRATEGY CONDITION CHECKING:
-   - Before placing any trade, run ALL condition checks in strict order:
-     a) Trading hours check — is current PKT time within user's set hours?
-     b) Max trades per day check — has today's trade count reached the limit?
-     c) Open position check — is there an active Bybit position? (live API check)
-     d) Strategy condition check — do ALL blocks in IF/ELSEIF match current candle?
-     e) Guardrails check — is daily drawdown limit hit?
-   - ALL checks must pass before placing trade
-   - If any check fails, log exactly which check failed and why:
-     "BTCUSDT — skipped: max trades reached (3/3)"
-     "BTCUSDT — skipped: outside trading hours (current: 01:30 PKT)"
-     "BTCUSDT — skipped: open position exists (ETHUSDT LONG)"
-     "BTCUSDT — skipped: conditions not met (RSI: 45, required < 35)"
-     "BTCUSDT — matched: all conditions passed — placing trade"
+1. BYBIT TIMESTAMP ERROR in strategy bot order placement:
+   Error: "invalid request, please check your server timestamp or 
+   recv_window param"
+   
+   This error only occurs in strategy bot order placement — terminal 
+   page orders work perfectly. Error started after recent refactor 
+   of strategy bot checks and log saving.
 
-2. ACCURATE CONDITION EVALUATION:
-   - Fetch fresh candle data for the coin on every scan cycle
-   - Calculate all indicators fresh: RSI, MACD, EMA, ATR, Volume on latest candles
-   - For multi-timeframe trend blocks: fetch correct timeframe candles separately
-   - For candle pattern blocks: check last 3 candles OHLC data
-   - For price near support/resistance: calculate from last 50 candles fresh
-   - For higher high/lower low: scan last 20 candles for swing points
-   - Never use cached indicator values — recalculate on every candle close
-   - Log indicator values when condition is checked:
-     "BTCUSDT — RSI: 32.4 (condition: < 35) ✓"
-     "BTCUSDT — EMA100: 45200, Price: 44800 (condition: below EMA) ✓"
+   Root cause is likely:
+   - Timestamp generated early, then async DB log saving operations 
+     happen, then order placed — timestamp is stale by then
+   - Signing logic was accidentally modified during the refactor
 
-3. ACCURATE MAX TRADES PER DAY CHECK:
-   - Count trades placed TODAY only (midnight to midnight PKT)
-   - Query DB for trades where userId matches, strategy matches, 
-     and createdAt >= today midnight PKT
-   - Compare count against user's maxTradesPerDay setting
-   - If limit reached: stop scanning until next midnight PKT
-   - Reset count automatically at midnight PKT each day
-   - Log: "Trades today: 2/3 — continuing scan"
-   - Log: "Max trades reached: 3/3 — bot pausing until midnight PKT"
+   Fix:
+   - Look at how terminal page places Bybit orders — copy that exact 
+     same signing logic, timestamp generation, and request structure 
+     into strategy bot order placement
+   - Do not reinvent — reuse the exact working implementation from 
+     terminal page
+   - Generate timestamp and signature immediately before the API call, 
+     not before any async DB operations
+   - Only difference between terminal and strategy bot orders should 
+     be where parameters come from (strategy settings vs user input), 
+     not how request is signed or sent
+   - Increase recv_window from 5000 to 15000 as safety buffer
 
-4. ACCURATE BYBIT POSITION CHECK:
-   - Always call Bybit API live — never use cached/DB flag alone
-   - Fetch all open positions from Bybit futures account
-   - Check if ANY position is open (not just the current coin)
-   - One position at a time rule: if ANY position open, skip ALL coins
-   - If Bybit API call fails: log error, default to SKIP scan (safe behavior)
-   - Sync DB hasOpenPosition flag with live Bybit data on every check
-   - Log: "Bybit check — 0 open positions — proceeding with scan"
-   - Log: "Bybit check — 1 open position (ETHUSDT LONG) — skipping scan"
+2. MOVE BOT SETTINGS from Bot Controls popup into main strategy page:
+   - Remove timeframe, coin selection, and max trades/day from the 
+     Bot Controls popup/modal
+   - Add them directly into the strategy builder page as a 
+     "Bot Settings" section above the IF/ELSE IF blocks in the canvas
+   - Layout: clean horizontal row of inputs:
+     * Timeframe dropdown (1m | 3m | 5m | 15m | 30m | 1h | 2h | 4h | 1D)
+     * Coin selection (multi-select dropdown or tag input)
+     * Max trades/day (number input, min 1)
+     * Trading hours from/to (PKT time inputs)
+   - Settings save automatically when changed or on Save button click
+   - Settings load when strategy is loaded from DB
+   - Bot Controls popup now only shows: Start/Stop button, bot status, 
+     today's stats, and Trade History tab
 
-5. PERSISTENT BOT LOGS — save all logs to DB:
-   - Every log line the bot generates must be saved to MongoDB immediately
-   - Log document structure:
-     { userId, strategyId, timestamp, level (info/warn/error), message }
-   - Logs persist forever — closing tab, refreshing, or restarting server 
-     must NOT delete logs
-   - On page open: fetch all logs from DB for the active strategy, 
-     display them in the log panel from oldest to newest
-   - New logs stream in real time via socket as before
-   - On bot start: save "Bot started" log to DB
-   - On bot stop: save "Bot stopped" log to DB
-   - Limit stored logs to last 10,000 entries per user to prevent DB bloat
-     (auto-delete oldest when limit exceeded)
-
-6. LOG VIEWER — date/time filter:
-   - Add a date/time range filter above the log panel:
-     - "From" datetime input
-     - "To" datetime input  
-     - "Filter" button
-     - "Clear Filter" button to show all logs again
-   - On filter: fetch logs from DB between the two timestamps
-   - Display filtered logs in the panel
-   - Show count: "Showing 142 logs from 05:00 to 06:00 PKT"
-   - All times displayed and filtered in PKT (UTC+5)
-   - Add a "Clear All Logs" button (with confirmation dialog) 
-     to wipe logs from DB for that strategy
+3. ADD DELETE STRATEGY button:
+   - Add "🗑 Delete" button in top bar next to Save button
+   - On click show confirmation: "Are you sure you want to delete 
+     '[strategy name]'? This cannot be undone."
+   - On confirm: call DELETE /api/strategy/:id
+   - Delete strategy AND all associated bot trades from DB
+   - If bot is currently running on this strategy: block deletion, 
+     show warning "Stop the bot first before deleting this strategy"
+   - After deletion: load first available strategy or show empty state
+     "No strategies yet — create one to get started"

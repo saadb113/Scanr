@@ -358,6 +358,7 @@
     /* ── Zone color accents ── */
     .strat-zone-filters { border-left: 3px solid #9f7aea; }
     .strat-zone-exit    { border-left: 3px solid #ed8936; }
+    .strat-zone-botcfg  { border-left: 3px solid #4a9eff; margin-bottom: 1rem; }
 
     /* ── IF / ELSE IF / ELSE blocks ── */
     .strat-if-block {
@@ -1025,6 +1026,49 @@
 
         <div class="strat-zone-arrow">↓</div>
 
+        <!-- ⚙ Bot Settings — always visible on canvas -->
+        <div class="strat-zone strat-zone-botcfg" id="botSettingsPanel">
+          <div class="strat-zone-header"><span class="zh-emoji">⚙</span> Bot Settings</div>
+          <div class="bot-settings-row" style="border-bottom:none;margin-bottom:0;padding:0.75rem">
+            <div class="bot-field" style="flex:2;min-width:200px">
+              <label>Coins</label>
+              <div class="strat-coins-wrap">
+                <div class="coins-tagger" id="coinsTagger">
+                  <input class="ct-type" id="ctType" type="text" placeholder="Add coin…" autocomplete="off" spellcheck="false">
+                </div>
+                <div class="ct-dropdown" id="ctDropdown"></div>
+              </div>
+              <input type="hidden" id="stratCoins">
+            </div>
+            <div class="bot-field">
+              <label>Timeframe</label>
+              <select id="stratTf" class="strat-tf-sel">
+                <option value="1m">1m</option>
+                <option value="3m">3m</option>
+                <option value="5m" selected>5m</option>
+                <option value="15m">15m</option>
+                <option value="30m">30m</option>
+                <option value="1h">1h</option>
+                <option value="2h">2h</option>
+                <option value="4h">4h</option>
+                <option value="1d">1D</option>
+              </select>
+            </div>
+            <div class="bot-field">
+              <label>Max Trades / Day</label>
+              <input id="stratMaxTrades" class="strat-cfg-input" type="number" min="1" max="20" value="3">
+            </div>
+            <div class="bot-field">
+              <label>Trading Hours (PKT)</label>
+              <div style="display:flex;align-items:center;gap:0.4rem">
+                <input id="stratHoursFrom" class="strat-cfg-input" type="time" value="" style="width:96px">
+                <span style="color:#6b7897;font-size:0.72rem">to</span>
+                <input id="stratHoursTo" class="strat-cfg-input" type="time" value="" style="width:96px">
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- IF / ELSE IF / ELSE blocks — rendered by JS -->
         <div id="ifBlocksContainer"></div>
 
@@ -1106,36 +1150,6 @@
 
       <!-- ── Bot Controls tab ── -->
       <div class="bot-modal-pane active" id="botPane-controls">
-
-        <div class="bot-settings-row">
-          <div class="bot-field" style="flex:2;min-width:200px">
-            <label>Coins</label>
-            <div class="strat-coins-wrap">
-              <div class="coins-tagger" id="coinsTagger">
-                <input class="ct-type" id="ctType" type="text" placeholder="Add coin…" autocomplete="off" spellcheck="false">
-              </div>
-              <div class="ct-dropdown" id="ctDropdown"></div>
-            </div>
-            <input type="hidden" id="stratCoins">
-          </div>
-          <div class="bot-field">
-            <label>Timeframe</label>
-            <select id="stratTf" class="strat-tf-sel">
-              <option value="1m">1m</option>
-              <option value="3m">3m</option>
-              <option value="5m" selected>5m</option>
-              <option value="15m">15m</option>
-              <option value="30m">30m</option>
-              <option value="1h">1h</option>
-              <option value="4h">4h</option>
-              <option value="1d">1D</option>
-            </select>
-          </div>
-          <div class="bot-field">
-            <label>Max Trades / Day</label>
-            <input id="stratMaxTrades" class="strat-cfg-input" type="number" min="1" max="20" value="3">
-          </div>
-        </div>
 
         <!-- Strategy selector + Start/Stop -->
         <div id="botIdleUI">

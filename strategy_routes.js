@@ -118,9 +118,13 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/strategy/:id
 router.delete('/:id', async (req, res) => {
     try {
-        const s = await Strategy.findOneAndDelete({ _id: req.params.id, userId: req.session.userId });
+        const userId = req.session.userId;
+        const s = await Strategy.findOne({ _id: req.params.id, userId });
         if (!s) return res.status(404).json({ ok: false, error: 'Not found' });
-        if (s.isActive) await bot.stopBot(req.session.userId);
+        if (s.isActive) return res.status(400).json({ ok: false, error: 'Stop the bot first before deleting this strategy' });
+        await Strategy.deleteOne({ _id: s._id });
+        await BotTrade.deleteMany({ userId, strategyId: String(s._id) });
+        await BotLog.deleteMany({ userId, strategyId: String(s._id) });
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });

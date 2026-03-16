@@ -217,7 +217,7 @@ function bybitRequest(apiKey, apiSecret, env, method, endpoint, params = {}) {
     return new Promise((resolve, reject) => {
         const hostname = env === 'mainnet' ? 'api.bybit.com' : 'api-demo.bybit.com';
         const ts         = Date.now().toString();
-        const recvWindow = '5000';
+        const recvWindow = '15000';
         let path, bodyStr = '';
 
         if (method === 'GET') {
@@ -779,6 +779,8 @@ async function runScanCycle(userId) {
         const blocks  = strategy.blocks || { filters: [], ifBlocks: [], exitConditions: [] };
         const coins   = strategy.coins?.length ? strategy.coins : ['BTCUSDT', 'ETHUSDT'];
         const maxTPD  = strategy.maxTradesPerDay || 3;
+        const hoursFrom = strategy.tradingHoursFrom || '';
+        const hoursTo   = strategy.tradingHoursTo   || '';
 
         // Guardrail: max trades per day (counted from PKT midnight)
         const dayStart = getPKTDayStart();
@@ -789,6 +791,23 @@ async function runScanCycle(userId) {
         if (tradesToday >= maxTPD) {
             addLog(userId, 'warn', `Max trades reached: ${tradesToday}/${maxTPD} — bot pausing until midnight PKT`);
             return;
+        }
+
+        // Trading hours guard (PKT)
+        if (hoursFrom && hoursTo) {
+            const pkt    = new Date(Date.now() + 5 * 3600000);
+            const pktH   = pkt.getUTCHours();
+            const pktM   = pkt.getUTCMinutes();
+            const [fh, fm] = hoursFrom.split(':').map(Number);
+            const [th, tm] = hoursTo.split(':').map(Number);
+            const nowMins  = pktH * 60 + pktM;
+            const fromMins = fh * 60 + (fm || 0);
+            const toMins   = th * 60 + (tm || 0);
+            const pktStr   = `${String(pktH).padStart(2,'0')}:${String(pktM).padStart(2,'0')} PKT`;
+            if (nowMins < fromMins || nowMins > toMins) {
+                addLog(userId, 'info', `Outside trading hours (${hoursFrom}–${hoursTo} PKT), current: ${pktStr} — bot idle`);
+                return;
+            }
         }
 
         const rawStore = await BybitStore.findOne({ userId }).lean();

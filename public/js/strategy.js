@@ -1219,6 +1219,8 @@ function stratNew() {
   else $('stratCoins').value = '';
   $('stratTf').value = '5m';
   $('stratMaxTrades').value = 3;
+  $('stratHoursFrom').value = '';
+  $('stratHoursTo').value = '';
   $('stratDeleteBtn').style.display = 'none';
   $('stratLoadSel').value = '';
   renderCanvas();
@@ -1229,14 +1231,23 @@ function stratNew() {
 async function stratDelete() {
   if (!_currentStrategyId) return;
   const name = $('stratName').value.trim();
-  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  if (_botActive && _botStrategyId === _currentStrategyId) {
+    alert('Stop the bot first before deleting this strategy.');
+    return;
+  }
+  if (!confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) return;
   try {
     const r = await fetch(`/api/strategy/${_currentStrategyId}`, { method: 'DELETE' });
     const d = await r.json();
     if (!d.ok) return alert('Delete failed: ' + (d.error || 'Unknown'));
     showToast('Strategy deleted');
-    stratNew();
-    loadStrategies();
+    await loadStrategies();
+    const remaining = _strategies.filter(s => s._id !== _currentStrategyId);
+    if (remaining.length > 0) {
+      stratLoad(remaining[0]._id);
+    } else {
+      stratNew();
+    }
   } catch (e) { alert('Error: ' + e.message); }
 }
 async function loadStrategies() {
@@ -1303,6 +1314,8 @@ function applyStrategy(s) {
   else $('stratCoins').value = (s.coins || []).join(', ');
   $('stratTf').value = s.timeframe || '5m';
   $('stratMaxTrades').value = s.maxTradesPerDay || 3;
+  $('stratHoursFrom').value = s.tradingHoursFrom || '';
+  $('stratHoursTo').value   = s.tradingHoursTo   || '';
 
   // Support both old format (filters/conditions/actions) and new (ifBlocks)
   const blk = s.blocks || {};
@@ -1344,8 +1357,10 @@ async function stratSave() {
   const coins = $('stratCoins').value.split(',').map(s => s.trim()).filter(Boolean);
   const timeframe = $('stratTf').value;
   const maxTradesPerDay = parseInt($('stratMaxTrades').value) || 3;
+  const tradingHoursFrom = $('stratHoursFrom').value || '';
+  const tradingHoursTo   = $('stratHoursTo').value   || '';
   const pineScript = generatePineScript();
-  const body = { name, blocks: _canvas, pineScript, coins, timeframe, maxTradesPerDay };
+  const body = { name, blocks: _canvas, pineScript, coins, timeframe, maxTradesPerDay, tradingHoursFrom, tradingHoursTo };
 
   try {
     if (_currentStrategyId) {
