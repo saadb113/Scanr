@@ -1484,13 +1484,13 @@
       d.logs.forEach(entry => {
         const div = document.createElement('div');
         div.className = `log-${entry.level || 'info'}`;
-        const ts = new Date(entry.timestamp).toLocaleString('en-PK', {
+        const ts = new Date(entry.timestamp).toLocaleTimeString('en-PK', {
           timeZone: 'Asia/Karachi', hour12: false,
-          dateStyle: 'short', timeStyle: 'medium',
         });
         div.textContent = `${ts} ${entry.message}`;
         feed.appendChild(div);
       });
+      // Smart auto-scroll: scroll to bottom to show latest logs
       feed.scrollTop = feed.scrollHeight;
       document.getElementById('logCountLabel').textContent = `Showing ${d.logs.length} log${d.logs.length !== 1 ? 's' : ''}`;
     } catch (_) {}

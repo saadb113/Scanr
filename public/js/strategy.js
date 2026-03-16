@@ -1709,9 +1709,16 @@ function addLog(entry) {
   const div = document.createElement('div');
   div.className = `log-${entry.level || 'info'}`;
   div.textContent = `${ts} ${entry.message}`;
+
+  // Append to BOTTOM (newest logs at bottom)
   feed.appendChild(div);
-  while (feed.children.length > 30) feed.removeChild(feed.firstChild);
-  feed.scrollTop = feed.scrollHeight;
+
+  // Keep max 100 logs in memory (oldest auto-prune)
+  while (feed.children.length > 100) feed.removeChild(feed.firstChild);
+
+  // Smart auto-scroll: only scroll if user is at bottom (within 10px tolerance)
+  const isAtBottom = feed.scrollTop >= feed.scrollHeight - feed.clientHeight - 10;
+  if (isAtBottom) feed.scrollTop = feed.scrollHeight;
 }
 
 function renderLogs(logs) {

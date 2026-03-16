@@ -1,53 +1,43 @@
-Fix 2 things:
+Fix strategy bot log display:
 
-1. BYBIT TIMESTAMP ERROR in strategy bot order placement:
-   Error: "invalid request, please check your server timestamp or 
-   recv_window param"
+1. REDUCE LOG VERBOSITY — too many lines per scan cycle:
+   Condense each scan cycle into maximum 2-3 lines instead of 6-8.
    
-   This error only occurs in strategy bot order placement — terminal 
-   page orders work perfectly. Error started after recent refactor 
-   of strategy bot checks and log saving.
+   Current (too verbose):
+   10:10:00 BTCUSDT — IF: RSI(14) < 70 → matched ✓
+   10:10:00 BTCUSDT ↳ RSI: 59.1 (condition: < 70) ✓
+   10:10:00 BTCUSDT — drawdown check: totalLoss=$-4.12, limit=$-50
+   10:10:00 BTCUSDT — actions: → ENTER LONG | Position Size: 2% capital
+   10:10:00 BTCUSDT — placing LONG order @ 73859.5 | ATR=266.3786
+   10:10:00 Order placed BTCUSDT LONG @ 73859.5 ...
 
-   Root cause is likely:
-   - Timestamp generated early, then async DB log saving operations 
-     happen, then order placed — timestamp is stale by then
-   - Signing logic was accidentally modified during the refactor
+   Replace with single summary lines:
+   
+   When scan runs and NO match:
+  "10:10:00 — BTCUSDT — IF (RSI 71.2 < 70) ✗ not matched"
+  "10:10:00 — BTCUSDT — ELSE IF (RSI 71.2 > 65 ✓ AND Price below EMA100 ✗) not matched"
+   
+   When condition matches and trade placed:
+   "10:10:00 — BTCUSDT matched IF (RSI 59.1 < 70) → LONG @ 73859.5 | SL: none | TP: none | Qty: 0.046"
+   
+   When skipping due to open position:
+   "10:10:29 — Skipping scan — BTCUSDT Buy position open"
+   
+   When skipping due to max trades:
+   "10:10:29 — Skipping scan — max trades reached (6/10)"
+   
+   Bot lifecycle logs (keep these as is, they are useful):
+   "10:09:58 — Bot started — strategy: test | coins: BTCUSDT | timeframe: 1m"
+   "10:09:58 — Bot stopped"
+   "10:12:01 — Position manually closed (BTCUSDT) — resuming scan"
 
-   Fix:
-   - Look at how terminal page places Bybit orders — copy that exact 
-     same signing logic, timestamp generation, and request structure 
-     into strategy bot order placement
-   - Do not reinvent — reuse the exact working implementation from 
-     terminal page
-   - Generate timestamp and signature immediately before the API call, 
-     not before any async DB operations
-   - Only difference between terminal and strategy bot orders should 
-     be where parameters come from (strategy settings vs user input), 
-     not how request is signed or sent
-   - Increase recv_window from 5000 to 15000 as safety buffer
+   Only show verbose condition details if there is an ERROR or 
+   unexpected behavior — not on every normal scan
 
-2. MOVE BOT SETTINGS from Bot Controls popup into main strategy page:
-   - Remove timeframe, coin selection, and max trades/day from the 
-     Bot Controls popup/modal
-   - Add them directly into the strategy builder page as a 
-     "Bot Settings" section above the IF/ELSE IF blocks in the canvas
-   - Layout: clean horizontal row of inputs:
-     * Timeframe dropdown (1m | 3m | 5m | 15m | 30m | 1h | 2h | 4h | 1D)
-     * Coin selection (multi-select dropdown or tag input)
-     * Max trades/day (number input, min 1)
-     * Trading hours from/to (PKT time inputs)
-   - Settings save automatically when changed or on Save button click
-   - Settings load when strategy is loaded from DB
-   - Bot Controls popup now only shows: Start/Stop button, bot status, 
-     today's stats, and Trade History tab
-
-3. ADD DELETE STRATEGY button:
-   - Add "🗑 Delete" button in top bar next to Save button
-   - On click show confirmation: "Are you sure you want to delete 
-     '[strategy name]'? This cannot be undone."
-   - On confirm: call DELETE /api/strategy/:id
-   - Delete strategy AND all associated bot trades from DB
-   - If bot is currently running on this strategy: block deletion, 
-     show warning "Stop the bot first before deleting this strategy"
-   - After deletion: load first available strategy or show empty state
-     "No strategies yet — create one to get started"
+2. REVERSE LOG ORDER — newest logs at bottom not top:
+   - New logs must append to the BOTTOM of the log panel
+   - Scroll position should auto-scroll to bottom when new log arrives
+   - If user has scrolled up to read old logs, do NOT auto-scroll 
+     (detect if user is at bottom, only auto-scroll if they are)
+   - On page load: fetch logs from DB, display oldest at top, 
+     newest at bottom, auto-scroll to bottom

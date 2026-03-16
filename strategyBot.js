@@ -350,7 +350,7 @@ function evaluateBlock(block, ind) {
             const op  = block.params.condition || '<';
             const thr = +(block.params.value ?? 30);
             const result = compareValue(ind.rsi, op, thr);
-            ind._logMsgs?.push(`RSI: ${ind.rsi?.toFixed(1)} (condition: ${op} ${thr}) ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`RSI ${ind.rsi?.toFixed(1)} ${op} ${thr} ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'RSI_CROSS': {
@@ -360,19 +360,19 @@ function evaluateBlock(block, ind) {
             if (dir === 'cross_above') result = ind.prevRsi < lvl && ind.rsi >= lvl;
             else if (dir === 'cross_below') result = ind.prevRsi > lvl && ind.rsi <= lvl;
             else result = false;
-            ind._logMsgs?.push(`RSI_CROSS(${dir} ${lvl}): prevRSI=${ind.prevRsi?.toFixed(1)}, RSI=${ind.rsi?.toFixed(1)} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`RSI ${dir === 'cross_above' ? '↑' : '↓'}${lvl}(${ind.rsi?.toFixed(1)}) ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'MACD_CROSS': {
             const result = block.params.direction === 'bullish'
                 ? ind.macd.hist > 0 && ind.macd.histPrev <= 0
                 : ind.macd.hist < 0 && ind.macd.histPrev >= 0;
-            ind._logMsgs?.push(`MACD_CROSS(${block.params.direction || 'bullish'}): hist=${ind.macd.hist?.toFixed(5)}, histPrev=${ind.macd.histPrev?.toFixed(5)} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`MACD ${block.params.direction || 'bullish'} cross ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'MACD_HIST': {
             const result = block.params.direction === 'above' ? ind.macd.hist > 0 : ind.macd.hist < 0;
-            ind._logMsgs?.push(`MACD_HIST(${block.params.direction === 'above' ? '> 0' : '< 0'}): hist=${ind.macd.hist?.toFixed(5)} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`MACD hist ${block.params.direction === 'above' ? '> 0' : '< 0'}(${ind.macd.hist?.toFixed(4)}) ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'EMA_CROSS':
@@ -384,7 +384,7 @@ function evaluateBlock(block, ind) {
             const fast   = lookup[fp], slow = lookup[sp];
             if (fast == null || slow == null) return false;
             const result = block.params.direction === 'above' ? fast > slow : fast < slow;
-            ind._logMsgs?.push(`${maType}_CROSS(${fp}/${sp}, fast ${block.params.direction || 'above'} slow): fast=${fast?.toFixed(4)}, slow=${slow?.toFixed(4)} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`${maType}${fp} ${block.params.direction === 'above' ? 'above' : 'below'} ${maType}${sp} ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'PRICE_EMA':
@@ -395,7 +395,7 @@ function evaluateBlock(block, ind) {
             const ma     = lookup[p];
             if (ma == null) return false;
             const result = block.params.direction === 'above' ? ind.price > ma : ind.price < ma;
-            ind._logMsgs?.push(`PRICE_${maType}${p}(${block.params.direction || 'above'}): price=${ind.price?.toFixed(4)}, ${maType}${p}=${ma?.toFixed(4)} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`Price ${block.params.direction === 'below' ? 'below' : 'above'} ${maType}${p}(${ma?.toFixed(2)}) ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'STOCHASTIC': {
@@ -412,32 +412,32 @@ function evaluateBlock(block, ind) {
                 case 'kd_both_above':   result = k > val && d > val; break;
                 default:                result = false;
             }
-            ind._logMsgs?.push(`STOCH(${cond}, ${val}): K=${k?.toFixed(1)}, D=${d?.toFixed(1)} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`Stoch K${k?.toFixed(1)} ${cond}(${val}) ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'VOLUME_SPIKE': {
             const mult   = +(block.params.multiplier ?? 2);
             const result = ind.volumeRatio >= mult;
-            ind._logMsgs?.push(`VOLUME_SPIKE(x${mult}): ratio=${ind.volumeRatio?.toFixed(2)} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`Vol ${ind.volumeRatio?.toFixed(2)}x ≥ ${mult}x ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'ATR': {
             const op     = block.params.condition || '>';
             const thr    = +(block.params.value ?? 0);
             const result = compareValue(ind.atr, op, thr);
-            ind._logMsgs?.push(`ATR(${op} ${thr}): atr=${ind.atr?.toFixed(4)} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`ATR ${ind.atr?.toFixed(2)} ${op} ${thr} ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'TREND_4H': {
             const dir    = block.params.direction || 'bullish';
             const result = ind.trend4h === dir;
-            ind._logMsgs?.push(`TREND_4H(${dir}): actual=${ind.trend4h} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`4h trend ${ind.trend4h} ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'TREND_1H': {
             const dir    = block.params.direction || 'bullish';
             const result = ind.trend1h === dir;
-            ind._logMsgs?.push(`TREND_1H(${dir}): actual=${ind.trend1h} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`1h trend ${ind.trend1h} ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'TREND_ALIGN': {
@@ -450,7 +450,7 @@ function evaluateBlock(block, ind) {
                 const matchA   = tA === tradeDir;
                 const matchB   = tB === tradeDir;
                 const result   = align === 'partial' ? (matchA || matchB) : (matchA && matchB);
-                ind._logMsgs?.push(`TREND_ALIGN(${tfA}:${tA}, ${tfB}:${tB}, ${align}, trade=${tradeDir}): matchA=${matchA} matchB=${matchB} ${result ? '✓' : '✗'}`);
+                ind._logMsgs?.push(`Trend ${tfA}:${tA} ${matchA ? '✓' : '✗'} ${tfB}:${tB} ${matchB ? '✓' : '✗'}`);
                 return result;
             }
             return ind.trend4h === ind.trend1h && ind.trend4h !== 'neutral';
@@ -458,33 +458,33 @@ function evaluateBlock(block, ind) {
         case 'CANDLE_PATTERN': {
             const pat    = block.params.pattern || 'hammer';
             const result = detectCandlePattern(ind.candles5m || [], pat);
-            ind._logMsgs?.push(`CANDLE_PATTERN(${pat}): ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`${pat} pattern ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'NEAR_SUPPORT': {
             const support = calcSupportLevel(ind.candles5m || []);
             const pct     = +(block.params.pct ?? 1);
             const result  = ind.price >= support && ind.price <= support * (1 + pct / 100);
-            ind._logMsgs?.push(`NEAR_SUPPORT: support=${support.toFixed(4)}, price=${ind.price}, within ${pct}%: ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`Near Support(${support.toFixed(2)}) ±${pct}% ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'NEAR_RESISTANCE': {
             const resistance = calcResistanceLevel(ind.candles5m || []);
             const pct        = +(block.params.pct ?? 1);
             const result     = ind.price <= resistance && ind.price >= resistance * (1 - pct / 100);
-            ind._logMsgs?.push(`NEAR_RESISTANCE: resistance=${resistance.toFixed(4)}, price=${ind.price}, within ${pct}%: ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`Near Resist(${resistance.toFixed(2)}) ±${pct}% ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'HIGHER_HIGH': {
             const highs  = getSwingHighs(ind.candles5m || []);
             const result = highs.length >= 2 && highs[highs.length - 1] > highs[highs.length - 2];
-            ind._logMsgs?.push(`HIGHER_HIGH: swings=[${highs.slice(-3).map(h=>h.toFixed(4)).join(', ')}] ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`Higher High ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'LOWER_LOW': {
             const lows   = getSwingLows(ind.candles5m || []);
             const result = lows.length >= 2 && lows[lows.length - 1] < lows[lows.length - 2];
-            ind._logMsgs?.push(`LOWER_LOW: swings=[${lows.slice(-3).map(l=>l.toFixed(4)).join(', ')}] ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`Lower Low ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'TREND_MTF': {
@@ -492,7 +492,7 @@ function evaluateBlock(block, ind) {
             const dir    = block.params.direction || 'bullish';
             const trend  = (ind.trendMtf || {})[tf] || 'neutral';
             const result = dir === 'any' ? trend !== 'neutral' : trend === dir;
-            ind._logMsgs?.push(`TREND_MTF(${tf}): trend=${trend}, want=${dir} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`${tf} ${trend} ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'TRADING_HOURS': {
@@ -502,7 +502,7 @@ function evaluateBlock(block, ind) {
             const end    = +(block.params.endHour ?? 18);
             const result = hr >= start && hr <= end;
             const pktStr = `${String(pkt.getUTCHours()).padStart(2,'0')}:${String(pkt.getUTCMinutes()).padStart(2,'0')} PKT`;
-            ind._logMsgs?.push(`TRADING_HOURS(${start}:00–${end}:00): current=${pktStr} ${result ? '✓' : '✗'}`);
+            ind._logMsgs?.push(`${pktStr} ∈ [${start}:00-${end}:00] ${result ? '✓' : '✗'}`);
             return result;
         }
         case 'DAY_OF_WEEK': {
@@ -906,7 +906,6 @@ async function runScanCycle(userId) {
 
                 // ── Filters ──
                 const passFilters = evaluateFilterBlocks(filters, ind);
-                for (const m of (ind._logMsgs || [])) addLog(userId, 'info', `${sym} — ${m}`);
                 ind._logMsgs = [];
                 if (!passFilters) continue;
 
@@ -937,7 +936,7 @@ async function runScanCycle(userId) {
                 // Skip entry if any Bybit position is open (one at a time rule)
                 if (hasOpenPosition) {
                     const topPos = bybitPositions[0];
-                    addLog(userId, 'info', `${sym} — skipped: open position exists${topPos ? ` (${topPos.symbol} ${topPos.side || ''})` : ''}`);
+                    addLog(userId, 'info', `Skipping scan — ${sym} ${topPos?.side || 'Buy'} position open`);
                     continue;
                 }
 
@@ -950,34 +949,33 @@ async function runScanCycle(userId) {
                     ind.tradeDir = ifDirBlock?.type === 'ENTER_SHORT' ? 'bearish' : 'bullish';
 
                     let condMet = false;
+                    let blockEvalStr = '';
+
                     if (ifBlock.type === 'else') {
                         condMet = true; // ELSE always matches if we get here
+                        blockEvalStr = 'ELSE';
                     } else {
-                        const blockCondSummary = (ifBlock.conditions || []).map(blockSummary).join(' AND ') || ifBlock.type;
-                        condMet = evaluateConditionBlocks(ifBlock.conditions || [], ind);
-                        if (!condMet) {
-                            addLog(userId, 'info', `${sym} — ${ifBlock.type.toUpperCase()}: ${blockCondSummary} → not matched ✗`);
-                        }
-                        for (const m of (ind._logMsgs || [])) addLog(userId, 'info', `${sym}   ↳ ${m}`);
                         ind._logMsgs = [];
-                    }
+                        condMet = evaluateConditionBlocks(ifBlock.conditions || [], ind);
+                        blockEvalStr = (ind._logMsgs || []).join(' AND ') || ifBlock.type;
+                        ind._logMsgs = [];
 
-                    if (!condMet) continue;
+                        if (!condMet) {
+                            addLog(userId, 'info', `${sym} — ${ifBlock.type.toUpperCase()} (${blockEvalStr}) ✗`);
+                            continue;
+                        }
+                    }
 
                     const actions  = ifBlock.actions || [];
                     const dirBlock = actions.find(b => ['ENTER_LONG', 'ENTER_SHORT'].includes(b.type));
                     const isAlertOnly = actions.some(b => b.type === 'ALERT_ONLY') || alertOnly;
-                    const condSummaries = (ifBlock.conditions || []).map(blockSummary).join(' AND ') || ifBlock.type;
-                    const actionSummary = actions.map(blockSummary).filter(s => s !== ifBlock.type).join(' | ') || 'none';
                     const side     = dirBlock?.type === 'ENTER_SHORT' ? 'Sell' : 'Buy';
                     const dir      = side === 'Buy' ? 'LONG' : 'SHORT';
 
-                    addLog(userId, 'signal', `${sym} — ${ifBlock.type.toUpperCase()}: ${condSummaries} → matched ✓`);
-                    emit(userId, 'strategy:conditions_met', { symbol: sym, side: dir, conditions: condSummaries });
-                    addLog(userId, 'info', `${sym} — actions: ${actionSummary}${isAlertOnly ? ' | alert-only' : ''}`);
+                    emit(userId, 'strategy:conditions_met', { symbol: sym, side: dir, conditions: blockEvalStr });
 
                     if (isAlertOnly) {
-                        addLog(userId, 'info', `${sym} — alert-only: no Bybit credentials, skipping order`);
+                        addLog(userId, 'signal', `${sym} matched ${ifBlock.type.toUpperCase()} (${blockEvalStr}) → alert-only`);
                         try {
                             await notifier.sendAlert(userId, `🔔 STRATEGY ALERT — ${sym}\nStrategy: ${strategy.name}\nSignal: ${dir}\nBlock: ${ifBlock.type}\nPrice: ${ind.price}\n${new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })} PKT`);
                         } catch (_) {}
@@ -988,7 +986,6 @@ async function runScanCycle(userId) {
                     // Guardrail: daily drawdown check (PKT midnight)
                     const closedToday = await BotTrade.find({ userId, openedAt: { $gte: dayStart }, status: 'closed' }).lean();
                     const totalLoss   = closedToday.reduce((s, t) => s + (t.pnl < 0 ? t.pnl : 0), 0);
-                    addLog(userId, 'info', `${sym} — drawdown check: totalLoss=$${totalLoss.toFixed(2)}, limit=$-50`);
                     if (totalLoss < -50) {
                         addLog(userId, 'warn', 'Daily drawdown limit reached — bot stopping');
                         await stopBot(userId);
@@ -996,15 +993,14 @@ async function runScanCycle(userId) {
                     }
 
                     // Place order
-                    addLog(userId, 'info', `${sym} — placing ${dir} order @ ${ind.price} | ATR=${ind.atr?.toFixed(4)}`);
                     try {
                         const { orderId, sl, tp, qty } = await placeOrder(userId, sym, side, ind.price, ind.atr, actions, store);
                         await BotTrade.create({
                             userId, strategyId: bot.strategyId, symbol: sym, side: dir,
                             entryPrice: ind.price, sl, tp, quantity: qty, status: 'open',
-                            conditionsMet: { conditions: condSummaries },
+                            conditionsMet: { conditions: blockEvalStr },
                         });
-                        addLog(userId, 'trade', `Order placed ${sym} ${dir} @ ${ind.price} — orderId: ${orderId} | SL: ${sl ?? 'none'} | TP: ${tp ?? 'none'} | qty: ${qty}`);
+                        addLog(userId, 'trade', `${sym} matched ${ifBlock.type.toUpperCase()} (${blockEvalStr}) → ${dir} @ ${ind.price} | SL: ${sl ?? 'none'} | TP: ${tp ?? 'none'} | Qty: ${qty}`);
                         emit(userId, 'strategy:order_placed', { symbol: sym, side: dir, entry: ind.price, sl, tp });
                         // Discord notification
                         getStrategyBotWebhook(userId).then(wh => {
@@ -1024,7 +1020,7 @@ async function runScanCycle(userId) {
                 }
 
                 if (!matched) {
-                    addLog(userId, 'info', `${sym} — no IF block conditions matched — skipping`);
+                    // Silent — no need to log every non-match
                 }
 
             } catch (e) {
