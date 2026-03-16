@@ -510,8 +510,9 @@
     /* ── Responsive ── */
     @media (max-width: 860px) {
       .byt-top-layout  { flex-direction: column; }
-      .byt-chart-col   { flex: none; border-right: none; border-bottom: 1px solid var(--byt-border); }
-      .byt-order-sidebar { flex: none; }
+      .byt-chart-col   { flex: none; border-right: none; border-bottom: 1px solid var(--byt-border); order: 1; }
+      .byt-bottom-section { order: 3; }
+      .byt-order-sidebar { flex: none; order: 2; border-bottom: 1px solid var(--byt-border); }
     }
   </style>
 </head>
@@ -556,8 +557,10 @@
         <div id="bytSymInfo" style="font-size:11px;color:#4a5568;position:absolute;right:10px;top:50%;transform:translateY(-50%);min-height:12px"></div>
       </div>
       <div id="bytTvChartWrap" style="flex:1;min-height:0"></div>
-        <!-- ── BOTTOM: Tabs ── -->
-  <div class="byt-bottom-section">
+    </div>
+
+    <!-- ── BOTTOM: Tabs ── -->
+    <div class="byt-bottom-section">
     <div class="byt-tabs">
       <button class="byt-tab active" data-byttab="positions"   onclick="bytSwitchTab('positions')">Positions <span id="bytPosCount" class="byt-badge">0</span></button>
       <button class="byt-tab"        data-byttab="orders"      onclick="bytSwitchTab('orders')">Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
