@@ -927,12 +927,16 @@ async function runScanCycle(userId) {
 
                     // Guardrail: daily drawdown check (PKT midnight)
                     const closedToday = await BotTrade.find({ userId, openedAt: { $gte: dayStart }, status: 'closed' }).lean();
-                    const totalLoss   = closedToday.reduce((s, t) => s + (t.pnl < 0 ? t.pnl : 0), 0);
-                    if (totalLoss < -50) {
-                        addLog(userId, 'warn', 'Daily drawdown limit reached — bot stopping');
+                    const todayPnL    = closedToday.reduce((s, t) => s + (t.pnl || 0), 0);
+                    const ddLimit     = strategy.dailyDrawdownLimit ?? 50;
+                    const ddAbs       = Math.abs(todayPnL).toFixed(2);
+                    const ddSign      = todayPnL >= 0 ? '+' : '-';
+                    if (todayPnL < 0 && Math.abs(todayPnL) >= ddLimit) {
+                        addLog(userId, 'warn', `Drawdown check — Today PnL: -$${ddAbs} — limit: $${ddLimit} — stopping bot`);
                         await stopBot(userId);
                         return;
                     }
+                    addLog(userId, 'info', `Drawdown check — Today PnL: ${ddSign}$${ddAbs} — limit: $${ddLimit} — OK`);
 
                     // Place order
                     try {
@@ -1036,6 +1040,9 @@ async function startBot(userId, strategyId) {
         const _maxTPD = strategy?.maxTradesPerDay;
         if (!_maxTPD) addLog(userId, 'warn', `maxTradesPerDay not set — defaulting to 3`);
         else          addLog(userId, 'info', `Max trades per day: ${_maxTPD} (loaded from strategy)`);
+        const _ddl    = strategy?.dailyDrawdownLimit;
+        if (!_ddl)    addLog(userId, 'warn', `dailyDrawdownLimit not set — defaulting to $50`);
+        else          addLog(userId, 'info', `Daily drawdown limit: $${_ddl}`);
 
         // Discord bot start notification
         getStrategyBotWebhook(userId).then(wh => {

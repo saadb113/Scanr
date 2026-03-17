@@ -1,64 +1,134 @@
-Make strategy bot use the EXACT same indicator values as the scanner page.
+Create two new pages for Scanr: Terms of Service and Privacy Policy.
 
-Bot is calculating RSI/MACD/EMA on incomplete or mismatched candle data.
-At 13:33:22 bot shows RSI 37.4 but actual RSI was 33.7
+1. CREATE terms.html:
+   - Same header/navbar as other landing pages
+   - Same dark theme and styling as rest of Scanr
+   - Content:
 
-The scanner page (coinScanner.js) already calculates RSI, MACD, EMA 
-and other indicators correctly and accurately. The strategy bot is 
-calculating them separately with a different implementation causing 
-mismatched values.
+   TERMS OF SERVICE — SCANR
 
-Fix — single source of truth for all indicators:
+   Last updated: March 2026
 
-1. EXTRACT ALL INDICATOR FUNCTIONS FROM coinScanner.js:
-   - Move these functions into a new shared file: utils/indicators.js
-   - Functions to extract:
-     * calculateRSI(candles, period)
-     * calculateMACD(candles, fast, slow, signal)
-     * calculateEMA(candles, period)
-     * calculateSMA(candles, period)
-     * calculateATR(candles, period)
-     * calculateBollingerBands(candles, period, stdDev)
-     * calculateStochastic(candles, period)
-     * calculateVolume(candles)
-   - Export all functions from utils/indicators.js
-   - Import them in coinScanner.js (replace existing implementations)
-   - Import them in strategyBot.js (replace existing implementations)
-   - This guarantees both pages use identical calculation logic
+   1. Acceptance of Terms
+   By purchasing or using Scanr, you agree to these terms. 
+   If you do not agree, do not use the service.
 
-2. MATCH CANDLE FETCHING EXACTLY:
-   - Check exactly how many candles coinScanner.js fetches from Binance
-   - Use the exact same limit in strategyBot.js
-   - Use the exact same Binance endpoint and params
-   - Always slice off last candle (current open candle) in both:
-     candles = candles.slice(0, -1)
+   2. License
+   Scanr grants you a non-transferable, non-exclusive license 
+   to use the software. One license = one user account. 
+   Sharing, reselling or distributing your license key is prohibited.
 
-3. ADD 500ms DELAY AFTER CANDLE CLOSE:
-   - After candle close event fires, wait 500ms before fetching candles
-   - Ensures Binance has finalized the closed candle data
-   - setTimeout(() => fetchAndScan(), 500)
+   3. Payment & Refunds
+   All payments are final. Due to the digital nature of the product, 
+   we do not offer refunds once a license key has been issued. 
+   Contact support before purchasing if you have questions.
 
-4. FIX ALL STRATEGY BLOCK EVALUATIONS to use shared indicators:
-   - RSI block: use calculateRSI from utils/indicators.js
-   - MACD block: use calculateMACD from utils/indicators.js
-   - Price vs MA block: use calculateEMA or calculateSMA
-   - ATR block: use calculateATR
-   - Bollinger Band block: use calculateBollingerBands
-   - Stochastic block: use calculateStochastic
-   - Volume block: use calculateVolume
-   - Candle Pattern blocks: evaluate on closed candles only 
-     (last candle in sliced array)
-   - Price Near Support: ta.lowest equivalent on closed candles
-   - Price Near Resistance: ta.highest equivalent on closed candles
-   - Higher High / Lower Low: pivot detection on closed candles
-   - Multi-timeframe Trend block: fetch correct timeframe candles 
-     separately, slice last candle, calculate EMA50 using shared function
-   - Trend Alignment: use same shared EMA function for both timeframes
+   4. Demo Mode
+   We strongly recommend testing all features in demo mode before 
+   connecting real funds. Scanr is a tool — trading decisions and 
+   outcomes are your responsibility.
 
-5. VERIFY VALUES MATCH:
-   - Add a one-time debug log on first scan showing indicator values 
-     side by side for verification:
-     "BTCUSDT indicators — RSI: 33.7 | MACD: -120.4 | EMA100: 73254 | 
-      ATR: 266.3 | Volume: 1234567"
-   - These should match what scanner page card shows for same coin
-   - Remove this debug log after verification
+   5. Financial Disclaimer
+   Scanr is a trading tool, not financial advice. We are not 
+   responsible for any financial losses incurred while using the 
+   platform. Crypto and forex trading involves significant risk. 
+   Only trade with money you can afford to lose.
+
+   6. AI Agent & Strategy Bot
+   The AI Agent and Strategy Bot are automated tools in beta. 
+   Past performance does not guarantee future results. Always 
+   monitor bots and use demo mode first. We are not liable for 
+   any losses caused by automated trading.
+
+   7. Account Suspension
+   We reserve the right to suspend or terminate your license 
+   without refund if you violate these terms, attempt to 
+   reverse engineer the software, or abuse the platform.
+
+   8. Service Availability
+   We aim for 24/7 uptime but do not guarantee uninterrupted 
+   service. Maintenance, updates or third party API issues 
+   (Binance, Bybit) may cause temporary downtime.
+
+   9. Changes to Terms
+   We may update these terms at any time. Continued use of 
+   Scanr after changes means you accept the new terms.
+
+   10. Contact
+   For any questions contact us via WhatsApp (link from admin settings)
+   or through the contact form on our website.
+
+2. CREATE privacy.html:
+   - Same styling as terms.html
+   - Content:
+
+   PRIVACY POLICY — SCANR
+
+   Last updated: March 2026
+
+   1. Information We Collect
+   - Email address and name (for account creation)
+   - Device fingerprint (for security — detecting unauthorized logins)
+   - IP address (for security logging)
+   - API keys you provide (Bybit, AI providers, Discord webhook) — 
+     stored encrypted, never shared
+   - Trade history and strategy data you create
+
+   2. How We Use Your Information
+   - To provide and maintain your Scanr account
+   - To enforce single session security
+   - To send license keys and important account emails
+   - To detect suspicious activity and protect your account
+   - We do NOT sell your data to any third party
+   - We do NOT use your data for advertising
+
+   3. API Keys & Sensitive Data
+   Your Bybit API keys, AI provider keys and Discord webhooks are 
+   stored securely in our database. They are used solely to provide 
+   the features you configured. We never share or log these keys.
+
+   4. Data Storage
+   Your data is stored on secure cloud servers (DigitalOcean). 
+   We use MongoDB Atlas for database storage with encryption at rest.
+
+   5. Cookies & Sessions
+   Scanr uses session tokens to keep you logged in. No advertising 
+   cookies or tracking pixels are used.
+
+   6. Third Party Services
+   Scanr connects to these third party services on your behalf:
+   - Binance (market data)
+   - Bybit (trade execution — using your own API keys)
+   - Kimi / GLM / Claude (AI analysis — using your own API keys)
+   - Discord (notifications — using your own webhook URL)
+   We are not responsible for the privacy practices of these services.
+
+   7. Data Retention
+   Your data is retained as long as your account is active. 
+   You can request deletion of your account and all associated 
+   data by contacting us via WhatsApp.
+
+   8. Children's Privacy
+   Scanr is not intended for users under 18 years of age.
+
+   9. Changes to Privacy Policy
+   We may update this policy at any time. We will notify users 
+   of significant changes via email.
+
+   10. Contact
+   For privacy concerns contact us via WhatsApp or the contact 
+   form on scanr.online
+
+3. LINK BOTH PAGES:
+   - Add links in the footer of all landing pages:
+     "Terms of Service" | "Privacy Policy"
+   - Add links in the landing page footer that already exists
+   - Style as subtle footer links matching existing footer design
+
+4. STYLING:
+   - Both pages: dark theme matching scanr landing pages
+   - Clean typography, proper heading hierarchy (h1, h2)
+   - Each section numbered and clearly separated
+   - Mobile responsive
+   - Back to home button or link at top
+   - Reading time estimate at top: "5 min read"

@@ -267,7 +267,7 @@ async function runHardFilterScan(agentSettings, emitFn) {
             const res = await applyHardFilters(sym, agentSettings || {}, []);
             if (res) {
                 candidates.push(res);
-                emitFn('setups:log', { message: `✓ ${sym} passed — ${res.direction.toUpperCase()} RSI=${res.rsi5m.toFixed(1)}`, level: 'pass' });
+                emitFn('setups:log', { message: `✓ ${sym} passed — ${res.direction.toUpperCase()} RSI=${res.rsiEntry.toFixed(1)}`, level: 'pass' });
             } else {
                 emitFn('setups:log', { message: `✗ ${sym} filtered out`, level: 'filtered' });
             }
@@ -280,8 +280,8 @@ async function runHardFilterScan(agentSettings, emitFn) {
     const out = candidates.map(c => ({
         symbol:    c.symbol,
         direction: c.direction,
-        rsi5m:     parseFloat(c.rsi5m.toFixed(1)),
-        atr5m:     parseFloat(c.atr5m.toFixed(6)),
+        rsi5m:     parseFloat(c.rsiEntry.toFixed(1)),
+        atr5m:     parseFloat(c.atrEntry.toFixed(6)),
         price:     parseFloat(c.ticker?.lastPrice || 0),
         volume:    parseFloat((parseFloat(c.ticker?.quoteVolume || 0) / 1e6).toFixed(1)),
     }));

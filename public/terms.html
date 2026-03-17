@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Terms of Service — Scanr</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:        #0a0e1a;
+      --bg-surface:     #0f1422;
+      --bg-card:        #131929;
+      --accent:         #00e5a0;
+      --text-primary:   #e5e9f2;
+      --text-secondary: #9aa3b5;
+      --border:         #1e2a3a;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ─────────────────────────────────────
+       HEADER
+    ───────────────────────────────────── */
+    .lp-header {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: rgba(10,14,26,0.92);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+    }
+    .lp-inner {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 0 28px;
+      height: 68px;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+    .lp-logo {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      flex-shrink: 0;
+      letter-spacing: -0.02em;
+    }
+    .lp-dot { color: var(--accent); }
+    .lp-nav { display: flex; gap: 1.75rem; margin-right: auto; }
+    .lp-nav-a {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: color 0.15s;
+    }
+    .lp-nav-a:hover,
+    .lp-nav-a.active { color: var(--text-primary); }
+    .lp-header-btns { display: flex; gap: 0.75rem; align-items: center; }
+    .lp-btn-outline {
+      padding: 8px 20px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+    }
+    .lp-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+    .lp-btn-filled {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #000;
+      background: var(--accent);
+      transition: opacity 0.15s;
+    }
+    .lp-btn-filled:hover { opacity: 0.88; }
+    .lp-mobile-menu {
+      display: none;
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 18px;
+      padding: 5px 11px;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+    .lp-header.nav-open .lp-nav {
+      display: flex !important;
+      flex-direction: column;
+      gap: 0;
+      position: absolute;
+      top: 68px;
+      left: 0; right: 0;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem 28px 1.25rem;
+      z-index: 201;
+    }
+    .lp-header.nav-open .lp-nav .lp-nav-a {
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 15px;
+    }
+    .lp-header.nav-open .lp-nav .lp-nav-a:last-child { border-bottom: none; }
+    @media (max-width: 768px) {
+      .lp-nav { display: none; }
+      .lp-mobile-menu { display: block; }
+      .lp-btn-outline { display: none; }
+    }
+
+    /* ─────────────────────────────────────
+       PAGE HERO
+    ───────────────────────────────────── */
+    .page-hero {
+      padding: 60px 28px 40px;
+      text-align: center;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .page-hero h1 {
+      font-size: 2.25rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 1rem;
+    }
+    .page-hero p {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      max-width: 560px;
+      margin: 0 auto;
+    }
+    .reading-time {
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: inline-block;
+      margin-top: 1rem;
+    }
+
+    /* ─────────────────────────────────────
+       CONTENT SECTION
+    ───────────────────────────────────── */
+    .doc-wrap { padding: 64px 28px; }
+    .doc-inner {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .doc-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 2rem;
+      transition: opacity 0.15s;
+    }
+    .doc-back:hover { opacity: 0.8; }
+    .doc-section {
+      margin-bottom: 2.5rem;
+    }
+    .doc-section h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--text-primary);
+    }
+    .doc-section h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin: 1.5rem 0 0.75rem;
+      color: var(--text-primary);
+    }
+    .doc-section p {
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+    .doc-section ul,
+    .doc-section ol {
+      margin: 1rem 0 1rem 1.5rem;
+      color: var(--text-secondary);
+      line-height: 1.8;
+    }
+    .doc-section li {
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    /* ─────────────────────────────────────
+       FOOTER
+    ───────────────────────────────────── */
+    .lp-footer {
+      border-top: 1px solid var(--border);
+      padding: 52px 28px 32px;
+    }
+    .lp-footer .lp-inner {
+      height: auto;
+      flex-wrap: wrap;
+      gap: 2rem;
+      align-items: flex-start;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+    .lp-footer-brand { flex: 1; min-width: 200px; }
+    .lp-footer-brand .lp-logo { font-size: 1.25rem; font-weight: 800; }
+    .lp-footer-brand p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 0.65rem;
+      max-width: 240px;
+      line-height: 1.7;
+    }
+    .lp-footer-nav { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center; }
+    .lp-footer-nav a {
+      font-size: 14px;
+      color: var(--text-secondary);
+      transition: color 0.15s;
+      font-weight: 500;
+    }
+    .lp-footer-nav a:hover { color: var(--text-primary); }
+    .lp-footer-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.75rem;
+    }
+    .lp-wa-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #128c7e;
+      color: #fff;
+      border-radius: 8px;
+      padding: 9px 18px;
+      font-size: 14px;
+      font-weight: 700;
+      transition: opacity 0.15s;
+    }
+    .lp-wa-btn:hover { opacity: 0.88; }
+    .lp-copy { font-size: 12px; color: var(--text-secondary); }
+    @media (max-width: 640px) {
+      .lp-footer-right { align-items: flex-start; }
+      .page-hero h1 { font-size: 1.75rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════
+     HEADER
+════════════════════════════════ -->
+<header class="lp-header" id="lpHeader">
+  <div class="lp-inner">
+    <a href="/" class="lp-logo" id="lpLogoLink"><span class="lp-logo-text">Scanr</span><span class="lp-dot">.</span></a>
+    <nav class="lp-nav">
+      <a href="/" class="lp-nav-a">Home</a>
+      <a href="/features" class="lp-nav-a">Features</a>
+      <a href="/pricing" class="lp-nav-a">Pricing</a>
+      <a href="/setup-guide" class="lp-nav-a">Setup Guide</a>
+    </nav>
+    <div class="lp-header-btns">
+      <a href="/login" class="lp-btn-outline">Sign In</a>
+      <a href="/register" class="lp-btn-filled">Get Started</a>
+    </div>
+    <button class="lp-mobile-menu" id="lpMobileMenu">&#9776;</button>
+  </div>
+</header>
+
+<!-- ════════════════════════════════
+     HERO
+════════════════════════════════ -->
+<div class="page-hero">
+  <h1>Terms of Service</h1>
+  <p>Last updated: March 2026</p>
+  <span class="reading-time">5 min read</span>
+</div>
+
+<!-- ════════════════════════════════
+     CONTENT
+════════════════════════════════ -->
+<div class="doc-wrap">
+  <div class="doc-inner">
+    <a href="/" class="doc-back">← Back to Home</a>
+
+    <div class="doc-section">
+      <h2>1. Acceptance of Terms</h2>
+      <p>By purchasing or using Scanr, you agree to these terms. If you do not agree, do not use the service.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>2. License</h2>
+      <p>Scanr grants you a non-transferable, non-exclusive license to use the software. One license = one user account. Sharing, reselling or distributing your license key is prohibited.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>3. Payment & Refunds</h2>
+      <p>All payments are final. Due to the digital nature of the product, we do not offer refunds once a license key has been issued. Contact support before purchasing if you have questions.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>4. Demo Mode</h2>
+      <p>We strongly recommend testing all features in demo mode before connecting real funds. Scanr is a tool — trading decisions and outcomes are your responsibility.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>5. Financial Disclaimer</h2>
+      <p>Scanr is a trading tool, not financial advice. We are not responsible for any financial losses incurred while using the platform. Crypto and forex trading involves significant risk. Only trade with money you can afford to lose.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>6. AI Agent & Strategy Bot</h2>
+      <p>The AI Agent and Strategy Bot are automated tools in beta. Past performance does not guarantee future results. Always monitor bots and use demo mode first. We are not liable for any losses caused by automated trading.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>7. Account Suspension</h2>
+      <p>We reserve the right to suspend or terminate your license without refund if you violate these terms, attempt to reverse engineer the software, or abuse the platform.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>8. Service Availability</h2>
+      <p>We aim for 24/7 uptime but do not guarantee uninterrupted service. Maintenance, updates or third party API issues (Binance, Bybit) may cause temporary downtime.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>9. Changes to Terms</h2>
+      <p>We may update these terms at any time. Continued use of Scanr after changes means you accept the new terms.</p>
+    </div>
+
+    <div class="doc-section">
+      <h2>10. Contact</h2>
+      <p>For any questions contact us via WhatsApp (link from admin settings) or through the contact form on our website.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════
+     FOOTER
+════════════════════════════════ -->
+<footer class="lp-footer">
+  <div class="lp-inner">
+    <div class="lp-footer-brand">
+      <span class="lp-logo"><span class="lp-logo-text">Scanr</span><span class="lp-dot">.</span></span>
+      <p>Professional crypto trading tools for serious traders.</p>
+    </div>
+    <nav class="lp-footer-nav">
+      <a href="/">Home</a>
+      <a href="/features">Features</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/setup-guide">Setup Guide</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/privacy">Privacy Policy</a>
+    </nav>
+    <div class="lp-footer-right">
+      <a class="lp-wa-btn" id="lpWaFooter" href="#" target="_blank">&#128172; WhatsApp</a>
+      <p class="lp-copy">&copy; 2025 <span class="lp-logo-text">Scanr</span>. All rights reserved.</p>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* ── Dynamic app name ── */
+fetch('/api/public/app-name').then(r=>r.ok?r.json():null).then(d=>{
+  if(!d?.appName)return;
+  document.querySelectorAll('.lp-logo-text').forEach(el=>el.textContent=d.appName);
+  document.title=document.title.replace(/Scanr/g,d.appName);
+}).catch(()=>{});
+
+/* ── Active nav link ── */
+(function(){
+  const path=location.pathname;
+  document.querySelectorAll('.lp-nav-a').forEach(a=>{
+    const h=a.getAttribute('href');
+    if(h==='/'?path==='/':path.startsWith(h))a.classList.add('active');
+  });
+})();
+
+/* ── Mobile menu toggle ── */
+document.getElementById('lpMobileMenu').addEventListener('click',()=>{
+  document.getElementById('lpHeader').classList.toggle('nav-open');
+});
+
+/* ── WhatsApp CTA ── */
+fetch('/api/public/whatsapp').then(r=>r.ok?r.json():null).then(d=>{
+  if(!d?.whatsapp)return;
+  const num=d.whatsapp.replace(/\D/g,'');
+  const msg=encodeURIComponent('Hi, I want to purchase Scanr lifetime access ($30)');
+  const url=`https://wa.me/${num}?text=${msg}`;
+  const foot=document.getElementById('lpWaFooter');
+  if(foot)foot.href=url;
+}).catch(()=>{});
+</script>
+
+</body>
+</html>

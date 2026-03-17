@@ -1219,6 +1219,8 @@ function stratNew() {
   else $('stratCoins').value = '';
   $('stratTf').value = '5m';
   $('stratMaxTrades').value = 3;
+  $('stratDrawdownLimit').value = 50;
+  $('drawdownStatus').textContent = '';
   $('stratDeleteBtn').style.display = 'none';
   $('stratLoadSel').value = '';
   renderCanvas();
@@ -1312,6 +1314,7 @@ function applyStrategy(s) {
   else $('stratCoins').value = (s.coins || []).join(', ');
   $('stratTf').value = s.timeframe || '5m';
   $('stratMaxTrades').value = s.maxTradesPerDay || 3;
+  $('stratDrawdownLimit').value = s.dailyDrawdownLimit || 50;
 
   // Support both old format (filters/conditions/actions) and new (ifBlocks)
   const blk = s.blocks || {};
@@ -1352,9 +1355,10 @@ async function stratSave() {
   const name = $('stratName').value.trim() || 'Untitled Strategy';
   const coins = $('stratCoins').value.split(',').map(s => s.trim()).filter(Boolean);
   const timeframe = $('stratTf').value;
-  const maxTradesPerDay = parseInt($('stratMaxTrades').value) || 3;
+  const maxTradesPerDay      = parseInt($('stratMaxTrades').value) || 3;
+  const dailyDrawdownLimit   = parseFloat($('stratDrawdownLimit').value) || 50;
   const pineScript = generatePineScript();
-  const body = { name, blocks: _canvas, pineScript, coins, timeframe, maxTradesPerDay };
+  const body = { name, blocks: _canvas, pineScript, coins, timeframe, maxTradesPerDay, dailyDrawdownLimit };
 
   try {
     if (_currentStrategyId) {

@@ -1058,6 +1058,11 @@
               <label>Max Trades / Day</label>
               <input id="stratMaxTrades" class="strat-cfg-input" type="number" min="1" max="20" value="3">
             </div>
+            <div class="bot-field">
+              <label>Daily Drawdown Limit (USDT)</label>
+              <input id="stratDrawdownLimit" class="strat-cfg-input" type="number" min="1" placeholder="e.g. 50">
+              <div id="drawdownStatus" style="font-size:0.72rem;margin-top:0.3rem;color:#6b7897;min-height:1rem"></div>
+            </div>
           </div>
         </div>
 
@@ -1430,6 +1435,17 @@
       if (pnlEl) {
         pnlEl.textContent = closed.length ? (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2) + ' USDT' : '—';
         pnlEl.style.color = closed.length ? (totalPnl >= 0 ? '#0ecb81' : '#f6465d') : '#e5e9f2';
+      }
+
+      // Drawdown status below the limit input in Bot Settings
+      const ddEl = document.getElementById('drawdownStatus');
+      if (ddEl && closed.length) {
+        const ddLimit  = parseFloat(document.getElementById('stratDrawdownLimit')?.value) || 50;
+        const loss     = Math.min(totalPnl, 0); // 0 if profitable, negative if loss
+        const lossAbs  = Math.abs(loss);
+        const sign     = totalPnl >= 0 ? '+' : '-';
+        ddEl.textContent = `Today: ${sign}$${Math.abs(totalPnl).toFixed(2)} / $${ddLimit} limit`;
+        ddEl.style.color  = totalPnl < 0 && lossAbs >= ddLimit * 0.5 ? '#f6465d' : '#0ecb81';
       }
     } catch (_) {}
   }

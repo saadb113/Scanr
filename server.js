@@ -1361,6 +1361,8 @@ app.get('/',            (req, res) => res.sendFile(PUB('home.html')));
 app.get('/features',    (req, res) => res.sendFile(PUB('features.html')));
 app.get('/pricing',     (req, res) => res.sendFile(PUB('pricing.html')));
 app.get('/setup-guide', (req, res) => res.sendFile(PUB('setup-guide.html')));
+app.get('/terms',       (req, res) => res.sendFile(PUB('terms.html')));
+app.get('/privacy',     (req, res) => res.sendFile(PUB('privacy.html')));
 
 // Requires login but not active license
 app.get('/license',   requireAuth, (req, res) => res.sendFile(PUB('license.html')));
