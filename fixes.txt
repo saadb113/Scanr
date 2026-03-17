@@ -1,134 +1,66 @@
-Create two new pages for Scanr: Terms of Service and Privacy Policy.
-
-1. CREATE terms.html:
-   - Same header/navbar as other landing pages
-   - Same dark theme and styling as rest of Scanr
+3. CREATE refund.html:
+   - Same styling as terms.html and privacy.html
    - Content:
 
-   TERMS OF SERVICE — SCANR
+   REFUND POLICY — SCANR
 
    Last updated: March 2026
 
-   1. Acceptance of Terms
-   By purchasing or using Scanr, you agree to these terms. 
-   If you do not agree, do not use the service.
+   Our Stance on Refunds
+   Scanr is a digital software product. Due to the nature of 
+   digital goods, all sales are final once a license key has 
+   been issued and activated.
 
-   2. License
-   Scanr grants you a non-transferable, non-exclusive license 
-   to use the software. One license = one user account. 
-   Sharing, reselling or distributing your license key is prohibited.
+   1. No Refund Policy
+   We do not offer refunds once:
+   - A license key has been generated and sent to you
+   - The license key has been activated on an account
+   - You have accessed the platform and its features
 
-   3. Payment & Refunds
-   All payments are final. Due to the digital nature of the product, 
-   we do not offer refunds once a license key has been issued. 
-   Contact support before purchasing if you have questions.
+   2. Before You Buy
+   We strongly encourage you to:
+   - Read the full feature list on our features page
+   - Watch the demo video before purchasing
+   - Contact us on WhatsApp with any questions before payment
+   - Test the platform on demo mode before connecting real funds
+   We are happy to answer any questions before you commit to a purchase.
 
-   4. Demo Mode
-   We strongly recommend testing all features in demo mode before 
-   connecting real funds. Scanr is a tool — trading decisions and 
-   outcomes are your responsibility.
+   3. Exceptions
+   We will consider a refund ONLY in these situations:
+   - You were charged twice for the same purchase (duplicate payment)
+   - Your license key was never delivered and we cannot resolve 
+     the issue within 48 hours
+   - A technical issue on our end prevents you from accessing 
+     the platform and we cannot fix it within 72 hours
+   In these cases contact us on WhatsApp immediately with 
+   proof of payment.
 
-   5. Financial Disclaimer
-   Scanr is a trading tool, not financial advice. We are not 
-   responsible for any financial losses incurred while using the 
-   platform. Crypto and forex trading involves significant risk. 
-   Only trade with money you can afford to lose.
+   4. Subscription Cancellations
+   If you are on a monthly or yearly subscription:
+   - You can cancel anytime from your account settings
+   - Cancellation stops future charges immediately
+   - No refund is issued for the current billing period
+   - You retain access until the end of your paid period
 
-   6. AI Agent & Strategy Bot
-   The AI Agent and Strategy Bot are automated tools in beta. 
-   Past performance does not guarantee future results. Always 
-   monitor bots and use demo mode first. We are not liable for 
-   any losses caused by automated trading.
+   5. Demo Mode
+   Scanr offers a full demo mode that lets you test all features 
+   including the AI Agent and Strategy Bot without real funds. 
+   We strongly recommend using demo mode before going live.
+   The availability of demo mode means feature-related refund 
+   requests will not be considered.
 
-   7. Account Suspension
-   We reserve the right to suspend or terminate your license 
-   without refund if you violate these terms, attempt to 
-   reverse engineer the software, or abuse the platform.
+   6. Chargebacks
+   Filing a chargeback without contacting us first will result 
+   in permanent suspension of your license with no possibility 
+   of reinstatement. Please contact us first — we are always 
+   willing to resolve issues fairly.
 
-   8. Service Availability
-   We aim for 24/7 uptime but do not guarantee uninterrupted 
-   service. Maintenance, updates or third party API issues 
-   (Binance, Bybit) may cause temporary downtime.
+   7. Contact Us
+   For any payment issues or concerns contact us via:
+   - WhatsApp: (fetched from admin settings)
+   - Contact form: scanr.online
+   We aim to respond within 24 hours.
 
-   9. Changes to Terms
-   We may update these terms at any time. Continued use of 
-   Scanr after changes means you accept the new terms.
-
-   10. Contact
-   For any questions contact us via WhatsApp (link from admin settings)
-   or through the contact form on our website.
-
-2. CREATE privacy.html:
-   - Same styling as terms.html
-   - Content:
-
-   PRIVACY POLICY — SCANR
-
-   Last updated: March 2026
-
-   1. Information We Collect
-   - Email address and name (for account creation)
-   - Device fingerprint (for security — detecting unauthorized logins)
-   - IP address (for security logging)
-   - API keys you provide (Bybit, AI providers, Discord webhook) — 
-     stored encrypted, never shared
-   - Trade history and strategy data you create
-
-   2. How We Use Your Information
-   - To provide and maintain your Scanr account
-   - To enforce single session security
-   - To send license keys and important account emails
-   - To detect suspicious activity and protect your account
-   - We do NOT sell your data to any third party
-   - We do NOT use your data for advertising
-
-   3. API Keys & Sensitive Data
-   Your Bybit API keys, AI provider keys and Discord webhooks are 
-   stored securely in our database. They are used solely to provide 
-   the features you configured. We never share or log these keys.
-
-   4. Data Storage
-   Your data is stored on secure cloud servers (DigitalOcean). 
-   We use MongoDB Atlas for database storage with encryption at rest.
-
-   5. Cookies & Sessions
-   Scanr uses session tokens to keep you logged in. No advertising 
-   cookies or tracking pixels are used.
-
-   6. Third Party Services
-   Scanr connects to these third party services on your behalf:
-   - Binance (market data)
-   - Bybit (trade execution — using your own API keys)
-   - Kimi / GLM / Claude (AI analysis — using your own API keys)
-   - Discord (notifications — using your own webhook URL)
-   We are not responsible for the privacy practices of these services.
-
-   7. Data Retention
-   Your data is retained as long as your account is active. 
-   You can request deletion of your account and all associated 
-   data by contacting us via WhatsApp.
-
-   8. Children's Privacy
-   Scanr is not intended for users under 18 years of age.
-
-   9. Changes to Privacy Policy
-   We may update this policy at any time. We will notify users 
-   of significant changes via email.
-
-   10. Contact
-   For privacy concerns contact us via WhatsApp or the contact 
-   form on scanr.online
-
-3. LINK BOTH PAGES:
-   - Add links in the footer of all landing pages:
-     "Terms of Service" | "Privacy Policy"
-   - Add links in the landing page footer that already exists
-   - Style as subtle footer links matching existing footer design
-
-4. STYLING:
-   - Both pages: dark theme matching scanr landing pages
-   - Clean typography, proper heading hierarchy (h1, h2)
-   - Each section numbered and clearly separated
-   - Mobile responsive
-   - Back to home button or link at top
-   - Reading time estimate at top: "5 min read"
+4. LINK refund.html:
+   - Add "Refund Policy" link in footer of all landing pages 
+     alongside Terms of Service and Privacy Policy
