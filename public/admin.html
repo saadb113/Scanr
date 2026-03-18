@@ -912,7 +912,7 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
-  const emailAdmin = document.getElementById('settingAdminEmail').value.trim() || 'saadbaig789@gmail.com';
+  const emailAdmin = document.getElementById('settingAdminEmail').value.trim() || 'support@scanr.me';
   const appName  = document.getElementById('settingAppName').value.trim();
   const commissionPct = parseFloat(document.getElementById('settingCommissionPct').value) || 20;
   const referralBaseUrl = document.getElementById('settingReferralBaseUrl').value.trim() || 'scanr.me';
@@ -1025,8 +1025,56 @@ async function loadPayments() {
       // Accordion panel for verification (hidden by default)
       html += `<tr id="verify-panel-${p._id}" style="display:none">
         <td colspan="9" style="background:rgba(0,229,160,0.05);padding:20px;border-left:3px solid var(--accent)">
-          <div style="max-width:600px">
+          <div style="max-width:900px">
             <h4 style="margin:0 0 16px;font-size:14px;font-weight:700">Generate & Send License Key</h4>
+            
+            <!-- Payment Details Section -->
+            <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px">
+              <h5 style="margin:0 0 12px;font-size:12px;font-weight:700;color:var(--accent)">Payment Details</h5>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px">
+                <div>
+                  <span style="color:var(--muted)">Name:</span> ${p.buyerName || '—'}
+                </div>
+                <div>
+                  <span style="color:var(--muted)">Email:</span> ${p.buyerEmail || '—'}
+                </div>
+                <div>
+                  <span style="color:var(--muted)">Phone:</span> ${p.buyerPhone || '—'}
+                </div>
+                <div>
+                  <span style="color:var(--muted)">Network:</span> ${p.network || '—'}
+                </div>
+                <div>
+                  <span style="color:var(--muted)">TX ID:</span> <code style="background:var(--bg-card);padding:2px 6px;border-radius:3px;font-size:11px">${p.txId || '—'}</code>
+                </div>
+                <div>
+                  <span style="color:var(--muted)">Amount:</span> $${(p.amount || 0).toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            <!-- Screenshot & Message Section -->
+            ${p.screenshotPath || p.message ? `
+            <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px">
+              <h5 style="margin:0 0 12px;font-size:12px;font-weight:700;color:var(--accent)">User's Evidence</h5>
+              ${p.screenshotPath ? `
+              <div style="margin-bottom:16px">
+                <p style="margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:600">Screenshot:</p>
+                <a href="${p.screenshotPath}" target="_blank" style="display:inline-block;max-width:100%;border-radius:6px;overflow:hidden;border:1px solid var(--border)">
+                  <img src="${p.screenshotPath}" alt="Payment Screenshot" style="max-width:400px;max-height:300px;display:block">
+                </a>
+              </div>
+              ` : ''}
+              ${p.message ? `
+              <div>
+                <p style="margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:600">User's Message:</p>
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;line-height:1.5;color:var(--text);word-wrap:break-word">${p.message}</div>
+              </div>
+              ` : ''}
+            </div>
+            ` : ''}
+
+            <!-- License Key Section -->
             <div style="margin-bottom:12px">
               <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">License Key (Auto-generated or Custom)</label>
               <div style="display:flex;gap:8px">

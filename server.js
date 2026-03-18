@@ -52,6 +52,7 @@ io.on('connection', socket => {
     if (uid) socket.join(uid);
 });
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ── helper: upsert single-user doc ────────────────────────────────────────
 async function upsert(Model, update, uid) {
@@ -670,7 +671,7 @@ app.post('/api/admin/settings', requireAdmin, async (req, res) => {
                 walletTRC20, walletERC20, walletBEP20, pricePlanStandard, pricePlanPKR } = req.body;
 
         // Admin email (replaces old whatsapp)
-        await AppSettings.findOneAndUpdate({ key: 'emailAdmin' }, { key: 'emailAdmin', value: emailAdmin || 'saadbaig789@gmail.com' }, { upsert: true });
+        await AppSettings.findOneAndUpdate({ key: 'emailAdmin' }, { key: 'emailAdmin', value: emailAdmin || 'support@scanr.me' }, { upsert: true });
 
         // App name
         await AppSettings.findOneAndUpdate({ key: 'appName'  }, { key: 'appName',  value: appName  || '' }, { upsert: true });
@@ -832,7 +833,7 @@ app.post('/api/payment/submit', requireAuth, upload.single('screenshot'), async 
         const notifier = require('./notifier');
         try {
             await notifier.sendPaymentReceivedEmail({
-                adminEmail: process.env.ADMIN_EMAIL || 'saadbaig789@gmail.com',
+                adminEmail: process.env.ADMIN_EMAIL || 'support@scanr.me',
                 buyerName: payment.buyerName,
                 buyerEmail: payment.buyerEmail,
                 planType: payment.planType,
@@ -1077,8 +1078,8 @@ app.get('/api/payment/prices', async (req, res) => {
 app.get('/api/public/admin-email', async (req, res) => {
     try {
         const doc = await AppSettings.findOne({ key: 'emailAdmin' });
-        res.json({ email: doc?.value || 'saadbaig789@gmail.com' });
-    } catch (e) { res.json({ email: 'saadbaig789@gmail.com' }); }
+        res.json({ email: doc?.value || 'support@scanr.me' });
+    } catch (e) { res.json({ email: 'support@scanr.me' }); }
 });
 
 // Public: fetch WhatsApp number (DEPRECATED - kept for backward compat)

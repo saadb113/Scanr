@@ -55,7 +55,7 @@ RIGHT COLUMN — Submit Payment Proof form:
   * Save to DB: userId, email, name, txId, screenshotPath,
     message, planType, amount, status: 'pending', createdAt
   * Upload screenshot to /uploads/payments/
-  * Send email to admin (saadbaig789@gmail.com):
+  * Send email to admin (support@scanr.me):
     Subject: "New Payment — [name] — [plan] — $[amount]"
     Body: all details + screenshot attached
   * Show transaction status section (see point 4 below)
@@ -74,7 +74,7 @@ If status = 'pending':
 - Details: TxID, plan, amount, submitted time
 - Message: "We'll verify your payment and send your license 
   key to [email] within 24 hours."
-- Email contact: "Need help? saadbaig789@gmail.com"
+- Email contact: "Need help? support@scanr.me"
 - Page auto-refreshes status every 30 seconds via:
   GET /api/payment/my-status (returns current payment status)
 
@@ -91,7 +91,7 @@ If status = 'verified' (admin verified):
 If status = 'rejected':
 - Red badge: "❌ Payment Rejected"
 - Rejection reason shown if admin provided one
-- Message: "Contact us at saadbaig789@gmail.com for help"
+- Message: "Contact us at support@scanr.me for help"
 - Show payment form again so user can resubmit
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

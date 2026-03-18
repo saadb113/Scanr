@@ -581,7 +581,7 @@ fetch('/api/public/app-name').then(r => r.ok ? r.json() : null).then(d => {
         document.getElementById('payoutBtn')?.addEventListener('click', async () => {
             const pending = document.getElementById('payoutAmount').textContent;
             const msg = encodeURIComponent(`Hi, I'd like to request a payout for my Scanr referral commissions. Pending amount: ${pending}. Please let me know which payment method works best (EasyPaisa, JazzCash, or Binance Pay). Thanks!`);
-            window.open(`mailto:saadbaig789@gmail.com?subject=Payout%20Request&body=${msg}`);
+            window.open(`mailto:support@scanr.me?subject=Payout%20Request&body=${msg}`);
         });
 
     } catch (e) {

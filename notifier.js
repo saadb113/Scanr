@@ -60,7 +60,7 @@ function sendPaymentRejectionEmail(data) {
     console.log(`  Hi ${data.userName},`);
     console.log(`  We were unable to verify your payment.`);
     console.log(`  Reason: ${data.reason}`);
-    console.log(`  Please contact us at saadbaig789@gmail.com for assistance.`);
+    console.log(`  Please contact us at support@scanr.me for assistance.`);
     return Promise.resolve();
 }
 
