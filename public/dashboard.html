@@ -192,6 +192,9 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
     <a class="sb-action-btn agent-btn" href="/agent">
       <span class="sb-action-icon"><i class="fa-solid fa-robot" style="color: rgb(255, 255, 255);"></i></span>AI Agent (Beta)
     </a>
+    <a style="display : none" id="refEarnLink" class="sb-action-btn" href="/referral" data-license-only="true" style="opacity: 0; pointer-events: none; height: 0; padding: 0; margin: 0;">
+      <span class="sb-action-icon"><i class="fa-solid fa-share-nodes" style="color: rgb(255, 255, 255);"></i></span>Refer & Earn
+    </a>
     <a class="sb-action-btn sh-settings-btn" href="/settings" title="Settings"><i class="fa-solid fa-gear" style="color: rgb(255, 255, 255);"></i> Settings</a>
 
 
@@ -415,7 +418,18 @@ async function dbLoadTab(tab) {
 // ── Init ──────────────────────────────────────────────────────
 fetch('/api/auth/me')
     .then(r => r.ok ? r.json() : null)
-    .then(u => { if (u && u.firstName) document.getElementById('dbWelcomeName').textContent = u.firstName; })
+    .then(u => {
+        if (u && u.firstName) document.getElementById('dbWelcomeName').textContent = u.firstName;
+        // Show referral link if user has active license
+        const refLink = document.getElementById('refEarnLink');
+        if (u && u.licenseStatus === 'active') {
+            refLink.style.opacity = '1';
+            refLink.style.pointerEvents = 'auto';
+            refLink.style.height = 'auto';
+            refLink.style.padding = '0.55rem 0.75rem';
+            refLink.style.margin = '0';
+        }
+    })
     .catch(() => {});
 loadSummary();
 dbLoadTab('spot'); // pre-load first tab

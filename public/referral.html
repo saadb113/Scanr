@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Refer & Earn — Scanr</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg-base: #0a0e1a;
+            --bg-surface: #0f1422;
+            --bg-card: #131929;
+            --accent: #00e5a0;
+            --text-primary: #e5e9f2;
+            --text-secondary: #9aa3b5;
+            --border: #1e2a3a;
+            --red: #f6465d;
+            --green: #0ecb81;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg-base);
+            color: var(--text-primary);
+            font-family: 'Space Grotesk', system-ui, sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        a { color: inherit; text-decoration: none; }
+
+        /* Header */
+        .ref-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10,14,26,0.92);
+            backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+        }
+        .ref-header-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .ref-back-btn {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.15s;
+        }
+        .ref-back-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .ref-title { font-size: 1.5rem; font-weight: 800; margin: 0; }
+        .ref-subtitle { font-size: 14px; color: var(--text-secondary); margin-left: auto; }
+
+        /* Container */
+        .ref-wrap { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+
+        /* Locked state */
+        .ref-locked {
+            text-align: center;
+            padding: 3rem 2rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+        .ref-locked-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.6; }
+        .ref-locked h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .ref-locked p { color: var(--text-secondary); margin-bottom: 1.5rem; }
+        .ref-btn {
+            display: inline-block;
+            padding: 12px 28px;
+            background: linear-gradient(135deg, #00c896, #29ffb8);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: opacity 0.15s;
+            font-family: inherit;
+        }
+        .ref-btn:hover { opacity: 0.9; }
+        .ref-btn-secondary {
+            background: none;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .ref-btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* Stats Row */
+        .ref-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .ref-stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .ref-stat-label { font-size: 13px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+        .ref-stat-value {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 0.3rem;
+        }
+        .ref-stat-sub { font-size: 12px; color: var(--text-secondary); }
+
+        /* Section */
+        .ref-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .ref-section h2 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+        .ref-section h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin: 1rem 0 0.5rem;
+        }
+
+        /* Link section */
+        .ref-link-box {
+            background: rgba(0,229,160,0.05);
+            border: 1px solid rgba(0,229,160,0.2);
+            border-radius: 9px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .ref-link-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; display: block; }
+        .ref-link-display {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .ref-link-input {
+            flex: 1;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--accent);
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            outline: none;
+        }
+        .ref-copy-btn {
+            padding: 10px 16px;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 13px;
+            transition: opacity 0.15s;
+        }
+        .ref-copy-btn:hover { opacity: 0.9; }
+
+        /* Share buttons */
+        .ref-share-btns {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .ref-share-btn {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .ref-share-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* How it works */
+        .ref-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .ref-step {
+            text-align: center;
+        }
+        .ref-step-num {
+            width: 48px;
+            height: 48px;
+            background: rgba(0,229,160,0.1);
+            border: 1px solid rgba(0,229,160,0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--accent);
+        }
+        .ref-step-title { font-weight: 700; margin-bottom: 0.5rem; }
+        .ref-step-text { font-size: 13px; color: var(--text-secondary); }
+
+        /* Commission info */
+        .ref-commission-info {
+            background: rgba(0,229,160,0.08);
+            border-left: 3px solid var(--accent);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .ref-commission-info h4 { color: var(--accent); margin-bottom: 0.75rem; }
+        .ref-commission-info p { font-size: 13px; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .ref-commission-rate { font-size: 1.5rem; color: var(--accent); font-weight: 800; }
+
+        /* Table */
+        .ref-table-wrap { overflow-x: auto; margin-top: 1.5rem; }
+        .ref-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        .ref-table th {
+            background: rgba(0,229,160,0.05);
+            border-bottom: 1px solid var(--border);
+            padding: 12px;
+            text-align: left;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+        }
+        .ref-table td {
+            border-bottom: 1px solid var(--border);
+            padding: 12px;
+        }
+        .ref-table tbody tr:hover { background: rgba(0,229,160,0.02); }
+        .ref-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 11px;
+        }
+        .ref-badge-pending { background: rgba(255,193,7,0.1); color: #ffc107; }
+        .ref-badge-converted { background: rgba(16,203,129,0.1); color: #10cb81; }
+        .ref-badge-paid { background: rgba(41,255,184,0.1); color: #29ffb8; }
+        .ref-empty-state { text-align: center; padding: 2rem; color: var(--text-secondary); }
+
+        /* Payout section */
+        .ref-payout-summary {
+            background: rgba(0,229,160,0.08);
+            border: 1px solid rgba(0,229,160,0.15);
+            border-radius: 9px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .ref-payout-label { font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+        .ref-payout-amount {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+        .ref-payout-info { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin-top: 1rem; }
+        .ref-payout-breakdown { margin: 1rem 0; border-top: 1px solid rgba(0,229,160,0.15); padding-top: 1rem; }
+        .ref-payout-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; }
+        .ref-payout-row:last-child { border-bottom: none; }
+        .ref-payout-row-email { color: var(--text-secondary); }
+        .ref-payout-row-amount { color: var(--green); font-weight: 700; }
+        .ref-no-payout { text-align: center; padding: 1.5rem; color: var(--text-secondary); font-size: 14px; }
+        .ref-badge-ready { background: rgba(14,203,129,0.15); color: #0ecb81; }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .ref-header-inner { flex-direction: column; align-items: flex-start; }
+            .ref-subtitle { margin-left: 0; margin-top: 0.5rem; }
+            .ref-stats { grid-template-columns: 1fr 1fr; }
+            .ref-steps { grid-template-columns: 1fr; }
+            .ref-share-btns { flex-direction: column; }
+            .ref-share-btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="ref-header">
+    <div class="ref-header-inner">
+        <button class="ref-back-btn" onclick="history.back()">← Back</button>
+        <h1 class="ref-title">Refer & Earn</h1>
+        <div id="initials" class="ref-subtitle" style="opacity: 0.7; font-weight: 600;">SCANR</div>
+    </div>
+</header>
+
+<div id="lockedContainer" style="display: none;">
+    <div class="ref-wrap">
+        <div class="ref-locked">
+            <div class="ref-locked-icon">🔒</div>
+            <h2>Unlock Referral Earnings</h2>
+            <p style="margin-bottom: 1.5rem;">Activate your Scanr license to start referring traders and earning commissions.</p>
+            <a href="/license" class="ref-btn">Activate License</a>
+        </div>
+    </div>
+</div>
+
+<div id="unlockedContainer" style="display: none;">
+    <div class="ref-wrap">
+        <!-- Stats -->
+        <div class="ref-stats">
+            <div class="ref-stat-card">
+                <div class="ref-stat-label">Total Referrals</div>
+                <div class="ref-stat-value" id="statTotal">0</div>
+                <div class="ref-stat-sub">traders referred</div>
+            </div>
+            <div class="ref-stat-card">
+                <div class="ref-stat-label">Converted</div>
+                <div class="ref-stat-value" id="statConverted">0</div>
+                <div class="ref-stat-sub">licenses activated</div>
+            </div>
+            <div class="ref-stat-card">
+                <div class="ref-stat-label">Total Earned</div>
+                <div class="ref-stat-value" id="statEarned" style="color: var(--green);">$0.00</div>
+                <div class="ref-stat-sub">USDT earned</div>
+            </div>
+            <div class="ref-stat-card">
+                <div class="ref-stat-label">Pending Payout</div>
+                <div class="ref-stat-value" id="statPending">$0.00</div>
+                <div class="ref-stat-sub">ready to claim</div>
+            </div>
+        </div>
+
+        <!-- Referral Link -->
+        <div class="ref-section">
+            <h2>📌 Your Referral Link</h2>
+            <div class="ref-link-box">
+                <label class="ref-link-label">Share this link with traders:</label>
+                <div class="ref-link-display">
+                    <input id="refLink" type="text" class="ref-link-input" readonly>
+                    <button id="copyBtn" class="ref-copy-btn">Copy</button>
+                </div>
+            </div>
+            <div style="margin-bottom: 1rem; color: var(--text-secondary); font-size: 13px;">
+                Share your referral link on social media, in Discord groups, or DM traders directly:
+            </div>
+            <div class="ref-share-btns">
+                <button id="emailBtn" class="ref-share-btn"><i class="fas fa-envelope"></i> Email</button>
+                <button id="tgBtn" class="ref-share-btn"><i class="fab fa-telegram"></i> Telegram</button>
+                <button id="copyQuickBtn" class="ref-share-btn"><i class="fas fa-copy"></i> Copy Link</button>
+            </div>
+        </div>
+
+        <!-- How it Works -->
+        <div class="ref-section">
+            <h2>📚 How It Works</h2>
+            <div class="ref-steps">
+                <div class="ref-step">
+                    <div class="ref-step-num">1</div>
+                    <div class="ref-step-title">Share Your Link</div>
+                    <div class="ref-step-text">Send your referral link to traders you know</div>
+                </div>
+                <div class="ref-step">
+                    <div class="ref-step-num">2</div>
+                    <div class="ref-step-title">They Activate</div>
+                    <div class="ref-step-text">They register and activate a Scanr license</div>
+                </div>
+                <div class="ref-step">
+                    <div class="ref-step-num">3</div>
+                    <div class="ref-step-title">You Earn</div>
+                    <div class="ref-step-text" id="step3">You receive <span id="commPct">20</span>% commission automatically</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commission Info -->
+        <div class="ref-section">
+            <h2>💰 Commission Structure</h2>
+            <div class="ref-commission-info">
+                <h4>Current Commission Rate</h4>
+                <p><strong id="commPctBig">20</strong>% of each license sale</p>
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(0,229,160,0.2);">
+                    <p style="margin-bottom: 0.5rem;">At $49 per license:</p>
+                    <div class="ref-commission-rate" id="earnPer">$6.00</div>
+                    <p style="margin-top: 0.5rem; font-size: 12px;">per activated license</p>
+                </div>
+            </div>
+            <p style="font-size: 13px; color: var(--text-secondary); margin-top: 1rem;">
+                Commissions are calculated based on the actual sale price of each license. Higher-tier plans earn more per referral.
+            </p>
+        </div>
+
+        <!-- Referral History -->
+        <div class="ref-section">
+            <h2>📊 Referral History</h2>
+            <div class="ref-table-wrap">
+                <table class="ref-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Commission</th>
+                            <th>Payout Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="refTable">
+                        <tr><td colspan="5" class="ref-empty-state">No referrals yet — share your link to start earning</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Payout Section -->
+        <div class="ref-section">
+            <h2>💳 Request Payout</h2>
+            <div id="payoutSummary" class="ref-payout-summary" style="display:none;">
+                <div class="ref-payout-label">Total Pending Payout</div>
+                <div class="ref-payout-amount" id="payoutAmount">$0.00</div>
+                <div id="payoutBreakdown" class="ref-payout-breakdown"></div>
+                <button id="payoutBtn" class="ref-btn" style="width: 100%;">Request Payout via Email</button>
+                <div class="ref-payout-info">
+                    💡 Click to request payout. Admin will send funds to your EasyPaisa, JazzCash, or Binance Pay account within 7 days.
+                </div>
+            </div>
+            <div id="noPayoutMsg" class="ref-no-payout">
+                <div style="font-size: 2rem; margin-bottom: 0.75rem; opacity: 0.4;">💸</div>
+                <div style="font-weight: 600; margin-bottom: 0.4rem;">No pending payout</div>
+                <div style="font-size: 12px;">Once someone activates a license using your referral link, your commission will appear here.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Dynamic app name
+fetch('/api/public/app-name').then(r => r.ok ? r.json() : null).then(d => {
+    if (d?.appName) {
+        document.querySelectorAll('#initials').forEach(el => el.textContent = d.appName.toUpperCase());
+        document.title = document.title.replace(/Scanr/g, d.appName);
+    }
+}).catch(() => {});
+
+(async function init() {
+    try {
+        // Check if user is logged in and has active license
+        const statusResp = await fetch('/api/license/status');
+        if (!statusResp.ok) {
+            window.location.replace('/login');
+            return;
+        }
+        const status = await statusResp.json();
+        if (status.status !== 'active') {
+            document.getElementById('lockedContainer').style.display = 'block';
+            return;
+        }
+
+        document.getElementById('unlockedContainer').style.display = 'block';
+
+        // Load dashboard stats
+        const dashResp = await fetch('/api/referral/my-dashboard');
+        const dash = await dashResp.json();
+        if (dashResp.ok) {
+            document.getElementById('statTotal').textContent = dash.totalReferrals;
+            document.getElementById('statConverted').textContent = dash.converted;
+            document.getElementById('statEarned').textContent = '$' + dash.totalEarned.toFixed(2);
+            document.getElementById('statPending').textContent = '$' + dash.pendingPayout.toFixed(2);
+            document.getElementById('refLink').value = `${dash.baseUrl}/register?ref=${dash.referralCode}`;
+            document.getElementById('commPct').textContent = dash.commissionPct;
+            document.getElementById('commPctBig').textContent = dash.commissionPct;
+            document.getElementById('step3').innerHTML = `You receive <strong>${dash.commissionPct}%</strong> commission automatically`;
+            const earnPer = (30 * dash.commissionPct / 100).toFixed(2);
+            document.getElementById('earnPer').textContent = '$' + earnPer;
+        }
+
+        // Load referral history
+        const histResp = await fetch('/api/referral/history');
+        const hist = await histResp.json();
+        if (histResp.ok && hist.referrals.length > 0) {
+            let html = '';
+            hist.referrals.forEach(r => {
+                const date = new Date(r.createdAt).toLocaleDateString();
+                const amt  = parseFloat(r.commissionAmount) || 0;
+                const badge = r.status === 'pending' ? 'ref-badge-pending' :
+                              r.status === 'converted' ? 'ref-badge-converted' : 'ref-badge-paid';
+                const commCell = amt > 0
+                    ? `<strong style="color:var(--green);">$${amt.toFixed(2)}</strong>`
+                    : '<span style="color:var(--text-secondary);">—</span>';
+                let payoutCell;
+                if (r.status === 'paid')
+                    payoutCell = '<span class="ref-badge ref-badge-paid">Paid</span>';
+                else if (r.status === 'converted' && amt > 0)
+                    payoutCell = '<span class="ref-badge ref-badge-ready">Ready to Claim</span>';
+                else
+                    payoutCell = '<span class="ref-badge ref-badge-pending">Pending</span>';
+                html += `<tr>
+                    <td>${date}</td>
+                    <td>${r.referredEmail}</td>
+                    <td><span class="ref-badge ${badge}">${r.status.charAt(0).toUpperCase() + r.status.slice(1)}</span></td>
+                    <td>${commCell}</td>
+                    <td>${payoutCell}</td>
+                </tr>`;
+            });
+            document.getElementById('refTable').innerHTML = html;
+        }
+
+        // Payout section — only show when there's a pending amount
+        const pendingPayout = dash.pendingPayout || 0;
+        if (pendingPayout > 0) {
+            document.getElementById('payoutAmount').textContent  = '$' + pendingPayout.toFixed(2);
+            document.getElementById('noPayoutMsg').style.display  = 'none';
+            document.getElementById('payoutSummary').style.display = 'block';
+
+            // Per-referral breakdown
+            const pendingRows = (hist?.referrals || []).filter(r => r.status === 'converted' && parseFloat(r.commissionAmount) > 0);
+            if (pendingRows.length > 0) {
+                document.getElementById('payoutBreakdown').innerHTML = pendingRows.map(r =>
+                    `<div class="ref-payout-row">
+                        <span class="ref-payout-row-email">${r.referredEmail}</span>
+                        <span class="ref-payout-row-amount">+$${parseFloat(r.commissionAmount).toFixed(2)}</span>
+                    </div>`
+                ).join('');
+            }
+        } else {
+            document.getElementById('noPayoutMsg').style.display   = 'block';
+            document.getElementById('payoutSummary').style.display  = 'none';
+        }
+
+        // Copy link
+        document.getElementById('copyBtn').addEventListener('click', () => {
+            navigator.clipboard.writeText(document.getElementById('refLink').value);
+            const btn = document.getElementById('copyBtn');
+            btn.textContent = 'Copied!';
+            setTimeout(() => btn.textContent = 'Copy', 2000);
+        });
+        document.getElementById('copyQuickBtn').addEventListener('click', () => {
+            navigator.clipboard.writeText(document.getElementById('refLink').value);
+            const btn = document.getElementById('copyQuickBtn');
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+            setTimeout(() => btn.innerHTML = '<i class="fas fa-copy"></i> Copy Link', 2000);
+        });
+
+        // Share buttons
+        document.getElementById('emailBtn').addEventListener('click', () => {
+            const link = document.getElementById('refLink').value;
+            const msg = encodeURIComponent(`Check out Scanr — AI crypto trading tools! I've been using it and it's great. Sign up with my referral link: ${link}`);
+            window.open(`mailto:?subject=Check%20out%20Scanr&body=${msg}`);
+        });
+
+        document.getElementById('tgBtn').addEventListener('click', () => {
+            const link = document.getElementById('refLink').value;
+            const msg = encodeURIComponent(`Check out Scanr — AI crypto trading tools: ${link}`);
+            window.open(`https://t.me/share/url?url=${msg}`, '_blank');
+        });
+
+        // Payout button
+        document.getElementById('payoutBtn')?.addEventListener('click', async () => {
+            const pending = document.getElementById('payoutAmount').textContent;
+            const msg = encodeURIComponent(`Hi, I'd like to request a payout for my Scanr referral commissions. Pending amount: ${pending}. Please let me know which payment method works best (EasyPaisa, JazzCash, or Binance Pay). Thanks!`);
+            window.open(`mailto:saadbaig789@gmail.com?subject=Payout%20Request&body=${msg}`);
+        });
+
+    } catch (e) {
+        console.error('Error loading referral dashboard:', e);
+    }
+})();
+</script>
+
+</body>
+</html>

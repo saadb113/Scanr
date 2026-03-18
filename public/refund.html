@@ -279,7 +279,7 @@
     </nav>
     <div class="lp-header-btns">
       <a href="/login" class="lp-btn-outline">Sign In</a>
-      <a href="/register" class="lp-btn-filled">Get Started</a>
+      <a href="/register?plan=lifetime&redirect=payment class="lp-btn-filled">Get Started</a>
     </div>
     <button class="lp-mobile-menu" id="lpMobileMenu">&#9776;</button>
   </div>
@@ -322,7 +322,7 @@
       <ul>
         <li>Read the full feature list on our features page</li>
         <li>Watch the demo video before purchasing</li>
-        <li>Contact us on WhatsApp with any questions before payment</li>
+        <li>Email us at saadbaig789@gmail.com with any questions before payment</li>
         <li>Test the platform on demo mode before connecting real funds</li>
       </ul>
       <p>We are happy to answer any questions before you commit to a purchase.</p>
@@ -391,7 +391,7 @@
       <a href="/refund">Refund Policy</a>
     </nav>
     <div class="lp-footer-right">
-      <a class="lp-wa-btn" id="lpWaFooter" href="#" target="_blank">&#128172; WhatsApp</a>
+      <a class="lp-wa-cta" href="mailto:saadbaig789@gmail.com">Email Us</a>
       <p class="lp-copy">&copy; 2025 <span class="lp-logo-text">Scanr</span>. All rights reserved.</p>
     </div>
   </div>
@@ -420,15 +420,3 @@ document.getElementById('lpMobileMenu').addEventListener('click',()=>{
 });
 
 /* ── WhatsApp CTA ── */
-fetch('/api/public/whatsapp').then(r=>r.ok?r.json():null).then(d=>{
-  if(!d?.whatsapp)return;
-  const num=d.whatsapp.replace(/\D/g,'');
-  const msg=encodeURIComponent('Hi, I want to purchase Scanr lifetime access ($30)');
-  const url=`https://wa.me/${num}?text=${msg}`;
-  const foot=document.getElementById('lpWaFooter');
-  if(foot)foot.href=url;
-}).catch(()=>{});
-</script>
-
-</body>
-</html>

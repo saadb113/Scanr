@@ -5,10 +5,12 @@ const http     = require('http');
 const path     = require('path');
 const session  = require('express-session');
 const bcrypt   = require('bcrypt');
+const multer   = require('multer');
 const { Server } = require('socket.io');
 const { connectDB } = require('./db');
+const mongoose = require('mongoose');
 const {
-    User, License, AppSettings,
+    User, License, AppSettings, Referral, Payment,
     Settings, Watchlist, FilterVis, PosSettings,
     Drawings, KimiSettings, KimiCache, BybitStore,
     AgentSettings, AgentSession, AgentTrade, AgentState,
@@ -146,7 +148,7 @@ function requireAdmin(req, res, next) {
 
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { firstName, lastName, email, password } = req.body;
+        const { firstName, lastName, email, password, pendingReferralCode } = req.body;
         if (!firstName || !lastName || !email || !password)
             return res.status(400).json({ error: 'All fields are required' });
         if (password.length < 6)
@@ -159,6 +161,7 @@ app.post('/api/auth/register', async (req, res) => {
             lastName:  lastName.trim(),
             email:     email.toLowerCase().trim(),
             password:  hash,
+            pendingReferralCode: pendingReferralCode || null,
         });
         req.session.userId = user._id.toString();
         req.session.role   = user.role;
@@ -217,6 +220,10 @@ app.post('/api/auth/logout', (req, res) => {
     req.session.destroy(() => res.json({ ok: true }));
 });
 
+app.get('/logout', (req, res) => {
+    req.session.destroy(() => res.redirect('/login'));
+});
+
 app.get('/api/auth/me', requireAuth, async (req, res) => {
     try {
         const user = await User.findById(req.session.userId).select('-password').lean();
@@ -265,6 +272,27 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
         if (license.status === 'active')
             return res.status(400).json({ error: 'This license key is already in use' });
         const ip = req.ip || req.socket.remoteAddress || 'unknown';
+
+        // Fetch current user
+        const user = await User.findById(req.session.userId);
+        if (!user) return res.status(400).json({ error: 'User not found' });
+
+        // Generate referral code if not exists
+        if (!user.referralCode) {
+            const { randomBytes } = require('crypto');
+            let referralCode;
+            let isUnique = false;
+            while (!isUnique) {
+                const randomPart = randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
+                referralCode = `REF-${randomPart}`;
+                const existing = await User.findOne({ referralCode });
+                if (!existing) isUnique = true;
+            }
+            user.referralCode = referralCode;
+            user.referralCodeGeneratedAt = new Date();
+        }
+
+        // Activate license
         await License.findByIdAndUpdate(license._id, {
             status:              'active',
             activatedByUserId:   req.session.userId,
@@ -272,6 +300,8 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
             deviceFingerprint:   deviceFingerprint || '',
             $addToSet:           { ipHistory: ip },
         });
+        await user.save();
+
         await User.findByIdAndUpdate(req.session.userId, {
             licenseKey:          license.licenseKey,
             licenseStatus:       'active',
@@ -280,6 +310,58 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
             deviceFingerprint:   deviceFingerprint || '',
         });
         req.session.licenseStatus = 'active';
+
+        // Check for pending referral code and trigger conversion
+        if (user.pendingReferralCode) {
+            // Find referrer by referral code
+            const referrer = await User.findOne({ referralCode: user.pendingReferralCode });
+            if (referrer && referrer.licenseStatus === 'active') {
+                // Get commission % from admin settings
+                let commissionPct = 20;
+                const commSettingDoc = await AppSettings.findOne({ key: 'commissionPct' });
+                if (commSettingDoc) {
+                    commissionPct = parseFloat(commSettingDoc.value) || 20;
+                }
+
+                // Calculate commission
+                const commissionAmount = ((commissionPct / 100) * license.price).toFixed(2);
+
+                // Create referral record
+                const referral = await Referral.create({
+                    referrerId: referrer._id,
+                    referredUserId: user._id,
+                    referredEmail: user.email,
+                    status: 'converted',
+                    commissionPct: commissionPct,
+                    commissionAmount: parseFloat(commissionAmount),
+                    saleAmount: license.price,
+                    convertedAt: new Date(),
+                });
+
+                // Update user with referrer
+                await User.findByIdAndUpdate(user._id, {
+                    referreredByUserId: referrer._id,
+                    pendingReferralCode: null,
+                });
+
+                // Send email to referrer
+                const notifier = require('./notifier');
+                try {
+                    notifier.notifyReferralConverted(
+                        referrer._id.toString(),
+                        referrer.email,
+                        referrer.firstName,
+                        commissionAmount
+                    );
+                } catch (emailErr) {
+                    console.warn('Failed to send referral email:', emailErr);
+                }
+            } else {
+                // Clear invalid pending referral code
+                await User.findByIdAndUpdate(user._id, { pendingReferralCode: null });
+            }
+        }
+
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -288,6 +370,103 @@ app.get('/api/license/status', requireAuth, async (req, res) => {
     try {
         const user = await User.findById(req.session.userId).select('licenseStatus licenseKey').lean();
         res.json({ status: user?.licenseStatus || 'inactive', key: user?.licenseKey });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  REFERRAL ROUTES
+// ═══════════════════════════════════════════════════════════════
+
+// GET referral dashboard stats
+app.get('/api/referral/my-dashboard', requireAuth, async (req, res) => {
+    try {
+        let user = await User.findById(req.session.userId);
+        if (!user || user.licenseStatus !== 'active') {
+            return res.status(403).json({ error: 'Only active license holders can access referral dashboard' });
+        }
+
+        // Generate referral code lazily for users activated before this feature
+        if (!user.referralCode) {
+            const { randomBytes } = require('crypto');
+            let referralCode, isUnique = false;
+            while (!isUnique) {
+                const part = randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
+                referralCode = `REF-${part}`;
+                if (!await User.findOne({ referralCode })) isUnique = true;
+            }
+            user.referralCode = referralCode;
+            user.referralCodeGeneratedAt = new Date();
+            await user.save();
+        }
+
+        const uid = new mongoose.Types.ObjectId(req.session.userId);
+
+        const totalReferrals = await Referral.countDocuments({ referrerId: uid });
+        const converted      = await Referral.countDocuments({ referrerId: uid, status: { $in: ['converted', 'paid'] } });
+
+        const totalEarnedDoc = await Referral.aggregate([
+            { $match: { referrerId: uid, status: { $in: ['converted', 'paid'] } } },
+            { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+        ]);
+        const pendingDoc = await Referral.aggregate([
+            { $match: { referrerId: uid, status: 'converted' } },
+            { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+        ]);
+
+        let commissionPct = 20;
+        const commSetting = await AppSettings.findOne({ key: 'commissionPct' });
+        if (commSetting) commissionPct = parseFloat(commSetting.value) || 20;
+
+        let baseUrl = 'scanr.me';
+        const urlSetting = await AppSettings.findOne({ key: 'referralBaseUrl' });
+        if (urlSetting && urlSetting.value) baseUrl = urlSetting.value;
+
+        res.json({
+            referralCode: user.referralCode,
+            baseUrl,
+            totalReferrals,
+            converted,
+            totalEarned:   parseFloat((totalEarnedDoc[0]?.total || 0).toFixed(2)),
+            pendingPayout: parseFloat((pendingDoc[0]?.total    || 0).toFixed(2)),
+            commissionPct
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET referral history (paginated)
+app.get('/api/referral/history', requireAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.userId).lean();
+        if (!user || user.licenseStatus !== 'active') {
+            return res.status(403).json({ error: 'Only active license holders can access referral history' });
+        }
+
+        const page  = parseInt(req.query.page)  || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip  = (page - 1) * limit;
+        const uid   = new mongoose.Types.ObjectId(req.session.userId);
+
+        const referrals = await Referral.find({ referrerId: uid })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        // Mask emails
+        const masked = referrals.map(r => ({
+            ...r,
+            referredEmail: r.referredEmail ? r.referredEmail.replace(/(.{1})(.*)(@.*)/, '$1***$3') : 'unknown'
+        }));
+
+        const total = await Referral.countDocuments({ referrerId: uid });
+
+        res.json({
+            referrals: masked,
+            total,
+            page,
+            limit,
+            pages: Math.ceil(total / limit)
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -487,14 +666,422 @@ app.get('/api/admin/settings', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/settings', requireAdmin, async (req, res) => {
     try {
-        const { whatsapp, appName } = req.body;
-        await AppSettings.findOneAndUpdate({ key: 'whatsapp' }, { key: 'whatsapp', value: whatsapp || '' }, { upsert: true });
+        const { emailAdmin, appName, commissionPct, referralBaseUrl,
+                walletTRC20, walletERC20, walletBEP20, pricePlanStandard, pricePlanPKR } = req.body;
+
+        // Admin email (replaces old whatsapp)
+        await AppSettings.findOneAndUpdate({ key: 'emailAdmin' }, { key: 'emailAdmin', value: emailAdmin || 'saadbaig789@gmail.com' }, { upsert: true });
+
+        // App name
         await AppSettings.findOneAndUpdate({ key: 'appName'  }, { key: 'appName',  value: appName  || '' }, { upsert: true });
+
+        // Commission rate
+        if (commissionPct !== undefined) {
+            await AppSettings.findOneAndUpdate({ key: 'commissionPct' }, { key: 'commissionPct', value: String(commissionPct) }, { upsert: true });
+        }
+
+        // Referral base URL
+        if (referralBaseUrl !== undefined) {
+            await AppSettings.findOneAndUpdate({ key: 'referralBaseUrl' }, { key: 'referralBaseUrl', value: referralBaseUrl || 'scanr.me' }, { upsert: true });
+        }
+
+        // Wallet addresses
+        if (walletTRC20 !== undefined) {
+            await AppSettings.findOneAndUpdate({ key: 'walletTRC20' }, { key: 'walletTRC20', value: walletTRC20 || '' }, { upsert: true });
+        }
+        if (walletERC20 !== undefined) {
+            await AppSettings.findOneAndUpdate({ key: 'walletERC20' }, { key: 'walletERC20', value: walletERC20 || '' }, { upsert: true });
+        }
+        if (walletBEP20 !== undefined) {
+            await AppSettings.findOneAndUpdate({ key: 'walletBEP20' }, { key: 'walletBEP20', value: walletBEP20 || '' }, { upsert: true });
+        }
+
+        // Prices
+        if (pricePlanStandard !== undefined) {
+            await AppSettings.findOneAndUpdate({ key: 'pricePlanStandard' }, { key: 'pricePlanStandard', value: String(pricePlanStandard) }, { upsert: true });
+        }
+        if (pricePlanPKR !== undefined) {
+            await AppSettings.findOneAndUpdate({ key: 'pricePlanPKR' }, { key: 'pricePlanPKR', value: String(pricePlanPKR) }, { upsert: true });
+        }
+
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Public: fetch WhatsApp number for license/suspended pages
+// Admin: Get all referrals with stats
+app.get('/api/admin/referrals', requireAdmin, async (req, res) => {
+    try {
+        const referrals = await Referral.find()
+            .populate('referrerId', 'firstName lastName email')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        const totalPending = await Referral.aggregate([
+            { $match: { status: 'converted' } },
+            { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+        ]);
+
+        res.json({
+            referrals,
+            totalPendingPayout: totalPending[0]?.total || 0
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Admin: Mark referral as paid
+app.post('/api/admin/referral/mark-paid/:referralId', requireAdmin, async (req, res) => {
+    try {
+        const referral = await Referral.findByIdAndUpdate(req.params.referralId, {
+            status: 'paid',
+            paidAt: new Date()
+        }, { new: true });
+
+        if (!referral) return res.status(404).json({ error: 'Referral not found' });
+
+        // Send email to referrer
+        const referrer = await User.findById(referral.referrerId);
+        if (referrer) {
+            const notifier = require('./notifier');
+            try {
+                notifier.notifyReferralPaid(
+                    referrer._id.toString(),
+                    referrer.email,
+                    referrer.firstName,
+                    referral.commissionAmount
+                );
+            } catch (emailErr) {
+                console.warn('Failed to send payment notification:', emailErr);
+            }
+        }
+
+        res.json({ ok: true, referral });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  PAYMENT SYSTEM (USDT Direct Payments)
+// ═══════════════════════════════════════════════════════════════
+
+// Setup multer for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const dir = path.join(__dirname, 'uploads', 'payments');
+        require('fs').mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const timestamp = Date.now();
+        const rand = Math.random().toString(36).slice(2, 8);
+        const ext = path.extname(file.originalname);
+        cb(null, `${timestamp}_${rand}${ext}`);
+    }
+});
+const upload = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        const mimes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!mimes.includes(file.mimetype)) {
+            return cb(new Error('Only JPG, PNG, and WebP images allowed'));
+        }
+        if (file.size > 5 * 1024 * 1024) { // 5MB max
+            return cb(new Error('File too large (max 5MB)'));
+        }
+        cb(null, true);
+    }
+});
+
+// POST /api/payment/submit — Submit payment proof (requires auth)
+app.post('/api/payment/submit', requireAuth, upload.single('screenshot'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: 'Screenshot is required' });
+
+        const { fullName, email, phone, txId, network, message, planType, amount } = req.body;
+        if (!txId || !network || !planType || !amount) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Get user info
+        const user = await User.findById(req.appUserId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Check if user already has a pending payment
+        const existingPayment = await Payment.findOne({
+            userId: req.appUserId,
+            status: 'pending'
+        });
+        if (existingPayment) {
+            return res.status(400).json({ error: 'You already have a pending payment' });
+        }
+
+        // Create payment record
+        const payment = await Payment.create({
+            userId: req.appUserId,
+            buyerName: fullName || user.name || user.email,
+            buyerEmail: email || user.email,
+            buyerPhone: phone || '',
+            planType,
+            amount: parseFloat(amount),
+            txId: txId.trim(),
+            network,
+            screenshotPath: `/uploads/payments/${req.file.filename}`,
+            message: message || '',
+            status: 'pending'
+        });
+
+        // Send email notification to admin
+        const notifier = require('./notifier');
+        try {
+            await notifier.sendPaymentReceivedEmail({
+                adminEmail: process.env.ADMIN_EMAIL || 'saadbaig789@gmail.com',
+                buyerName: payment.buyerName,
+                buyerEmail: payment.buyerEmail,
+                planType: payment.planType,
+                amount: payment.amount,
+                network: payment.network,
+                txId: payment.txId,
+                paymentId: payment._id,
+                screenshotPath: payment.screenshotPath
+            });
+        } catch (emailErr) {
+            console.error('Failed to send admin notification email:', emailErr);
+        }
+
+        res.json({
+            ok: true,
+            payment: payment.toObject(),
+            message: 'Payment proof submitted successfully!'
+        });
+    } catch (e) {
+        if (req.file) {
+            require('fs').unlink(path.join(__dirname, 'uploads', 'payments', req.file.filename), () => {});
+        }
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET /api/payment/my-status — Get current user's payment status
+app.get('/api/payment/my-status', requireAuth, async (req, res) => {
+    try {
+        const payment = await Payment.findOne({ userId: req.appUserId })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (!payment) {
+            return res.json({ payment: null });
+        }
+
+        res.json({ payment });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// POST /api/payment/clear-pending — Clear user's pending payment
+app.post('/api/payment/clear-pending', requireAuth, async (req, res) => {
+    try {
+        const result = await Payment.deleteOne({
+            userId: req.appUserId,
+            status: 'pending'
+        });
+        
+        res.json({
+            ok: true,
+            message: 'Pending payment cleared. You can now submit a new payment.'
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET /api/license/my-license — Get current user's license status
+app.get('/api/license/my-license', requireAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.appUserId).lean();
+        res.json({
+            status: user.licenseStatus,
+            expiresAt: user.licenseExpiresAt
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// GET /api/admin/payments — List all payments (admin only)
+app.get('/api/admin/payments', requireAdmin, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = 20;
+        const skip = (page - 1) * limit;
+
+        const payments = await Payment.find()
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+
+        const total = await Payment.countDocuments();
+
+        res.json({
+            payments,
+            total,
+            page,
+            pages: Math.ceil(total / limit)
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/payment/verify/:paymentId — Verify payment and issue license key
+app.post('/api/admin/payment/verify/:paymentId', requireAdmin, async (req, res) => {
+    try {
+        const { licenseKey: customKey } = req.body;
+        const payment = await Payment.findById(req.params.paymentId);
+        if (!payment) return res.status(404).json({ error: 'Payment not found' });
+        if (payment.status !== 'pending') return res.status(400).json({ error: 'Payment already processed' });
+
+        // Generate or use custom license key
+        let licenseKey = customKey;
+        if (!licenseKey) {
+            // Generate SCAN-XXXX-XXXX-XXXX-XXXX format (matching licenses tab)
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            const seg = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+            licenseKey = `SCAN-${seg()}-${seg()}-${seg()}-${seg()}`;
+        }
+
+        // Get user to link license
+        const user = await User.findById(payment.userId);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Calculate expiry based on plan type
+        let expiresAt = null;
+        if (payment.planType === 'monthly') {
+            const expiry = new Date();
+            expiry.setMonth(expiry.getMonth() + 1);
+            expiresAt = expiry.toISOString();
+        } else if (payment.planType === 'yearly') {
+            const expiry = new Date();
+            expiry.setFullYear(expiry.getFullYear() + 1);
+            expiresAt = expiry.toISOString();
+        }
+        // lifetime has no expiry (null)
+
+        // Create license record
+        const license = await License.create({
+            licenseKey,
+            buyerName: payment.buyerName,
+            buyerContact: payment.buyerEmail,
+            purchaseDate: new Date().toISOString().split('T')[0],
+            price: payment.amount,
+            currency: 'USD',
+            status: 'inactive',
+            notes: `Payment: ${payment.network} txId: ${payment.txId}`,
+            userId: payment.userId,
+            expiresAt
+        });
+
+        // Update payment
+        payment.status = 'verified';
+        payment.licenseKeyIssued = licenseKey;
+        payment.verifiedAt = new Date();
+        await payment.save();
+
+        // Send email to user with license key
+        const notifier = require('./notifier');
+        try {
+            await notifier.sendLicenseKeyEmail({
+                userEmail: payment.buyerEmail,
+                userName: payment.buyerName,
+                licenseKey,
+                planType: payment.planType
+            });
+        } catch (emailErr) {
+            console.error('Failed to send license key email:', emailErr);
+        }
+
+        // Emit Socket.io event to user for real-time update
+        io.to(payment.userId).emit('payment_verified', { licenseKey });
+
+        res.json({
+            ok: true,
+            licenseKey,
+            message: 'License key generated and sent to user'
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/payment/reject/:paymentId — Reject payment
+app.post('/api/admin/payment/reject/:paymentId', requireAdmin, async (req, res) => {
+    try {
+        const { reason } = req.body;
+        const payment = await Payment.findById(req.params.paymentId);
+
+        if (!payment) return res.status(404).json({ error: 'Payment not found' });
+        if (payment.status !== 'pending') return res.status(400).json({ error: 'Payment already processed' });
+
+        payment.status = 'rejected';
+        payment.rejectionReason = reason || 'Payment could not be verified';
+        payment.rejectedAt = new Date();
+        await payment.save();
+
+        // Send rejection email
+        const notifier = require('./notifier');
+        try {
+            await notifier.sendPaymentRejectionEmail({
+                userEmail: payment.buyerEmail,
+                userName: payment.buyerName,
+                reason: payment.rejectionReason
+            });
+        } catch (emailErr) {
+            console.error('Failed to send rejection email:', emailErr);
+        }
+
+        // Emit Socket.io event to user for real-time update
+        io.to(payment.userId).emit('payment_rejected', { reason: payment.rejectionReason });
+
+        res.json({ ok: true, message: 'Payment rejected' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Public: fetch wallet addresses
+app.get('/api/payment/wallet-addresses', async (req, res) => {
+    try {
+        const trc20 = await AppSettings.findOne({ key: 'walletTRC20' });
+        const erc20 = await AppSettings.findOne({ key: 'walletERC20' });
+        const bep20 = await AppSettings.findOne({ key: 'walletBEP20' });
+
+        res.json({
+            walletTRC20: trc20?.value || '',
+            walletERC20: erc20?.value || '',
+            walletBEP20: bep20?.value || ''
+        });
+    } catch (e) { res.json({ walletTRC20: '', walletERC20: '', walletBEP20: '' }); }
+});
+
+// Public: fetch payment prices
+app.get('/api/payment/prices', async (req, res) => {
+    try {
+        const lifetimePrice = await AppSettings.findOne({ key: 'priceLifetime' });
+        const monthlyPrice = await AppSettings.findOne({ key: 'priceMonthly' });
+        const yearlyPrice = await AppSettings.findOne({ key: 'priceYearly' });
+
+        res.json({
+            priceLifetime: parseFloat(lifetimePrice?.value || 49),
+            priceMonthly: parseFloat(monthlyPrice?.value || 19),
+            priceYearly: parseFloat(yearlyPrice?.value || 129)
+        });
+    } catch (e) {
+        res.json({ priceLifetime: 49, priceMonthly: 19, priceYearly: 129 });
+    }
+});
+
+// Public: fetch admin email
+app.get('/api/public/admin-email', async (req, res) => {
+    try {
+        const doc = await AppSettings.findOne({ key: 'emailAdmin' });
+        res.json({ email: doc?.value || 'saadbaig789@gmail.com' });
+    } catch (e) { res.json({ email: 'saadbaig789@gmail.com' }); }
+});
+
+// Public: fetch WhatsApp number (DEPRECATED - kept for backward compat)
 app.get('/api/public/whatsapp', async (req, res) => {
     try {
         const doc = await AppSettings.findOne({ key: 'whatsapp' }).lean();
@@ -1366,8 +1953,9 @@ app.get('/privacy',     (req, res) => res.sendFile(PUB('privacy.html')));
 app.get('/refund',      (req, res) => res.sendFile(PUB('refund.html')));
 
 // Requires login but not active license
-app.get('/license',   requireAuth, (req, res) => res.sendFile(PUB('license.html')));
+app.get('/license',   requireAuth, (req, res) => res.redirect('/payment'));
 app.get('/suspended', requireAuth, (req, res) => res.sendFile(PUB('suspended.html')));
+app.get('/payment',   requireAuth, (req, res) => res.sendFile(PUB('payment.html')));
 
 // Admin only
 app.get('/admin', requireAdmin, (req, res) => res.sendFile(PUB('admin.html')));
@@ -1381,6 +1969,7 @@ app.get('/scanner',    requireActiveAuth, (req, res) => res.sendFile(PUB('index.
 app.get('/settings',   requireActiveAuth, (req, res) => res.sendFile(SETTINGS));
 app.get('/terminal',   requireActiveAuth, (req, res) => res.sendFile(TERMINAL));
 app.get('/agent',      requireActiveAuth, (req, res) => res.sendFile(PUB('agent.html')));
+app.get('/referral',   requireAuth,       (req, res) => res.sendFile(PUB('referral.html')));
 app.get('/setups',     requireActiveAuth, (req, res) => res.sendFile(PUB('setups.html')));
 app.get('/coin-detail',requireActiveAuth, (req, res) => res.sendFile(PUB('pages/coin-detail.html')));
 app.get('/calendar',   requireActiveAuth, (req, res) => res.sendFile(PUB('calendar.html')));

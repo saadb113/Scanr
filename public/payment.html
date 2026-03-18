@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Complete Your Purchase — Scanr</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:        #0b0e11;
+      --bg-surface:     #1a1d26;
+      --bg-card:        #252936;
+      --accent:         #00e5a0;
+      --green:          #0ecb81;
+      --yellow:         #f0b90b;
+      --red:            #f6465d;
+      --text-primary:   #e5e9f2;
+      --text-secondary: #9aa3b5;
+      --border:         #2f3542;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ─── CONTAINER ─── */
+    .container {
+      max-width: 850px;
+      width : 90vw;
+      margin: 0 auto;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+    .logo-dot { color: var(--accent); }
+    .logout-btn {
+      padding: 8px 20px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .logout-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ─── HEADER BUTTONS ─── */
+    .header-buttons {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* ─── TAB NAVIGATION ─── */
+    .tab-navigation {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+    .tab-btn {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-btn:hover {
+      color: var(--text-primary);
+    }
+
+    /* ─── MAIN LAYOUT ─── */
+    .payment-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 32px;
+      margin-bottom: 32px;
+    }
+
+    /* ─── LEFT COLUMN ─── */
+    .payment-details {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      display: none;
+    }
+    .payment-details.active {
+      display: block;
+    }
+    .payment-details h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+    .plan-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #000;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 8px 16px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+    }
+
+    /* Network Tabs */
+    .network-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .network-tab {
+      flex: 1;
+      padding: 12px;
+      background: var(--bg-card);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .network-tab:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+    .network-tab.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+    }
+
+    /* Wallet Address Box */
+    .wallet-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .wallet-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .wallet-address-input {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .wallet-address-input input {
+      flex: 1;
+      padding: 12px;
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    .copy-btn {
+      padding: 12px 20px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .copy-btn:hover { opacity: 0.85; }
+
+    /* Amount Display */
+    .amount-display {
+      text-align: center;
+      margin: 24px 0;
+    }
+    .amount-display .label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .amount-display .amount {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+
+    /* Warning Box */
+    .warning-box {
+      background: rgba(240, 185, 11, 0.1);
+      border: 1px solid var(--yellow);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .warning-box p {
+      font-size: 13px;
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Features List */
+    .features-list {
+      list-style: none;
+      margin-top: 24px;
+    }
+    .features-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    .features-list li::before {
+      content: '✓';
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: var(--green);
+      color: #000;
+      border-radius: 50%;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    /* ─── RIGHT COLUMN ─── */
+    .payment-form {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      display: none;
+    }
+    .payment-form.active {
+      display: block;
+    }
+    .payment-form h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-family: inherit;
+      font-size: 14px;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    /* File Upload */
+    .file-upload {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .file-upload:hover {
+      border-color: var(--accent);
+      background: rgba(0, 229, 160, 0.05);
+    }
+    .file-upload input[type="file"] {
+      display: none;
+    }
+    .file-preview {
+      margin-top: 12px;
+      display: none;
+    }
+    .file-preview img {
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    /* Submit Button */
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      margin-top: 8px;
+    }
+    .submit-btn:hover { opacity: 0.85; }
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ─── STATUS SECTION ─── */
+    .status-section {
+      display: none;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 20px;
+    }
+    .status-badge.pending {
+      background: rgba(240, 185, 11, 0.2);
+      color: var(--yellow);
+      border: 1px solid var(--yellow);
+    }
+    .status-badge.verified {
+      background: rgba(14, 203, 129, 0.2);
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
+    .status-badge.rejected {
+      background: rgba(246, 70, 93, 0.2);
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .status-badge.pending::before {
+      content: '⏳';
+      animation: pulse 2s infinite;
+    }
+    .status-badge.verified::before {
+      content: '✅';
+    }
+    .status-badge.rejected::before {
+      content: '❌';
+    }
+
+    .status-details {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: left;
+    }
+    .status-details p {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .status-details p:last-child {
+      border-bottom: none;
+    }
+    .status-details .label {
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .status-details .value {
+      color: var(--text-primary);
+      font-weight: 700;
+    }
+
+    /* License Key Card */
+    .license-card {
+      background: linear-gradient(135deg, var(--green) 0%, var(--accent) 100%);
+      border-radius: 16px;
+      padding: 24px;
+      margin: 24px 0;
+    }
+    .license-card h3 {
+      color: #000;
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+    .license-key-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .license-key-box input {
+      flex: 1;
+      padding: 14px;
+      background: #000;
+      border: none;
+      border-radius: 8px;
+      color: var(--green);
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+    .license-key-box button {
+      padding: 14px 20px;
+      background: #000;
+      color: var(--green);
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .license-key-box button:hover { opacity: 0.85; }
+
+    .activate-btn {
+      width: 100%;
+      padding: 14px;
+      background: #000;
+      color: var(--green);
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+      transition: opacity 0.15s;
+    }
+    .activate-btn:hover { opacity: 0.85; }
+
+    /* ─── LICENSE ACTIVATION MODAL ─── */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+    }
+    .modal {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px; height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .modal-close:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-primary);
+    }
+    .modal h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 24px;
+    }
+
+    /* ─── FOOTER BUTTON ─── */
+    .footer-section {
+      text-align: center;
+      padding: 32px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .footer-btn {
+      padding: 12px 24px;
+      background: none;
+      color: var(--text-secondary);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .footer-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ─── MESSAGE BOXES ─── */
+    .message-box {
+      padding: 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .message-box.error {
+      background: rgba(246, 70, 93, 0.2);
+      color: var(--red);
+      border: 1px solid var(--red);
+    }
+    .message-box.success {
+      background: rgba(14, 203, 129, 0.2);
+      color: var(--green);
+      border: 1px solid var(--green);
+    }
+    .message-box.info {
+      background: rgba(0, 229, 160, 0.1);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    @media screen and (max-width : 450px) {
+      .payment-details{
+            padding: 12px;
+      }
+      body{
+        padding: 16px;
+      }
+      .header{
+        flex-direction: column;
+            align-items: flex-start;
+      }
+      .header-buttons{
+            width: 100%;
+    justify-content: space-between;
+    margin-top: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <a href="/" class="logo"><span class="logo-text">Scanr</span><span class="logo-dot">.</span></a>
+    <div class="header-buttons">
+      <button class="footer-btn" onclick="openActivationModal()">Already have a license key?</button>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+  </div>
+<div class="container">
+  <!-- Header -->
+
+  <!-- Main Payment Layout -->
+  <!-- Tab Navigation -->
+  <div class="tab-navigation">
+    <button class="tab-btn active" onclick="switchTab('purchase')">Complete Your Purchase</button>
+    <button class="tab-btn" onclick="switchTab('proof')">I've Sent Payment</button>
+  </div>
+
+  <div id="paymentLayout" class="payment-layout">
+    <!-- LEFT COLUMN: Payment Details -->
+    <div class="payment-details active" id="purchaseTab">
+      <h2>Complete Your Purchase</h2>
+      <div class="plan-badge" id="planBadge">Lifetime Plan - $49</div>
+
+      <div class="wallet-box">
+        <div class="wallet-label">USDT Payment - Select Network</div>
+        <div class="network-tabs">
+          <button class="network-tab active" data-network="TRC20" onclick="selectNetwork('TRC20')">TRC20</button>
+          <button class="network-tab" data-network="ERC20" onclick="selectNetwork('ERC20')">ERC20</button>
+          <button class="network-tab" data-network="BEP20" onclick="selectNetwork('BEP20')">BEP20</button>
+        </div>
+        <div class="wallet-address-input">
+          <input type="text" id="walletAddress" readonly value="Loading..."/>
+          <button class="copy-btn" onclick="copyWalletAddress()">Copy</button>
+        </div>
+      </div>
+
+      <div class="amount-display">
+        <div class="label">Amount to Send</div>
+        <div class="amount" id="amountDisplay">$49 USDT</div>
+      </div>
+
+      <div class="warning-box">
+        <p>⚠️ Send exact amount. Double check network before sending.</p>
+      </div>
+
+      <ul class="features-list">
+        <li>All current features</li>
+        <li>All future updates</li>
+        <li>Bybit integration</li>
+        <li>AI Trading Agent</li>
+        <li>Strategy Builder Bot</li>
+        <li>Email support</li>
+      </ul>
+    </div>
+
+    <!-- RIGHT COLUMN: Submit Payment Proof -->
+    <div class="payment-form" id="proofTab">
+      <h2>I've Sent Payment</h2>
+      <form id="proofForm" onsubmit="submitProof(event)">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="fullName" name="fullName" required placeholder="Enter your full name"/>
+        </div>
+        <div class="form-group">
+          <label>Email Address *</label>
+          <input type="email" id="email" name="email" required placeholder="Enter your email address"/>
+        </div>
+        <div class="form-group">
+          <label>Phone / WhatsApp *</label>
+          <input type="tel" id="phone" name="phone" required placeholder="Enter your phone number or WhatsApp"/>
+        </div>
+        <div class="form-group">
+          <label>Transaction ID / Hash *</label>
+          <input type="text" id="txId" name="txId" required placeholder="Enter your transaction ID"/>
+        </div>
+        <div class="form-group">
+          <label>Screenshot Upload *</label>
+          <div class="file-upload" onclick="document.getElementById('screenshot').click()">
+            <p style="color: var(--text-secondary); font-size: 14px;">Click to upload screenshot (JPG, PNG, WEBP)</p>
+            <input type="file" id="screenshot" name="screenshot" accept="image/jpeg,image/png,image/webp" required onchange="previewFile(event)"/>
+          </div>
+          <div class="file-preview" id="filePreview">
+            <img id="previewImg" src="" alt="Preview"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Message (Optional)</label>
+          <textarea id="message" name="message" placeholder="Any additional information..."></textarea>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn">Submit Payment Proof</button>
+        <div id="formMessage"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Status Section (Hidden initially) -->
+  <div id="statusSection" class="status-section">
+    <div id="statusContent"></div>
+  </div>
+
+  <!-- Footer Button -->
+  <div class="footer-section">
+    <!-- Buttons moved to header -->
+  </div>
+</div>
+
+<!-- License Activation Modal -->
+<div id="activationModal" class="modal-overlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeActivationModal()">&times;</button>
+    <h2>Activate License Key</h2>
+    <div class="form-group">
+      <label>License Key *</label>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="licenseKeyInput" style="flex: 1; font-family: 'Courier New', monospace;" placeholder="Enter your license key"/>
+        <button type="button" class="copy-btn" onclick="pasteKey()">Paste</button>
+      </div>
+    </div>
+    <button class="submit-btn" onclick="activateLicense()">Activate Account</button>
+    <div id="activationMessage"></div>
+  </div>
+</div>
+
+<script>
+  let selectedNetwork = 'TRC20';
+  let walletAddresses = {};
+  let selectedPlan = 'lifetime';
+  let planPrices = { lifetime: 49, monthly: 19, yearly: 129 };
+  let currentPayment = null;
+  const socket = io();
+
+  // Tab switching function
+  function switchTab(tabName) {
+    // Hide all tabs
+    document.getElementById('purchaseTab').classList.remove('active');
+    document.getElementById('proofTab').classList.remove('active');
+    
+    // Remove active class from all buttons
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    
+    // Show selected tab
+    if (tabName === 'purchase') {
+      document.getElementById('purchaseTab').classList.add('active');
+      document.querySelectorAll('.tab-btn')[0].classList.add('active');
+    } else if (tabName === 'proof') {
+      document.getElementById('proofTab').classList.add('active');
+      document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    }
+  }
+
+  // Check auth on load
+  window.addEventListener('DOMContentLoaded', async () => {
+    // Check if user already has active license
+    try {
+      const res = await fetch('/api/license/my-license');
+      if (!res.ok) {
+        if (res.status === 401) {
+          window.location.href = '/register?redirect=payment';
+          return;
+        }
+      } else {
+        const data = await res.json();
+        if (data.status === 'active') {
+          window.location.href = '/dashboard';
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('License check error:', err);
+      window.location.href = '/register?redirect=payment';
+      return;
+    }
+
+    // Get plan from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const plan = urlParams.get('plan') || 'lifetime';
+    selectedPlan = plan;
+
+    // Load data
+    loadWalletAddresses();
+    loadPrices();
+    checkExistingPayment();
+
+    // Socket.io real-time updates
+    socket.on('payment_verified', (data) => {
+      console.log('Payment verified!', data);
+      currentPayment = { ...currentPayment, status: 'verified', licenseKeyIssued: data.licenseKey };
+      showStatus();
+      triggerConfetti();
+    });
+
+    socket.on('payment_rejected', (data) => {
+      console.log('Payment rejected', data);
+      currentPayment = { ...currentPayment, status: 'rejected', rejectionReason: data.reason };
+      showStatus();
+    });
+  });
+
+  async function loadWalletAddresses() {
+    try {
+      const res = await fetch('/api/payment/wallet-addresses');
+      if (res.ok) {
+        const data = await res.json();
+        walletAddresses = data;
+        selectNetwork('TRC20');
+      }
+    } catch (err) {
+      console.error('Failed to load wallet addresses:', err);
+    }
+  }
+
+  async function loadPrices() {
+    try {
+      const res = await fetch('/api/payment/prices');
+      if (res.ok) {
+        const data = await res.json();
+        planPrices = {
+          lifetime: data.priceLifetime || 49,
+          monthly: data.priceMonthly || 19,
+          yearly: data.priceYearly || 129
+        };
+        updatePlanDisplay();
+      }
+    } catch (err) {
+      console.error('Failed to load prices:', err);
+    }
+  }
+
+  function updatePlanDisplay() {
+    const planNames = { lifetime: 'Lifetime', monthly: 'Monthly', yearly: 'Yearly' };
+    const price = planPrices[selectedPlan];
+    document.getElementById('planBadge').textContent = `${planNames[selectedPlan]} Plan - $${price}`;
+    document.getElementById('amountDisplay').textContent = `$${price} USDT`;
+  }
+
+  function selectNetwork(network) {
+    selectedNetwork = network;
+    document.querySelectorAll('.network-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.network === network);
+    });
+    const address = walletAddresses[`wallet${network}`] || 'Not configured';
+    document.getElementById('walletAddress').value = address;
+  }
+
+  function copyWalletAddress() {
+    const input = document.getElementById('walletAddress');
+    navigator.clipboard.writeText(input.value).then(() => {
+      const btn = event.target;
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = original; }, 2000);
+    });
+  }
+
+  function previewFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('previewImg').src = e.target.result;
+      document.getElementById('filePreview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function submitProof(event) {
+    event.preventDefault();
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+    document.getElementById('formMessage').innerHTML = '';
+
+    const formData = new FormData();
+    formData.append('fullName', document.getElementById('fullName').value);
+    formData.append('email', document.getElementById('email').value);
+    formData.append('phone', document.getElementById('phone').value);
+    formData.append('txId', document.getElementById('txId').value);
+    formData.append('screenshot', document.getElementById('screenshot').files[0]);
+    formData.append('message', document.getElementById('message').value);
+    formData.append('network', selectedNetwork);
+    formData.append('planType', selectedPlan);
+    formData.append('amount', planPrices[selectedPlan]);
+
+    try {
+      const res = await fetch('/api/payment/submit', {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        currentPayment = data.payment;
+        document.getElementById('proofTab').style.display = 'none';
+        showStatus();
+        startStatusPolling();
+        document.getElementById('statusSection').scrollIntoView({ behavior: 'smooth' });
+      } else if (data.error === 'You already have a pending payment') {
+        const formMsg = document.getElementById('formMessage');
+        formMsg.innerHTML = `
+          <div class="message-box error">${data.error}</div>
+          <button type="button" class="submit-btn" style="background: var(--yellow); color: #000; margin-top: 12px;" onclick="clearPendingPayment()">Clear Pending Payment</button>
+        `;
+      } else {
+        document.getElementById('formMessage').innerHTML = `<div class="message-box error">${data.error || 'Submission failed'}</div>`;
+      }
+    } catch (err) {
+      console.error('Submit error:', err);
+      document.getElementById('formMessage').innerHTML = `<div class="message-box error">Network error. Please try again.</div>`;
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Payment Proof';
+    }
+  }
+
+  async function checkExistingPayment() {
+    try {
+      const res = await fetch('/api/payment/my-status');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.payment) {
+          currentPayment = data.payment;
+          document.getElementById('proofTab').style.display = 'none';
+          showStatus();
+          if (data.payment.status === 'pending') {
+            startStatusPolling();
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Check payment error:', err);
+    }
+  }
+
+  async function clearPendingPayment() {
+    if (!confirm('Are you sure you want to clear your pending payment? You can then submit a new one.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/payment/clear-pending', { method: 'POST' });
+      const data = await res.json();
+
+      if (res.ok) {
+        currentPayment = null;
+        document.getElementById('proofTab').style.display = 'block';
+        document.getElementById('statusSection').style.display = 'none';
+        document.getElementById('formMessage').innerHTML = `<div class="message-box success">${data.message}</div>`;
+        document.getElementById('proofForm').reset();
+      } else {
+        document.getElementById('formMessage').innerHTML = `<div class="message-box error">${data.error || 'Failed to clear payment'}</div>`;
+      }
+    } catch (err) {
+      console.error('Clear payment error:', err);
+      document.getElementById('formMessage').innerHTML = `<div class="message-box error">Network error. Please try again.</div>`;
+    }
+  }
+
+  function showStatus() {
+    const section = document.getElementById('statusSection');
+    const content = document.getElementById('statusContent');
+    section.style.display = 'block';
+
+    if (!currentPayment) return;
+
+    const { status, txId, planType, amount, createdAt, licenseKeyIssued, rejectionReason } = currentPayment;
+    const planNames = { lifetime: 'Lifetime', monthly: 'Monthly', yearly: 'Yearly' };
+
+    if (status === 'pending') {
+      content.innerHTML = `
+        <div class="status-badge pending">Payment Pending Verification</div>
+        <div class="status-details">
+          <p><span class="label">Transaction ID:</span> <span class="value">${txId}</span></p>
+          <p><span class="label">Plan:</span> <span class="value">${planNames[planType] || planType}</span></p>
+          <p><span class="label">Amount:</span> <span class="value">$${amount} USDT</span></p>
+          <p><span class="label">Submitted:</span> <span class="value">${new Date(createdAt).toLocaleString()}</span></p>
+        </div>
+        <div class="message-box info">
+          We'll verify your payment and send your license key within 24 hours.
+        </div>
+        <p style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">
+          Need help? <a href="mailto:saadbaig789@gmail.com" style="color: var(--accent);">saadbaig789@gmail.com</a>
+        </p>
+      `;
+    } else if (status === 'verified') {
+      content.innerHTML = `
+        <div class="status-badge verified">Payment Confirmed!</div>
+        <div class="license-card">
+          <h3>Your License Key:</h3>
+          <div class="license-key-box">
+            <input type="password" id="licenseKeyDisplay" readonly value="${licenseKeyIssued}"/>
+            <button onclick="toggleLicenseVisibility()">👁️</button>
+            <button onclick="copyLicenseKey()">Copy</button>
+          </div>
+          <p style="color: #000; font-size: 13px; margin-top: 12px; font-weight: 600;">
+            Copy this key and activate your account below
+          </p>
+          <button class="activate-btn" onclick="openActivationModal()">Activate License</button>
+        </div>
+      `;
+    } else if (status === 'rejected') {
+      content.innerHTML = `
+        <div class="status-badge rejected">Payment Rejected</div>
+        <div class="message-box error">
+          ${rejectionReason || 'Your payment could not be verified.'}
+        </div>
+        <p style="margin-top: 16px; color: var(--text-secondary); font-size: 14px;">
+          Contact us at <a href="mailto:saadbaig789@gmail.com" style="color: var(--accent);">saadbaig789@gmail.com</a> for help
+        </p>
+        <button class="submit-btn" style="margin-top: 20px; max-width: 300px; margin-left: auto; margin-right: auto;" onclick="resetForm()">
+          Submit New Payment
+        </button>
+      `;
+    }
+  }
+
+  let statusPollInterval = null;
+  function startStatusPolling() {
+    if (statusPollInterval) clearInterval(statusPollInterval);
+    statusPollInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/payment/my-status');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.payment && data.payment.status !== currentPayment.status) {
+            currentPayment = data.payment;
+            showStatus();
+            if (data.payment.status === 'verified') {
+              triggerConfetti();
+              clearInterval(statusPollInterval);
+            } else if (data.payment.status === 'rejected') {
+              clearInterval(statusPollInterval);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+    }, 30000); // Poll every 30 seconds
+  }
+
+  function toggleLicenseVisibility() {
+    const input = document.getElementById('licenseKeyDisplay');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  function copyLicenseKey() {
+    const input = document.getElementById('licenseKeyDisplay');
+    navigator.clipboard.writeText(input.value).then(() => {
+      const btn = event.target;
+      const original = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = original; }, 2000);
+    });
+  }
+
+  function triggerConfetti() {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+  }
+
+  function resetForm() {
+    currentPayment = null;
+    document.getElementById('paymentForm').style.display = 'block';
+    document.getElementById('statusSection').style.display = 'none';
+    document.getElementById('proofForm').reset();
+    document.getElementById('filePreview').style.display = 'none';
+  }
+
+  // License Activation Modal
+  function openActivationModal() {
+    document.getElementById('activationModal').style.display = 'flex';
+    if (currentPayment && currentPayment.licenseKeyIssued) {
+      document.getElementById('licenseKeyInput').value = currentPayment.licenseKeyIssued;
+    }
+  }
+
+  function closeActivationModal() {
+    document.getElementById('activationModal').style.display = 'none';
+    document.getElementById('activationMessage').innerHTML = '';
+  }
+
+  async function pasteKey() {
+    try {
+      const text = await navigator.clipboard.readText();
+      document.getElementById('licenseKeyInput').value = text;
+    } catch (err) {
+      console.error('Paste error:', err);
+    }
+  }
+
+  async function activateLicense() {
+    const key = document.getElementById('licenseKeyInput').value.trim();
+    if (!key) {
+      document.getElementById('activationMessage').innerHTML = '<div class="message-box error">Please enter a license key</div>';
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/license/activate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ key })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        document.getElementById('activationMessage').innerHTML = `
+          <div class="message-box success">🎉 Account Activated!</div>
+          <button class="submit-btn" style="margin-top: 12px;" onclick="window.location.href='/dashboard'">Go to Dashboard</button>
+        `;
+      } else {
+        document.getElementById('activationMessage').innerHTML = `<div class="message-box error">${data.error || 'Activation failed'}</div>`;
+      }
+    } catch (err) {
+      console.error('Activation error:', err);
+      document.getElementById('activationMessage').innerHTML = '<div class="message-box error">Network error. Please try again.</div>';
+    }
+  }
+
+  function logout() {
+    window.location.href = '/logout';
+  }
+</script>
+
+</body>
+</html>

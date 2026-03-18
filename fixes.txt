@@ -1,66 +1,184 @@
-3. CREATE refund.html:
-   - Same styling as terms.html and privacy.html
-   - Content:
+Redesign the entire payment + license activation flow. Remove the 
+pricing page popup entirely and replace with this new flow:
 
-   REFUND POLICY — SCANR
+FLOW OVERVIEW:
+Pricing page "Buy Now" → Register/Login → Payment page → 
+Submit proof → Wait for admin verification → 
+Admin verifies → License key sent live → User activates
 
-   Last updated: March 2026
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. PRICING PAGE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- "Buy Now" button on each plan → redirect to /register
+- Pass selected plan in URL: /register?plan=lifetime
+- If user already logged in → redirect directly to /payment
 
-   Our Stance on Refunds
-   Scanr is a digital software product. Due to the nature of 
-   digital goods, all sales are final once a license key has 
-   been issued and activated.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. REGISTER/LOGIN PAGE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- After successful register or login → redirect to /payment
+- Pass plan through the flow: /payment?plan=lifetime
 
-   1. No Refund Policy
-   We do not offer refunds once:
-   - A license key has been generated and sent to you
-   - The license key has been activated on an account
-   - You have accessed the platform and its features
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. PAYMENT PAGE (payment.html) — NEW PAGE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Requires login — redirect to /login if not authenticated.
+If user already has active license → redirect to /dashboard.
 
-   2. Before You Buy
-   We strongly encourage you to:
-   - Read the full feature list on our features page
-   - Watch the demo video before purchasing
-   - Contact us on WhatsApp with any questions before payment
-   - Test the platform on demo mode before connecting real funds
-   We are happy to answer any questions before you commit to a purchase.
+PAGE LAYOUT — two column on desktop, stacked on mobile:
 
-   3. Exceptions
-   We will consider a refund ONLY in these situations:
-   - You were charged twice for the same purchase (duplicate payment)
-   - Your license key was never delivered and we cannot resolve 
-     the issue within 48 hours
-   - A technical issue on our end prevents you from accessing 
-     the platform and we cannot fix it within 72 hours
-   In these cases contact us on WhatsApp immediately with 
-   proof of payment.
+LEFT COLUMN — Payment Details:
+- Heading: "Complete Your Purchase"
+- Selected plan badge (Lifetime $69 / Monthly $19 / Yearly $129)
+- USDT Payment section:
+  * Network tabs: TRC20 | ERC20 | BEP20
+  * Wallet address box with copy button
+  * Amount to send in big text: "$69 USDT"
+  * Warning: "Send exact amount. Double check network before sending."
+- Features reminder list below:
+  * ✓ All current features
+  * ✓ All future updates
+  * ✓ Bybit integration
+  * ✓ AI Trading Agent
+  * ✓ Strategy Builder Bot
+  * ✓ WhatsApp support
 
-   4. Subscription Cancellations
-   If you are on a monthly or yearly subscription:
-   - You can cancel anytime from your account settings
-   - Cancellation stops future charges immediately
-   - No refund is issued for the current billing period
-   - You retain access until the end of your paid period
+RIGHT COLUMN — Submit Payment Proof form:
+- Heading: "I've Sent Payment"
+- Fields:
+  * Transaction ID / Hash (text input) *
+  * Screenshot upload (image only — jpg/png/webp) *
+  * Message (optional textarea)
+- Submit button: "Submit Payment Proof"
+- On submit:
+  * POST /api/payment/submit
+  * Save to DB: userId, email, name, txId, screenshotPath,
+    message, planType, amount, status: 'pending', createdAt
+  * Upload screenshot to /uploads/payments/
+  * Send email to admin (saadbaig789@gmail.com):
+    Subject: "New Payment — [name] — [plan] — $[amount]"
+    Body: all details + screenshot attached
+  * Show transaction status section (see point 4 below)
 
-   5. Demo Mode
-   Scanr offers a full demo mode that lets you test all features 
-   including the AI Agent and Strategy Bot without real funds. 
-   We strongly recommend using demo mode before going live.
-   The availability of demo mode means feature-related refund 
-   requests will not be considered.
+BOTTOM SECTION — Always visible on payment page:
+- "Already have a license key?" button (outlined, subtle)
+- Clicking opens License Activation Popup (see point 5)
 
-   6. Chargebacks
-   Filing a chargeback without contacting us first will result 
-   in permanent suspension of your license with no possibility 
-   of reinstatement. Please contact us first — we are always 
-   willing to resolve issues fairly.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. TRANSACTION STATUS SECTION:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+After submitting payment proof, hide the form and show:
 
-   7. Contact Us
-   For any payment issues or concerns contact us via:
-   - WhatsApp: (fetched from admin settings)
-   - Contact form: scanr.online
-   We aim to respond within 24 hours.
+If status = 'pending':
+- Yellow pulsing badge: "⏳ Payment Pending Verification"
+- Details: TxID, plan, amount, submitted time
+- Message: "We'll verify your payment and send your license 
+  key to [email] within 24 hours."
+- Email contact: "Need help? saadbaig789@gmail.com"
+- Page auto-refreshes status every 30 seconds via:
+  GET /api/payment/my-status (returns current payment status)
 
-4. LINK refund.html:
-   - Add "Refund Policy" link in footer of all landing pages 
-     alongside Terms of Service and Privacy Policy
+If status = 'verified' (admin verified):
+- Green badge: "✅ Payment Confirmed!"
+- Big card appears:
+  * "Your License Key:"
+  * License key in styled box with show/hide toggle (eye icon)
+  * Copy button → shows "Copied!" for 2 seconds
+  * Message: "Copy this key and activate your account below"
+- "Activate License" button → opens License Activation Popup
+- Confetti animation on page when status changes to verified
+
+If status = 'rejected':
+- Red badge: "❌ Payment Rejected"
+- Rejection reason shown if admin provided one
+- Message: "Contact us at saadbaig789@gmail.com for help"
+- Show payment form again so user can resubmit
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. LICENSE ACTIVATION POPUP:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Modal popup triggered by "Activate License" button or 
+  "Already have a license key?" button
+- Single input: License Key (text input, large, monospace font)
+- Paste button next to input
+- "Activate Account" button
+- On submit: POST /api/license/activate (existing endpoint)
+- On success:
+  * Show green success message: "🎉 Account Activated!"
+  * "Go to Dashboard" button → redirect to /dashboard
+- On error:
+  * Show error message (invalid key, already used, expired etc)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. ADMIN PANEL — Payments tab:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Table: Name | Email | Plan | Amount | TxID | Screenshot | 
+  Submitted | Status | Actions
+
+- Screenshot column: clickable thumbnail → opens full image in 
+  new tab
+
+- Status badges: 
+  Pending (yellow) | Verified (green) | Rejected (red)
+
+- Actions — "Verify & Send Key" button:
+  * Opens a small inline panel below the row (accordion style)
+  * Panel contains:
+    - License key input field (text input, monospace)
+    - "Generate Key" button next to input:
+      * Uses EXACT same license key generation logic as 
+        Admin Panel → Licenses tab generate button
+      * Generates key and auto-fills the input field
+    - "Confirm & Send to User" button:
+      * Saves license key to payment record in DB
+      * Updates payment status to 'verified'
+      * Sends email to user:
+        Subject: "Your Scanr License Key is Ready! 🎉"
+        Body: license key in big bold text, activation instructions
+      * Via Socket.io: emit 'payment_verified' event to that 
+        user's session so their payment page updates in real time
+        without needing to refresh
+      * Creates a License record in DB same as manually created keys
+      * Links license to user account (userId)
+  
+  * "Reject" button:
+    - Opens small input for rejection reason
+    - "Confirm Reject" button:
+      * Updates status to 'rejected'
+      * Sends rejection email to user
+      * Via Socket.io: emit 'payment_rejected' to user's session
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. REAL-TIME UPDATE VIA SOCKET.IO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- When admin clicks "Confirm & Send to User":
+  * Server emits to that specific user's socket:
+    socket.to(userSocketId).emit('payment_verified', { licenseKey })
+  * Payment page listens for this event
+  * On receiving: instantly update UI to verified state
+  * Show license key immediately
+  * Trigger confetti animation
+  * No page refresh needed — fully real-time
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. ADMIN SETTINGS — add wallet address fields:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- USDT TRC20 wallet address
+- USDT ERC20 wallet address
+- USDT BEP20 wallet address
+- Lifetime price USD (default 69)
+- Monthly price USD (default 19)
+- Yearly price USD (default 129)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+9. STYLING:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Dark theme matching Scanr (#0b0e11, #1a1d26, #252936)
+- Green: #0ecb81 for confirmed/success states
+- Yellow: #f0b90b for pending states
+- Red: #f6465d for rejected states
+- Mobile fully responsive
+- Smooth transitions on status changes
+- Confetti animation (use canvas-confetti CDN) on payment verified
+- Loading states on all form submissions
+- Auto-scroll to status section after form submit

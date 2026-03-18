@@ -154,6 +154,8 @@
   <button class="tab active" onclick="switchTab('licenses',this)">🗝️ Licenses</button>
   <button class="tab" onclick="switchTab('users',this)">👥 Users</button>
   <button class="tab" onclick="switchTab('revenue',this)">💰 Revenue</button>
+  <button class="tab" onclick="switchTab('referrals',this)">🤝 Referrals</button>
+  <button class="tab" onclick="switchTab('payments',this)">💳 Payments</button>
   <button class="tab" onclick="switchTab('settings',this)">⚙️ Settings</button>
   <button class="tab" onclick="switchTab('contacts',this)">📬 Contacts <span id="contactsBadge" style="display:none;background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px"></span></button>
 </div>
@@ -224,18 +226,114 @@
     </div>
   </div>
 
+  <!-- ── TAB: REFERRALS ── -->
+  <div class="page" id="page-referrals">
+    <div style="font-size:15px;font-weight:700;margin-bottom:20px">Referral System</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Pending Payouts</div>
+        <div class="stat-value" id="pendingPayoutTotal">$0.00</div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;margin-bottom:20px">
+      <div style="padding:20px;border-bottom:1px solid var(--border)">
+        <div style="font-weight:700">Commission Rate: <span id="commPctDisplay">20</span>%</div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Referrer</th><th>Referred Email</th><th>Date</th>
+              <th>Commission</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="refTbody"><tr class="empty-row"><td colspan="6">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div id="refTbody_pg" class="pg-bar"></div>
+    </div>
+  </div>
+
+  <!-- ── TAB: PAYMENTS ── -->
+  <div class="page" id="page-payments">
+    <div style="font-size:15px;font-weight:700;margin-bottom:20px">Payment Submissions</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Pending Verifications</div>
+        <div class="stat-value" id="pendingPaymentsCount">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Pending Value</div>
+        <div class="stat-value" id="totalPendingValue">$0.00</div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;margin-bottom:20px">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th><th>Email</th><th>Plan</th><th>Amount</th>
+              <th>TxID</th><th>Screenshot</th><th>Submitted</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="paymentsTbody"><tr class="empty-row"><td colspan="9">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div id="paymentsTbody_pg" class="pg-bar"></div>
+    </div>
+  </div>
+
   <!-- ── TAB: SETTINGS ── -->
   <div class="page" id="page-settings">
     <div style="font-size:15px;font-weight:700;margin-bottom:20px">Admin Settings</div>
     <div class="card" style="max-width:520px">
       <div class="form-field">
-        <label>Admin WhatsApp Number</label>
-        <input type="text" id="settingWA" placeholder="e.g. 923001234567 (with country code, no +)"/>
-        <div style="font-size:12px;color:var(--muted);margin-top:6px">Used on the License and Suspended pages for support contact.</div>
+        <label>Admin Email Address</label>
+        <input type="email" id="settingAdminEmail" placeholder="admin@example.com"/>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">Used for payment confirmations and support contact.</div>
       </div>
+
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:16px">Payment System Settings</div>
+        <div class="form-field">
+          <label>USDT TRC20 Wallet Address</label>
+          <input type="text" id="settingWalletTRC20" placeholder="Tron wallet address"/>
+        </div>
+        <div class="form-field">
+          <label>USDT ERC20 Wallet Address</label>
+          <input type="text" id="settingWalletERC20" placeholder="Ethereum wallet address"/>
+        </div>
+        <div class="form-field">
+          <label>USDT BEP20 Wallet Address</label>
+          <input type="text" id="settingWalletBEP20" placeholder="BSC wallet address"/>
+        </div>
+        <div class="form-field">
+          <label>Plan Price (USD)</label>
+          <input type="number" id="settingPricePlanStandard" placeholder="69" step="0.01"/>
+        </div>
+        <div class="form-field">
+          <label>Plan Price (PKR)</label>
+          <input type="number" id="settingPricePlanPKR" placeholder="19500" step="0.01"/>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:16px">Referral System</div>
+        <div class="form-field">
+          <label>Referral Commission Rate (%)</label>
+          <input type="number" id="settingCommissionPct" placeholder="20" min="1" max="100"/>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px">Percentage earned by referrers on each license sale.</div>
+        </div>
+        <div class="form-field">
+          <label>Referral Link Base URL</label>
+          <input type="text" id="settingReferralBaseUrl" placeholder="scanr.me"/>
+          <div style="font-size:12px;color:var(--muted);margin-top:6px">Domain used in referral links (e.g., scanr.me, app.example.com)</div>
+        </div>
+      </div>
+
       <div class="form-field">
         <label>App Name</label>
-        <input type="text" id="settingAppName" placeholder="e.g. Monty"/>
+        <input type="text" id="settingAppName" placeholder="e.g. Scanr"/>
       </div>
       <button class="save-btn" onclick="saveSettings()">Save Settings</button>
       <div class="form-msg" id="settingMsg"></div>
@@ -435,6 +533,8 @@ function switchTab(name, el) {
   if (name === 'licenses') loadLicenses();
   if (name === 'users')    loadUsers();
   if (name === 'revenue')  loadRevenue();
+  if (name === 'referrals') loadReferrals();
+  if (name === 'payments') loadPayments();
   if (name === 'settings') loadSettings();
   if (name === 'contacts') loadContacts();
 }
@@ -799,20 +899,242 @@ async function loadRevenue() {
 async function loadSettings() {
   try {
     const d = await api('GET', '/api/admin/settings');
-    if (d.whatsapp)  document.getElementById('settingWA').value      = d.whatsapp;
+    if (d.emailAdmin)  document.getElementById('settingAdminEmail').value      = d.emailAdmin;
     if (d.appName)   document.getElementById('settingAppName').value  = d.appName;
+    if (d.commissionPct)   document.getElementById('settingCommissionPct').value  = d.commissionPct;
+    if (d.referralBaseUrl) document.getElementById('settingReferralBaseUrl').value = d.referralBaseUrl;
+    if (d.walletTRC20) document.getElementById('settingWalletTRC20').value = d.walletTRC20;
+    if (d.walletERC20) document.getElementById('settingWalletERC20').value = d.walletERC20;
+    if (d.walletBEP20) document.getElementById('settingWalletBEP20').value = d.walletBEP20;
+    if (d.pricePlanStandard) document.getElementById('settingPricePlanStandard').value = d.pricePlanStandard;
+    if (d.pricePlanPKR) document.getElementById('settingPricePlanPKR').value = d.pricePlanPKR;
   } catch (e) { console.error(e); }
 }
 
 async function saveSettings() {
-  const whatsapp = document.getElementById('settingWA').value.trim();
+  const emailAdmin = document.getElementById('settingAdminEmail').value.trim() || 'saadbaig789@gmail.com';
   const appName  = document.getElementById('settingAppName').value.trim();
+  const commissionPct = parseFloat(document.getElementById('settingCommissionPct').value) || 20;
+  const referralBaseUrl = document.getElementById('settingReferralBaseUrl').value.trim() || 'scanr.me';
+  const walletTRC20 = document.getElementById('settingWalletTRC20').value.trim();
+  const walletERC20 = document.getElementById('settingWalletERC20').value.trim();
+  const walletBEP20 = document.getElementById('settingWalletBEP20').value.trim();
+  const pricePlanStandard = parseFloat(document.getElementById('settingPricePlanStandard').value) || 49;
+  const pricePlanPKR = parseFloat(document.getElementById('settingPricePlanPKR').value) || 19500;
   const msg      = document.getElementById('settingMsg');
   try {
-    await api('POST', '/api/admin/settings', { whatsapp, appName });
+    await api('POST', '/api/admin/settings', {
+      emailAdmin, appName, commissionPct, referralBaseUrl,
+      walletTRC20, walletERC20, walletBEP20,
+      pricePlanStandard, pricePlanPKR
+    });
     msg.textContent = 'Settings saved!'; msg.className = 'form-msg ok';
     setTimeout(() => msg.textContent = '', 3000);
+    // Reload referrals to show updated commission %
+    loadReferrals();
   } catch (e) { msg.textContent = e.message; msg.className = 'form-msg err'; }
+}
+
+// ── REFERRALS ──────────────────────────────────────────────────
+async function loadReferrals() {
+  const tbody = document.getElementById('refTbody');
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Loading…</td></tr>';
+  try {
+    const data = await api('GET', '/api/admin/referrals');
+    document.getElementById('commPctDisplay').textContent = '20'; // Default shown
+    document.getElementById('pendingPayoutTotal').textContent = '$' + (data.totalPendingPayout || 0).toFixed(2);
+
+    if (!data.referrals || data.referrals.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No referrals yet</td></tr>';
+      return;
+    }
+
+    let html = '';
+    data.referrals.forEach(r => {
+      const date = new Date(r.createdAt).toLocaleDateString();
+      const refName = r.referrerId?.firstName ? `${r.referrerId.firstName} ${r.referrerId.lastName || ''}` : 'Unknown';
+      const statusClass = r.status === 'converted' ? 'badge-warn' : r.status === 'paid' ? 'badge-ok' : 'badge-info';
+      const actionBtn = r.status === 'converted' ?
+        `<button class="sm-act-btn" onclick="markReferralAsPaid('${r._id}')">Mark Paid</button>` :
+        `<span style="color:var(--muted);font-size:12px">${r.status}</span>`;
+      html += `<tr>
+        <td>${refName}</td>
+        <td>${r.referredEmail}</td>
+        <td>${date}</td>
+        <td>$${(r.commissionAmount || 0).toFixed(2)}</td>
+        <td><span class="badge ${statusClass}">${r.status}</span></td>
+        <td>${actionBtn}</td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  } catch (e) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function markReferralAsPaid(referralId) {
+  if (!confirm('Mark this referral commission as paid?')) return;
+  try {
+    await api('POST', `/api/admin/referral/mark-paid/${referralId}`, {});
+    alert('Referral marked as paid and notification sent!');
+    loadReferrals();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ── PAYMENTS ──────────────────────────────────────────────────
+async function loadPayments() {
+  const tbody = document.getElementById('paymentsTbody');
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Loading…</td></tr>';
+  try {
+    const data = await api('GET', '/api/admin/payments');
+    const pending = data.payments.filter(p => p.status === 'pending');
+    const totalValue = pending.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    document.getElementById('pendingPaymentsCount').textContent = pending.length;
+    document.getElementById('totalPendingValue').textContent = '$' + totalValue.toFixed(2);
+
+    if (!data.payments || data.payments.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No payments yet</td></tr>';
+      return;
+    }
+
+    let html = '';
+    data.payments.forEach(p => {
+      const date = new Date(p.createdAt).toLocaleDateString();
+      const time = new Date(p.createdAt).toLocaleTimeString();
+      const statusClass = p.status === 'pending' ? 'badge-warn' : p.status === 'verified' ? 'badge-ok' : 'badge-danger';
+      const screenshotBtn = p.screenshotPath ?
+        `<a href="${p.screenshotPath}" target="_blank" style="font-size:11px;color:var(--accent)">View</a>` : '—';
+      const planDisplay = (p.planType || 'lifetime').charAt(0).toUpperCase() + (p.planType || 'lifetime').slice(1);
+      const actions = p.status === 'pending' ?
+        `<button class="sm-act-btn" onclick="toggleVerifyPanel('${p._id}')">Verify & Send Key</button> <button class="sm-act-btn" style="background:#ef4444" onclick="toggleRejectPanel('${p._id}')">Reject</button>` :
+        `<span style="color:var(--muted);font-size:12px">${p.status}</span>`;
+
+      html += `<tr id="payment-row-${p._id}">
+        <td>${p.buyerName}</td>
+        <td>${p.buyerEmail}</td>
+        <td>${planDisplay}</td>
+        <td>$${(p.amount || 0).toFixed(2)}</td>
+        <td style="font-size:11px;font-family:monospace;max-width:100px;overflow:hidden;text-overflow:ellipsis">${(p.txId || '').slice(0, 12)}...</td>
+        <td>${screenshotBtn}</td>
+        <td style="font-size:11px">${date}<br>${time}</td>
+        <td><span class="badge ${statusClass}">${p.status}</span></td>
+        <td>${actions}</td>
+      </tr>`;
+
+      // Accordion panel for verification (hidden by default)
+      html += `<tr id="verify-panel-${p._id}" style="display:none">
+        <td colspan="9" style="background:rgba(0,229,160,0.05);padding:20px;border-left:3px solid var(--accent)">
+          <div style="max-width:600px">
+            <h4 style="margin:0 0 16px;font-size:14px;font-weight:700">Generate & Send License Key</h4>
+            <div style="margin-bottom:12px">
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">License Key (Auto-generated or Custom)</label>
+              <div style="display:flex;gap:8px">
+                <input type="text" id="license-key-${p._id}" placeholder="SCAN-XXXX-XXXX-XXXX-XXXX" style="flex:1;padding:8px;background:var(--bg-base);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:monospace;font-size:12px"/>
+                <button class="sm-act-btn" onclick="generateLicenseKeyFor('${p._id}')" style="background:var(--accent);color:#000">Generate Key</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <button class="sm-act-btn" onclick="confirmAndSendKey('${p._id}')" style="background:var(--accent);color:#000;font-weight:700">Confirm & Send to User</button>
+              <button class="sm-act-btn" onclick="toggleVerifyPanel('${p._id}')" style="background:var(--border);color:var(--text)">Cancel</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+
+      // Accordion panel for rejection (hidden by default)
+      html += `<tr id="reject-panel-${p._id}" style="display:none">
+        <td colspan="9" style="background:rgba(239,68,68,0.05);padding:20px;border-left:3px solid #ef4444">
+          <div style="max-width:600px">
+            <h4 style="margin:0 0 16px;font-size:14px;font-weight:700;color:#ef4444">Reject Payment</h4>
+            <div style="margin-bottom:12px">
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">Rejection Reason</label>
+              <textarea id="reject-reason-${p._id}" placeholder="Enter reason for rejection..." style="width:100%;padding:8px;background:var(--bg-base);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;min-height:80px"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <button class="sm-act-btn" onclick="confirmReject('${p._id}')" style="background:#ef4444;color:#fff;font-weight:700">Confirm Reject</button>
+              <button class="sm-act-btn" onclick="toggleRejectPanel('${p._id}')" style="background:var(--border);color:var(--text)">Cancel</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  } catch (e) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">Error: ${e.message}</td></tr>`;
+  }
+}
+
+function toggleVerifyPanel(paymentId) {
+  const panel = document.getElementById(`verify-panel-${paymentId}`);
+  const rejectPanel = document.getElementById(`reject-panel-${paymentId}`);
+  if (rejectPanel) rejectPanel.style.display = 'none';
+  panel.style.display = panel.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function toggleRejectPanel(paymentId) {
+  const panel = document.getElementById(`reject-panel-${paymentId}`);
+  const verifyPanel = document.getElementById(`verify-panel-${paymentId}`);
+  if (verifyPanel) verifyPanel.style.display = 'none';
+  panel.style.display = panel.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function generateLicenseKeyFor(paymentId) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const seg = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const licenseKey = `SCAN-${seg()}-${seg()}-${seg()}-${seg()}`;
+  document.getElementById(`license-key-${paymentId}`).value = licenseKey;
+}
+
+async function confirmAndSendKey(paymentId) {
+  const licenseKey = document.getElementById(`license-key-${paymentId}`).value.trim();
+  if (!licenseKey) {
+    alert('Please enter or generate a license key first');
+    return;
+  }
+  if (!confirm(`Confirm sending license key to user?\n\nKey: ${licenseKey}`)) return;
+
+  try {
+    const result = await api('POST', `/api/admin/payment/verify/${paymentId}`, { licenseKey });
+    alert(`✓ License key sent to user:\n${result.licenseKey}`);
+    toggleVerifyPanel(paymentId);
+    loadPayments();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function confirmReject(paymentId) {
+  const reason = document.getElementById(`reject-reason-${paymentId}`).value.trim();
+  if (!reason) {
+    if (!confirm('Reject without providing a reason?')) return;
+  }
+  if (!confirm(`Confirm rejecting this payment?${reason ? '\n\nReason: ' + reason : ''}`)) return;
+
+  try {
+    await api('POST', `/api/admin/payment/reject/${paymentId}`, { reason });
+    alert('Payment rejected. User will be notified.');
+    toggleRejectPanel(paymentId);
+    loadPayments();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// Deprecated - kept for backwards compat
+async function verifyPayment(paymentId) {
+  if (!confirm('Verify this payment and issue license key?')) return;
+  try {
+    const result = await api('POST', `/api/admin/payment/verify/${paymentId}`, {});
+    alert(`✓ License key issued:\n${result.licenseKey}`);
+    loadPayments();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function rejectPayment(paymentId) {
+  const reason = prompt('Enter rejection reason (optional):');
+  if (reason === null) return;
+  try {
+    await api('POST', `/api/admin/payment/reject/${paymentId}`, { reason });
+    alert('Payment rejected. Buyer will be notified.');
+    loadPayments();
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 // ── CONTACTS ──────────────────────────────────────────────────

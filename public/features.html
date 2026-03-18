@@ -371,7 +371,7 @@
     </nav>
     <div class="lp-header-btns">
       <a href="/login" class="lp-btn-outline">Sign In</a>
-      <a href="/register" class="lp-btn-filled">Get Started</a>
+      <a href="/register?plan=lifetime&redirect=payment" class="lp-btn-filled">Get Started</a>
     </div>
     <button class="lp-mobile-menu" id="lpMobileMenu">&#9776;</button>
   </div>
@@ -570,7 +570,7 @@
 <div class="fg-wrap alt fade-in">
   <div class="fg-inner">
     <div class="fg-head">
-      <div class="fg-icon">&#129329;</div>
+      <div class="fg-icon">🧑‍💻</div>
       <div>
         <div class="fg-title">No-Code Strategy Builder</div>
         <div class="fg-subtitle">Build, backtest and automate trading strategies without coding</div>
@@ -578,7 +578,7 @@
     </div>
     <div class="fg-grid">
       <div class="fg-item">
-        <div class="fg-item-icon">&#129329;</div>
+        <div class="fg-item-icon">🧑‍💻</div>
         <div class="fg-item-body">
           <h4>Visual Drag &amp; Drop Builder</h4>
           <p>Build complex trading strategies using blocks — just like Scratch. No coding required. Drag conditions, actions and risk management blocks onto the canvas.</p>
@@ -751,7 +751,7 @@
       <a href="/refund">Refund Policy</a>
     </nav>
     <div class="lp-footer-right">
-      <a class="lp-wa-btn" id="lpWaFooter" href="#" target="_blank">&#128172; WhatsApp</a>
+      <a class="lp-wa-cta" href="mailto:saadbaig789@gmail.com">📧 Email Us</a>
       <p class="lp-copy">&copy; 2025 <span class="lp-logo-text">Scanr</span>. All rights reserved.</p>
     </div>
   </div>
@@ -779,16 +779,7 @@ document.getElementById('lpMobileMenu').addEventListener('click',()=>{
   document.getElementById('lpHeader').classList.toggle('nav-open');
 });
 
-/* ── WhatsApp CTA ── */
-fetch('/api/public/whatsapp').then(r=>r.ok?r.json():null).then(d=>{
-  if(!d?.whatsapp)return;
-  const num=d.whatsapp.replace(/\D/g,'');
-  const msg=encodeURIComponent('Hi, I want to purchase Scanr lifetime access ($30)');
-  const url=`https://wa.me/${num}?text=${msg}`;
-  document.querySelectorAll('.lp-wa-cta').forEach(el=>{el.href=url;});
-  const foot=document.getElementById('lpWaFooter');
-  if(foot)foot.href=url;
-}).catch(()=>{});
+
 
 /* ── Scroll fade-in ── */
 const obs=new IntersectionObserver(entries=>{
