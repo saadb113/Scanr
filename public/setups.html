@@ -267,6 +267,7 @@ let currentFilters = { direction: 'all', confidence: 'all', grade: 'all', sort: 
 let sockReady = false;
 const SETUPS_RESULTS_KEY = 'setups_saved_results_v1';
 const SETUPS_AI_KEY = 'setups_saved_ai_v1';
+const SETUPS_PREFS_KEY = 'setups_saved_prefs_v1';
 const expandedRows = new Set();
 const aiCache = new Map();
 
@@ -344,9 +345,16 @@ async function startScan() {
     progressPercent.textContent = '0%';
     progressStep.textContent = 'Starting scan...';
     
+    const coinsInput = document.getElementById('coinsToScan');
+    const minScoreInput = document.getElementById('minScore');
+    const coinsValue = Math.max(10, Math.min(500, parseInt(coinsInput.value, 10) || 50));
+    const minScoreValue = Math.max(10, Math.min(90, parseInt(minScoreInput.value, 10) || 35));
+    coinsInput.value = coinsValue;
+    minScoreInput.value = minScoreValue;
+    saveSetupsPrefs();
     const params = new URLSearchParams({
-      coins: document.getElementById('coinsToScan').value,
-      minScore: document.getElementById('minScore').value,
+      coins: String(coinsValue),
+      minScore: String(minScoreValue),
     });
     
     console.log('[Setups] Calling /api/setups/run');
@@ -379,6 +387,15 @@ async function startScan() {
     progressStep.textContent = `Error: ${err.message}`;
     scanBtn.disabled = false;
   }
+}
+
+function saveSetupsPrefs() {
+  try {
+    localStorage.setItem(SETUPS_PREFS_KEY, JSON.stringify({
+      coinsToScan: document.getElementById('coinsToScan').value,
+      minScore: document.getElementById('minScore').value,
+    }));
+  } catch {}
 }
 
 function renderSignals() {
@@ -555,6 +572,11 @@ function openTrade(symbol) {
 // Load on page load
 (function() {
   try {
+    const prefs = JSON.parse(localStorage.getItem(SETUPS_PREFS_KEY) || '{}');
+    if (prefs && typeof prefs === 'object') {
+      if (prefs.coinsToScan) document.getElementById('coinsToScan').value = prefs.coinsToScan;
+      if (prefs.minScore) document.getElementById('minScore').value = prefs.minScore;
+    }
     const saved = localStorage.getItem(SETUPS_RESULTS_KEY);
     if (saved) allSignals = JSON.parse(saved) || [];
     const savedAI = JSON.parse(localStorage.getItem(SETUPS_AI_KEY) || '{}');
@@ -570,6 +592,9 @@ function openTrade(symbol) {
     }
   });
 })();
+
+document.getElementById('coinsToScan').addEventListener('input', saveSetupsPrefs);
+document.getElementById('minScore').addEventListener('input', saveSetupsPrefs);
 </script>
 <script src="/js/session-check.js"></script>
 </body>

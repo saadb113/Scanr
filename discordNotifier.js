@@ -169,7 +169,7 @@ module.exports = { sendDiscordAlert, orderSummaryEmbed, positionClosedEmbed, aut
 // ── AI Day Trading Agent embeds ───────────────────────────────
 
 function agentStartEmbed(data) {
-    const coins = Array.isArray(data.coins) ? data.coins.join(', ') : (data.coins || '50+ coins');
+    const coins = Array.isArray(data.coins) ? data.coins.join(', ') : (data.coins || '100+ coins');
     return {
         title:  '🧠 AI Agent Started',
         color:  0x3b82f6,

@@ -1,77 +1,94 @@
-Revert ALL market data API calls back to Binance fapi.
-We are using server-side proxy for Binance so geo-restriction 
-and CORS are not an issue anymore.
+Optimize setups page scanner performance — currently scanning 
+coins sequentially (1 by 1) which is slow for 100+ coins.
+Replace with parallel batch processing.
 
-1. SEARCH entire codebase for Bybit market data calls and 
-   replace with Binance equivalents:
-
-   grep -r "api.bybit.com/v5/market" .
-   grep -r "proxy/bybit" public/
+1. PARALLEL SCANNING with Promise.allSettled:
+   Instead of:
+   for (const coin of coins) {
+     const result = await scanCoin(coin) // waits for each one
+   }
    
-   Replace every occurrence:
-
-   KLINES:
-   FROM: /api/proxy/bybit?endpoint=market/kline&category=linear&symbol=X&interval=Y&limit=Z
-   TO:   /api/proxy/binance?path=/fapi/v1/klines&symbol=X&interval=Ym&limit=Z
-   Note: interval format change — "1" → "1m", "5" → "5m", "60" → "1h", "240" → "4h"
-
-   24HR TICKER:
-   FROM: api.bybit.com/v5/market/tickers?category=linear&symbol=X
-   TO:   /api/proxy/binance?path=/fapi/v1/ticker/24hr&symbol=X
-
-   ALL SYMBOLS:
-   FROM: api.bybit.com/v5/market/instruments-info?category=linear
-   TO:   /api/proxy/binance?path=/fapi/v1/exchangeInfo
-
-   FUNDING RATE:
-   FROM: api.bybit.com/v5/market/funding/history?category=linear&symbol=X
-   TO:   /api/proxy/binance?path=/fapi/v1/fundingRate&symbol=X&limit=1
-
-   OPEN INTEREST:
-   FROM: api.bybit.com/v5/market/open-interest?category=linear&symbol=X
-   TO:   /api/proxy/binance?path=/fapi/v1/openInterest?symbol=X
-
-2. UPDATE response parsing back to Binance format:
-   Binance kline array format:
-   [openTime, open, high, low, close, volume, closeTime, 
-    quoteVolume, trades, takerBuyBase, takerBuyQuote, ignore]
-   index: 0=time, 1=open, 2=high, 3=low, 4=close, 5=volume
-
-   Bybit format was: [startTime, open, high, low, close, volume]
-   Make sure all indicator calculations use correct array indexes
-
-3. UPDATE WebSocket back to Binance:
-   FROM: wss://stream.bybit.com/v5/public/linear
-   TO:   wss://fstream.binance.com/ws/
+   Replace with:
+   const BATCH_SIZE = 20 // process 20 coins simultaneously
+   const results = []
    
-   Binance stream subscription:
-   Single stream: wss://fstream.binance.com/ws/btcusdt@kline_1m
-   Combined: wss://fstream.binance.com/stream?streams=btcusdt@kline_1m/ethusdt@kline_1m
+   for (let i = 0; i < coins.length; i += BATCH_SIZE) {
+     const batch = coins.slice(i, i + BATCH_SIZE)
+     const batchResults = await Promise.allSettled(
+       batch.map(coin => scanCoin(coin))
+     )
+     results.push(...batchResults)
+     
+     // Emit progress after each batch
+     const progress = Math.round((i + BATCH_SIZE) / coins.length * 100)
+     io.to(socketId).emit('scan_progress', { 
+       progress: Math.min(progress, 100),
+       scanned: Math.min(i + BATCH_SIZE, coins.length),
+       total: coins.length
+     })
+     
+     // Small delay between batches to avoid rate limiting
+     await new Promise(r => setTimeout(r, 200))
+   }
+
+2. BATCH SIZE recommendation:
+   - 20 coins per batch = safe for Binance rate limits
+   - 200ms delay between batches
+   - 100 coins = 5 batches × ~2-3 seconds each = ~15 seconds total
+   - vs current sequential = ~60-90 seconds
+   - 4-6x faster
+
+3. CACHE candle data:
+   - Cache fetched candles per symbol per timeframe for 60 seconds
+   - If same coin scanned again within 60 seconds use cached data
+   - Saves repeat API calls massively
+   - Use a simple Map: candleCache = new Map()
+   - Key: `${symbol}_${interval}`
+   - Value: { data, fetchedAt }
+   - Check age: if (Date.now() - fetchedAt < 60000) use cache
+
+4. FETCH 1h and 4h candles in parallel per coin:
+   Instead of:
+   const candles1h = await fetchCandles(symbol, '1h')
+   const candles4h = await fetchCandles(symbol, '4h') // waits
    
-   Candle closed check:
-   FROM: data.data[0].confirm === true
-   TO:   data.k.x === true
-
-4. FILES TO UPDATE:
-   - All public/js/ files
-   - All .html files with inline JS
-   - coinScanner.js (if any Bybit market calls were added)
-   - strategyBot.js (if any Bybit market calls were added)
-   - setups_routes.js
-   - agent.js / agent_routes.js / agent_day_routes.js
-
-5. KEEP Bybit for trading only (do not touch these):
-   - Order placement
-   - Position fetching
-   - Balance fetching
-   - Account data
-   - Anything using user's Bybit API key
-
-6. VERIFY after changes:
-   grep -r "api.bybit.com/v5/market" public/
-   grep -r "stream.bybit.com" public/
-   Both should return 0 results
+   Replace with:
+   const [candles1h, candles4h] = await Promise.all([
+     fetchCandles(symbol, '1h'),
+     fetchCandles(symbol, '4h')  // runs simultaneously
+   ])
    
-   grep -r "fapi.binance.com" *.js
-   grep -r "fstream.binance.com" *.js
-   These should still exist in backend files — that is correct
+   Also fetch funding rate and OI in same Promise.all:
+   const [candles1h, candles4h, fundingRate, openInterest] = 
+     await Promise.all([
+       fetchCandles(symbol, '1h'),
+       fetchCandles(symbol, '4h'),
+       fetchFundingRate(symbol),
+       fetchOpenInterest(symbol)
+     ])
+
+5. PRE-FETCH 24hr stats for ALL coins in ONE request:
+   Binance supports fetching ALL tickers in single call:
+   GET /api/proxy/binance?path=/fapi/v1/ticker/24hr
+   (no symbol param = returns ALL coins at once)
+   
+   Fetch this ONCE before the scan loop starts
+   Store in a Map keyed by symbol
+   Each coin lookup is instant from memory — no extra API call
+   
+   Same for exchange info — fetch once, reuse for all coins
+
+6. FRONTEND progress bar update:
+   Show real-time progress during parallel scan:
+   - "Scanning batch 1/5 (coins 1-20)..."
+   - "Scanning batch 2/5 (coins 21-40)..."
+   - Progress bar fills smoothly
+   - Show count: "Analyzed: 40/100 coins"
+   - When done: "Scan complete — found X signals in Y seconds"
+   - Show total time taken at end
+
+7. ERROR HANDLING:
+   - Use Promise.allSettled not Promise.all
+   - If one coin fails, continue with rest
+   - Log failed coins but don't stop the scan
+   - Skip coins that error out, don't include in results

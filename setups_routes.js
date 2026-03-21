@@ -10,6 +10,9 @@ const {
 
 let scanInProgress = false;
 let lastSignals = [];
+const candleCache = new Map();
+const CANDLE_CACHE_TTL_MS = 60 * 1000;
+const SCAN_BATCH_SIZE = 20;
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -195,23 +198,41 @@ async function calculateAllIndicators(symbol, candles1h, candles4h) {
 async function runIndicatorsForAll(filteredCoins, io, userId, progressStart, progressSpan) {
     const results = [];
     const totalCoins = filteredCoins.length || 1;
-    for (let i = 0; i < filteredCoins.length; i++) {
-        const coin = filteredCoins[i];
-        const p = progressStart + Math.round((i / totalCoins) * progressSpan);
+    const totalBatches = Math.max(1, Math.ceil(filteredCoins.length / SCAN_BATCH_SIZE));
+    for (let i = 0; i < filteredCoins.length; i += SCAN_BATCH_SIZE) {
+        const batchIndex = Math.floor(i / SCAN_BATCH_SIZE);
+        const batch = filteredCoins.slice(i, i + SCAN_BATCH_SIZE);
+        const settled = await Promise.allSettled(batch.map(async (coin) => {
+            const [candles1h, candles4h] = await Promise.all([
+                fetchCandlesCached(coin.symbol, '1h', 250),
+                fetchCandlesCached(coin.symbol, '4h', 250),
+            ]);
+            return calculateAllIndicators(coin.symbol, candles1h, candles4h);
+        }));
+        settled.forEach(r => {
+            if (r.status === 'fulfilled' && r.value) results.push(r.value);
+        });
+        const done = Math.min(i + SCAN_BATCH_SIZE, filteredCoins.length);
+        const p = progressStart + Math.round((done / totalCoins) * progressSpan);
         io.to(userId).emit('apex:progress', {
-            step: `Calculating indicators ${i + 1}/${filteredCoins.length} (${coin.symbol})...`,
+            step: `Scanning batch ${batchIndex + 1}/${totalBatches}... Analyzed: ${done}/${filteredCoins.length} coins`,
             progress: p,
         });
-        try {
-            const candles1h = await fetchCandles(coin.symbol, '1h', 250);
-            const candles4h = await fetchCandles(coin.symbol, '4h', 250);
-            const indicatorResult = await calculateAllIndicators(coin.symbol, candles1h, candles4h);
-            results.push(indicatorResult);
-        } catch {
-        }
-        if (i < filteredCoins.length - 1) await sleep(500);
+        if (done < filteredCoins.length) await sleep(200);
     }
     return results;
+}
+
+async function fetchCandlesCached(symbol, interval, limit = 250) {
+    const key = `${symbol}_${interval}_${limit}`;
+    const now = Date.now();
+    const cached = candleCache.get(key);
+    if (cached && now - cached.fetchedAt < CANDLE_CACHE_TTL_MS) {
+        return cached.data;
+    }
+    const data = await fetchCandles(symbol, interval, limit);
+    candleCache.set(key, { data, fetchedAt: now });
+    return data;
 }
 
 function scoreTrend(indicators) {
@@ -566,12 +587,45 @@ async function getOpenInterest(symbol) {
     }
 }
 
+async function runFundingAndOIForAll(testCoins, io, userId, progressStart, progressSpan) {
+    const fundingRates = {};
+    const openInterests = {};
+    const totalCoins = testCoins.length || 1;
+    const totalBatches = Math.max(1, Math.ceil(testCoins.length / SCAN_BATCH_SIZE));
+    for (let i = 0; i < testCoins.length; i += SCAN_BATCH_SIZE) {
+        const batchIndex = Math.floor(i / SCAN_BATCH_SIZE);
+        const batch = testCoins.slice(i, i + SCAN_BATCH_SIZE);
+        const settled = await Promise.allSettled(batch.map(async (coin) => {
+            const [fundingRate, openInterest] = await Promise.all([
+                getFundingRate(coin.symbol),
+                getOpenInterest(coin.symbol),
+            ]);
+            return { symbol: coin.symbol, fundingRate, openInterest };
+        }));
+        settled.forEach(r => {
+            if (r.status === 'fulfilled' && r.value) {
+                fundingRates[r.value.symbol] = r.value.fundingRate;
+                openInterests[r.value.symbol] = r.value.openInterest;
+            }
+        });
+        const done = Math.min(i + SCAN_BATCH_SIZE, testCoins.length);
+        const p = progressStart + Math.round((done / totalCoins) * progressSpan);
+        io.to(userId).emit('apex:progress', {
+            step: `Funding/OI batch ${batchIndex + 1}/${totalBatches}... Analyzed: ${done}/${testCoins.length} coins`,
+            progress: p,
+        });
+        if (done < testCoins.length) await sleep(200);
+    }
+    return { fundingRates, openInterests };
+}
+
 async function runApexScanner(io, userId, options = {}) {
     const coins = parseInt(options.coins, 10) || 50;
     const accountSize = parseFloat(options.accountSize) || 1000;
     const riskPercent = parseFloat(options.riskPercent) || 1;
     const rrRatio = parseFloat(options.rrRatio) || 1.5;
     const minScore = parseInt(options.minScore, 10) || 35;
+    const scanStartedAt = Date.now();
 
     if (scanInProgress) return lastSignals;
     scanInProgress = true;
@@ -595,9 +649,18 @@ async function runApexScanner(io, userId, options = {}) {
             minChangePercent: 2,
             minVolatilityPercent: 3,
             maxSpreadPercent: 15,
-            maxCoins: 50,
+            maxCoins: Math.max(coins, 50),
         });
-        const testCoins = filtered.slice(0, coins);
+        let testCoins = filtered.slice(0, coins);
+        if (testCoins.length < coins) {
+            const picked = new Set(testCoins.map(c => c.symbol));
+            const fallback = allStats
+                .slice()
+                .sort((a, b) => (b.quoteVolume || 0) - (a.quoteVolume || 0))
+                .filter(c => !picked.has(c.symbol))
+                .slice(0, coins - testCoins.length);
+            testCoins = testCoins.concat(fallback);
+        }
         if (!testCoins.length) {
             lastSignals = [];
             io.to(userId).emit('apex:done', { signals: [], count: 0 });
@@ -610,19 +673,7 @@ async function runApexScanner(io, userId, options = {}) {
         const indicatorResults = await runIndicatorsForAll(testCoins, io, userId, 28, 27);
 
         io.to(userId).emit('apex:progress', { step: 'Step 5/8: Funding & OI...', progress: 60 });
-        const fundingRates = {};
-        const openInterests = {};
-        for (let i = 0; i < testCoins.length; i++) {
-            const coin = testCoins[i];
-            fundingRates[coin.symbol] = await getFundingRate(coin.symbol);
-            openInterests[coin.symbol] = await getOpenInterest(coin.symbol);
-            const p = 60 + Math.round(((i + 1) / testCoins.length) * 10);
-            io.to(userId).emit('apex:progress', {
-                step: `Step 5/8: Funding & OI ${i + 1}/${testCoins.length} (${coin.symbol})...`,
-                progress: p,
-            });
-            await sleep(100);
-        }
+        const { fundingRates, openInterests } = await runFundingAndOIForAll(testCoins, io, userId, 60, 10);
 
         io.to(userId).emit('apex:progress', { step: 'Step 6/8: Scoring coins...', progress: 72 });
         const scored = scoreAllCoins(indicatorResults, fundingRates, openInterests);
@@ -649,7 +700,8 @@ async function runApexScanner(io, userId, options = {}) {
         }
 
         lastSignals = signals;
-        io.to(userId).emit('apex:progress', { step: 'Scan complete!', progress: 100 });
+        const durationSec = Math.max(1, Math.round((Date.now() - scanStartedAt) / 1000));
+        io.to(userId).emit('apex:progress', { step: `Scan complete — found ${signals.length} signals in ${durationSec}s`, progress: 100 });
         io.to(userId).emit('apex:done', { signals, count: signals.length });
         scanInProgress = false;
         clearTimeout(scanTimeout);
