@@ -151,6 +151,30 @@
           <div id="accentSavedMsg" style="display:none;text-align:center;font-size:13px;color:var(--accent-green,#00e5a0);margin-top:0.4rem;font-weight:600">✓ Saved!</div>
         </div>
 
+        <div class="sp-card">
+          <div class="sp-card-title">Clock Timezone</div>
+          <div class="s-row" style="display:flex;align-items:center;justify-content:space-between">
+            <label style="margin-bottom:0">Timezone</label>
+            <select id="sClockTimezone" class="s-input-full" style="max-width:260px">
+              <option value="America/New_York">New York (Default)</option>
+              <option value="America/Chicago">Chicago</option>
+              <option value="America/Los_Angeles">Los Angeles</option>
+              <option value="Europe/London">London</option>
+              <option value="Europe/Berlin">Berlin</option>
+              <option value="Asia/Dubai">Dubai</option>
+              <option value="Asia/Karachi">Karachi</option>
+              <option value="Asia/Kolkata">Kolkata</option>
+              <option value="Asia/Singapore">Singapore</option>
+              <option value="Asia/Tokyo">Tokyo</option>
+              <option value="Australia/Sydney">Sydney</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:0.5rem;margin-top:0.7rem">
+            <button onclick="saveClockTimezone()" style="flex:1;background:linear-gradient(135deg,#065f46,#00c896);color:#000;border:none;border-radius:8px;padding:0.45rem;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font-ui)">💾 Save Timezone</button>
+          </div>
+          <div id="tzSavedMsg" style="display:none;text-align:center;font-size:13px;color:var(--accent-green,#00e5a0);margin-top:0.4rem;font-weight:600">✓ Timezone Saved!</div>
+        </div>
+
       </div>
     </div>
 
@@ -861,6 +885,24 @@ function resetAccentColor() {
     if (hex) hex.value = def;
     if (typeof window.applyAccentColor === 'function') window.applyAccentColor(def);
 }
+
+async function saveClockTimezone() {
+    const tz = document.getElementById('sClockTimezone')?.value || 'America/New_York';
+    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clockTimezone: tz }) });
+    const msg = document.getElementById('tzSavedMsg');
+    if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 2500); }
+}
+
+(function loadClockTimezoneSetting() {
+    fetch('/api/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(s => {
+          const el = document.getElementById('sClockTimezone');
+          if (!el) return;
+          el.value = s?.clockTimezone || 'America/New_York';
+      })
+      .catch(() => {});
+})();
 </script>
 <!-- ══ INTEGRATION MODALS ══════════════════════════════════════ -->
 

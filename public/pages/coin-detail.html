@@ -539,9 +539,9 @@ function hmac256(secret, msg) {
 let clockOff = 0;
 async function syncClock() {
     try {
-        const r = await fetch('https://api.bybit.com/v5/market/time');
+        const r = await fetch('/api/proxy/binance?path=/fapi/v1/time');
         const d = await r.json();
-        const st = parseInt(d.result?.timeNano ? d.result.timeNano/1e6 : d.result?.timeSecond*1000);
+        const st = parseInt(d.serverTime);
         if (st) clockOff = st - Date.now();
     } catch(_) {}
 }
@@ -573,17 +573,17 @@ async function bybitReq(method, path, params, body) {
 // ── Live price ─────────────────────────────────────────────────
 async function fetchLivePrice(s) {
     try {
-        const r = await fetch(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${s}`);
+        const r = await fetch(`/api/proxy/binance?path=/fapi/v1/ticker/24hr&symbol=${s}`);
         if (!r.ok) return;
         const d = await r.json();
-        cdLivePrice = +d.lastPrice;
+        cdLivePrice = +(d?.lastPrice || 0);
         document.getElementById('cdEntry').value = cdLivePrice;
         document.getElementById('cdLiveTag').textContent = '● live';
-        const pct = +d.priceChangePercent;
+        const pct = +(d?.priceChangePercent || 0);
         const pctEl = document.getElementById('hdPct');
         pctEl.textContent = (pct>=0?'+':'')+pct.toFixed(2)+'%';
         pctEl.style.color = pct>=0 ? '#22c55e' : '#ef4444';
-        document.getElementById('hdPrice').textContent = '$' + (+d.lastPrice).toFixed(4);
+        document.getElementById('hdPrice').textContent = '$' + cdLivePrice.toFixed(4);
         cdUpdateSummary();
     } catch(_) {}
 }
@@ -594,17 +594,16 @@ async function fetchLivePrice(s) {
 
 async function cdFetchMaxLev(s) {
     try {
-        const r    = await fetch(`https://api.bybit.com/v5/market/instrument-info?category=${cdCategory}&symbol=${s}`);
+        const r    = await fetch(`/api/proxy/binance?path=/fapi/v1/exchangeInfo&symbol=${s}`);
         const d    = await r.json();
-        const info = d.result?.list?.[0];
+        const info = d.symbols?.[0];
         const ml   = cdCategory === 'spot' ? 1 : (+info?.leverageFilter?.maxLeverage || 100);
         cdMaxLev  = ml;
-        const cdQtyStepRaw = cdCategory === 'spot'
-            ? (info?.lotSizeFilter?.basePrecision || info?.lotSizeFilter?.minOrderQty || '0.001')
-            : (info?.lotSizeFilter?.qtyStep || '0.001');
-        cdQtyStep  = parseFloat(cdQtyStepRaw) || 0.001;
-        cdMinQty   = parseFloat(info?.lotSizeFilter?.minOrderQty || '0.001');
-        cdTickSize = parseFloat(info?.priceFilter?.tickSize       || '0');
+        const lot = (info?.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
+        const pf  = (info?.filters || []).find(f => f.filterType === 'PRICE_FILTER') || {};
+        cdQtyStep  = parseFloat(lot.stepSize || '0.001') || 0.001;
+        cdMinQty   = parseFloat(lot.minQty || '0.001');
+        cdTickSize = parseFloat(pf.tickSize || '0');
         document.getElementById('cdLevSlider').max = ml;
         document.getElementById('cdLevNum').max    = ml;
         document.getElementById('cdMaxLevLabel').textContent = cdCategory === 'spot' ? 'Spot' : 'Max: ' + ml + 'x';
@@ -614,13 +613,14 @@ async function cdFetchMaxLev(s) {
 async function cdFetchSpotInfo(s) {
     if (!s) return;
     try {
-        const r    = await fetch(`https://api.bybit.com/v5/market/instrument-info?category=spot&symbol=${s}`);
+        const r    = await fetch(`/api/proxy/binance?path=/fapi/v1/exchangeInfo&symbol=${s}`);
         const d    = await r.json();
-        const info = d.result?.list?.[0];
-        const cdSpotQtyStepRaw = info?.lotSizeFilter?.basePrecision || info?.lotSizeFilter?.minOrderQty || '0.001';
-        cdQtyStep  = parseFloat(cdSpotQtyStepRaw) || 0.001;
-        cdMinQty   = parseFloat(info?.lotSizeFilter?.minOrderQty || '0.001');
-        cdTickSize = parseFloat(info?.priceFilter?.tickSize       || '0');
+        const info = d.symbols?.[0];
+        const lot = (info?.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
+        const pf  = (info?.filters || []).find(f => f.filterType === 'PRICE_FILTER') || {};
+        cdQtyStep  = parseFloat(lot.stepSize || '0.001') || 0.001;
+        cdMinQty   = parseFloat(lot.minQty || '0.001');
+        cdTickSize = parseFloat(pf.tickSize || '0');
         document.getElementById('cdMaxLevLabel').textContent = 'Spot';
     } catch(_) {}
 }
@@ -1205,10 +1205,11 @@ async function cdRunAI() {
     btn.textContent = 'Analyzing…';
     body.innerHTML = '<div style="color:#9aa3b5;font-size:0.82rem;text-align:center;margin-top:2.5rem">Fetching candle data…</div>';
     try {
-        const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym}&interval=${tf}&limit=100`);
+        const tfMap = {'5':'5m','15':'15m','60':'1h','240':'4h','D':'1d'};
+        const r = await fetch(`/api/proxy/binance?path=/fapi/v1/klines&symbol=${sym}&interval=${tfMap[tf] || tf}&limit=100`);
         const d = await r.json();
-        if (!d.result?.list?.length) throw new Error('No kline data');
-        const raw     = d.result.list.reverse();
+        if (!Array.isArray(d) || !d.length) throw new Error('No kline data');
+        const raw     = d;
         const opens   = raw.map(c => parseFloat(c[1]));
         const highs   = raw.map(c => parseFloat(c[2]));
         const lows    = raw.map(c => parseFloat(c[3]));

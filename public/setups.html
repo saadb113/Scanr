@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Scan Setups</title>
+<title>Setup Scanner</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -17,245 +17,559 @@
   --radius:10px;--radius-sm:6px;--radius-lg:14px;
 }
 html,body{min-height:100%;background:var(--bg);color:var(--text-primary);font-family:var(--font-ui);font-size:clamp(14px,1vw,20px);line-height:1.5;-webkit-font-smoothing:antialiased}
-.wrap{max-width:960px;margin:0 auto;padding:1rem 1rem 3rem}
+.wrap{max-width:1200px;margin:0 auto;padding:1rem 1rem 3rem}
 html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1f8;--border:#cdd5e3;--border-mid:#b4bfcf;--text-primary:#1a2335;--text-secondary:#445068;--text-muted:#7080a0;}
 
-/* Scan button area */
-.scan-hero{text-align:center;padding:1.5rem 0 1.25rem}
-.scan-title{font-size:1.4rem;font-weight:800;margin-bottom:0.35rem}
-.scan-sub{font-size:0.88rem;color:var(--text-muted);margin-bottom:1.25rem}
-.scan-btn{display:inline-flex;align-items:center;gap:0.5rem;background:var(--green);color:#000;font-family:var(--font-ui);font-size:0.95rem;font-weight:800;padding:0.65rem 1.8rem;border:none;border-radius:var(--radius);cursor:pointer;transition:opacity .15s}
+/* Header */
+.page-header{margin-bottom:2rem}
+.page-title{font-size:1.8rem;font-weight:800;margin-bottom:0.5rem}
+.page-sub{font-size:0.9rem;color:var(--text-muted)}
+
+/* Controls bar */
+.controls-bar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1.5rem;display:grid;grid-template-columns:4fr 4fr 4fr 4fr;gap:1rem;align-items:flex-end}
+.control-group{display:flex;flex-direction:column}
+.control-label{font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:0.4rem}
+.control-input{background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.6rem 0.8rem;color:var(--text-primary);font-family:var(--font-ui);font-size:0.9rem;outline:none;transition:border-color 0.15s}
+.control-input:focus{border-color:var(--green)}
+.scan-btn{background:var(--green);color:#000;font-weight:800;padding:0.7rem 1.8rem;border:none;border-radius:var(--radius-sm);cursor:pointer;font-size:0.95rem;transition:opacity 0.15s;}
 .scan-btn:hover{opacity:0.88}
 .scan-btn:disabled{opacity:0.45;cursor:not-allowed}
 
-/* Section title */
-.section-title{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-muted);margin-bottom:0.65rem}
+/* Progress */
+.progress-wrap{background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1.5rem;display:none}
+.progress-step{font-size:0.85rem;color:var(--text-secondary);margin-bottom:0.5rem}
+.progress-bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--blue));width:0%;transition:width 0.3s ease}
 
-/* Log feed */
-.log-box{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:0.75rem 1rem;margin-bottom:1.25rem;max-height:180px;overflow-y:auto;font-family:var(--font-mono);font-size:0.78rem;display:none}
-.log-line{padding:0.1rem 0;border-bottom:1px solid var(--border)}
-.log-line:last-child{border-bottom:none}
-.log-pass{color:var(--green)}
-.log-filtered{color:var(--text-muted)}
-.log-error{color:var(--red)}
-.log-info{color:var(--text-secondary)}
+/* Filters row */
+.filters-row{display:flex;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;align-items:center}
+.filter-btn{background:transparent;border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.5rem 1rem;color:var(--text-secondary);font-size:0.85rem;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--font-ui)}
+.filter-btn.active{background:var(--green);color:#000;border-color:var(--green)}
+.filter-btn:hover:not(.active){border-color:var(--green)}
+.results-count{margin-left:auto;font-size:0.85rem;color:var(--text-muted)}
 
-/* Results grid */
-.results-empty{text-align:center;padding:2.5rem;color:var(--text-muted);font-size:0.9rem}
-.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.85rem}
-.result-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.1rem;transition:border-color .15s}
-.result-card:hover{border-color:var(--border-mid)}
-.rc-sym{font-size:1.2rem;font-weight:800;color:var(--text-primary);letter-spacing:-0.3px;margin-bottom:0.45rem}
-.rc-badge{display:inline-block;font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;padding:0.18rem 0.45rem;border-radius:4px;margin-left:0.4rem;vertical-align:middle}
-.rc-badge.long{background:var(--green-dim);color:var(--green);border:1px solid #0a3320}
-.rc-badge.short{background:var(--red-dim);color:var(--red);border:1px solid #3a0510}
-.rc-stats{display:flex;flex-direction:column;gap:0.2rem;margin-top:0.3rem}
-.rc-stat{display:flex;justify-content:space-between;align-items:center;font-size:0.78rem}
-.rc-stat label{color:var(--text-muted)}
-.rc-stat span{font-family:var(--font-mono);font-weight:700;color:var(--text-secondary)}
-.rc-view{display:inline-block;margin-top:0.65rem;background:var(--bg-raised);border:1px solid var(--border-mid);border-radius:var(--radius-sm);padding:0.25rem 0.65rem;font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-decoration:none;transition:color .15s,border-color .15s}
-.rc-view:hover{color:var(--green);border-color:var(--green)}
+/* Signals table */
+.signals-grid{margin-bottom:2rem;overflow-x:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-card)}
+.signals-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.signals-table th,.signals-table td{padding:0.65rem 0.7rem;border-bottom:1px solid var(--border);font-size:0.8rem;white-space:normal;word-break:break-word}
+.signals-table th{position:sticky;top:0;background:var(--bg-raised);color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;font-size:.72rem;text-align:left}
+.signals-table tr:hover{background:rgba(77,168,255,0.05)}
+.signals-table tr.basic-row{cursor:pointer}
+.signals-table tr.basic-row.open{background:rgba(77,168,255,0.08)}
+.dir-long{color:var(--green);font-weight:700}
+.dir-short{color:var(--red);font-weight:700}
+.table-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+.ai-expand-row td{background:var(--bg-raised);padding:0.9rem;white-space:normal!important}
+.ai-panel{border:1px solid var(--border);border-radius:8px;padding:0.8rem;background:var(--bg-card)}
+.ai-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:.5rem;margin:.65rem 0}
+.ai-box{background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:.45rem}
+.ai-box-label{font-size:.62rem;color:var(--text-muted);text-transform:uppercase}
+.ai-box-value{font-size:.8rem;font-weight:700}
+.signal-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;transition:all 0.15s;animation:cardFadeIn 0.4s ease}
+@keyframes cardFadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.signal-card.long{border-left:4px solid var(--green)}
+.signal-card.short{border-left:4px solid var(--red)}
+.signal-card.a-plus{box-shadow:inset 0 0 0 1px var(--amber),0 0 16px rgba(245,166,35,0.2)}
+
+/* Card header */
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem}
+.card-symbol{font-size:1.4rem;font-weight:800;color:var(--text-primary)}
+.card-badges{display:flex;gap:0.4rem;flex-wrap:wrap}
+.badge{display:inline-flex;align-items:center;padding:0.3rem 0.65rem;border-radius:4px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+.badge.direction{background:var(--green-dim);color:var(--green);border:1px solid #0a3320}
+.badge.direction.short{background:var(--red-dim);color:var(--red);border:1px solid #3a0510}
+.badge.grade-aplus{background:var(--amber-dim);color:var(--amber);border:1px solid #3a2600}
+.badge.grade-a{background:var(--green-dim);color:var(--green)}
+.badge.grade-b{background:rgba(77,168,255,0.15);color:var(--blue)}
+.badge.grade-c{background:var(--amber-dim);color:var(--amber)}
+.badge.confidence-high{background:var(--green-dim);color:var(--green)}
+.badge.confidence-medium{background:var(--amber-dim);color:var(--amber)}
+.badge.confidence-low{background:var(--red-dim);color:var(--red)}
+
+/* Score section */
+.score-section{background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem;margin-bottom:1rem}
+.score-display{display:flex;align-items:center;gap:1rem;margin-bottom:0.8rem}
+.score-circle{width:60px;height:60px;border-radius:50%;background:var(--bg-card);border:3px solid var(--green);display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:800;color:var(--green)}
+.score-breakdown{display:flex;flex-direction:column;gap:0.35rem;flex:1}
+.score-item{display:flex;align-items:center;gap:0.4rem;font-size:0.75rem}
+.score-bar{height:4px;background:var(--border);border-radius:2px;flex:1;overflow:hidden}
+.score-fill{height:100%;background:var(--green);border-radius:2px;transition:width 0.3s}
+.score-label{color:var(--text-muted);min-width:60px}
+.score-value{color:var(--text-secondary);font-weight:700;min-width:35px;text-align:right}
+
+/* Trade levels */
+.levels-section{margin-bottom:1rem}
+.level-row{display:flex;justify-content:space-between;align-items:center;padding:0.6rem;font-size:0.85rem;border-bottom:1px solid var(--border)}
+.level-row:last-child{border-bottom:none}
+.level-label{color:var(--text-muted)}
+.level-value{font-family:var(--font-mono);font-weight:700;color:var(--text-primary)}
+.level-value.sl{color:var(--red)}
+.level-value.tp{color:var(--green)}
+.level-distance{color:var(--text-secondary);font-size:0.75rem}
+
+/* Position sizing */
+.sizing-section{background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0.8rem;margin-bottom:1rem;font-size:0.8rem}
+.sizing-row{display:flex;justify-content:space-between;padding:0.4rem 0}
+.sizing-label{color:var(--text-muted)}
+.sizing-value{font-family:var(--font-mono);font-weight:700;color:var(--text-secondary)}
+
+/* Reasons & warnings */
+.reasons-section{margin-bottom:1rem}
+.reason-list{display:flex;flex-direction:column;gap:0.3rem;font-size:0.8rem}
+.reason{color:var(--text-secondary);padding:0.3rem 0}
+.reason::before{content:'✓ ';color:var(--green);font-weight:700}
+.warnings-section{margin-bottom:1rem}
+.warning-chip{display:inline-flex;align-items:center;gap:0.3rem;background:rgba(245,166,35,0.15);color:var(--amber);border:1px solid var(--amber);border-radius:4px;padding:0.35rem 0.65rem;font-size:0.75rem;font-weight:600;margin-right:0.4rem;margin-bottom:0.4rem}
+
+/* Indicators footer */
+.indicators-footer{display:grid;grid-template-columns:repeat(2,1fr);gap:0.5rem;font-size:0.75rem;padding-top:1rem;border-top:1px solid var(--border)}
+.indicator-item{display:flex;justify-content:space-between}
+.indicator-label{color:var(--text-muted)}
+.indicator-value{font-family:var(--font-mono);font-weight:700;color:var(--text-secondary)}
+
+/* Card actions */
+.card-actions{display:flex;gap:0.5rem;margin-top:1rem}
+.action-btn{flex:1;padding:0.5rem 0.6rem;background:var(--bg-raised);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-secondary);font-size:0.75rem;font-weight:700;cursor:pointer;transition:all 0.15s;font-family:var(--font-ui)}
+.action-btn:hover{background:var(--border-mid);color:var(--green);border-color:var(--green)}
+.action-btn.primary{background:var(--green);color:#000;border-color:var(--green)}
+.action-btn.primary:hover{opacity:0.88}
+
+/* Empty state */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--text-muted)}
+.empty-icon{font-size:2.5rem;margin-bottom:1rem}
+.empty-text{font-size:1rem;margin-bottom:0.5rem}
+.empty-sub{font-size:0.9rem;color:var(--text-muted)}
 
 /* Spinner */
 @keyframes spin{to{transform:rotate(360deg)}}
-.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border-mid);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:0.4rem}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border-mid);border-top-color:var(--green);border-radius:50%;animation:spin 0.7s linear infinite}
 
-/* Progress bar */
-.scan-progress-wrap{height:4px;background:var(--bg-raised);border-radius:2px;overflow:hidden;margin-bottom:1rem;display:none}
-.scan-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--blue));border-radius:2px;transition:width 0.3s ease}
+@media (max-width: 900px){
+  .wrap{padding:0.7rem 0.6rem 2rem}
+  .page-title{font-size:1.35rem}
+  .page-sub{font-size:0.78rem}
+  .controls-bar{grid-template-columns:2fr 2fr;gap:.7rem;padding:.85rem}
+  .scan-btn{padding:.65rem 1rem;font-size:.85rem}
+  .filters-row{gap:.45rem}
+  .filter-btn{padding:.35rem .6rem;font-size:.75rem}
+  .results-count{width:100%;margin-left:0}
+  .signals-grid{overflow-x:hidden}
+  .signals-table{table-layout:fixed;min-width:0;width:100%}
+  .signals-table th,.signals-table td{font-size:.74rem;padding:.5rem .5rem;white-space:normal;word-break:break-word}
+  .signals-table tr.ai-expand-row td{white-space:normal!important}
+  .ai-panel{overflow-wrap:anywhere}
+  .ai-grid{grid-template-columns:1fr 1fr}
+}
 
-/* Status bar */
-.status-bar{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:0.6rem 1rem;margin-bottom:1.25rem;font-size:0.83rem;color:var(--text-muted);display:none;align-items:center;gap:0.5rem}
-.status-bar.visible{display:flex}
+@media (max-width: 560px){
+  .controls-bar{grid-template-columns:1fr}
+  .scan-btn{grid-column:span 1}
+  .signals-table{min-width:0}
+  .ai-grid{grid-template-columns:2fr 2fr}
+}
 </style>
 </head>
 <body>
 <script src="/js/nav.js"></script>
 <div class="wrap">
 
-  <!-- Scan hero -->
-  <div class="scan-hero">
-    <div class="scan-title">Setup Scanner</div>
-    <div class="scan-sub">Runs hard filters (volume, ATR, EMA trend alignment, RSI) on your coin list</div>
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="page-title">Setup Scanner</div>
+    <div class="page-sub">Scan more than 100 pairs for technical analysis, AI scoring, and full position sizing</div>
+  </div>
+
+  <!-- Controls Bar -->
+  <div class="controls-bar">
+    <div class="control-group">
+      <div class="control-label">Min Score</div>
+      <input type="number" class="control-input" id="minScore" value="35" min="10" max="90"/>
+    </div>
+    <div class="control-group">
+      <div class="control-label">Coins to Scan</div>
+      <input type="number" class="control-input" id="coinsToScan" value="50" min="10" max="500"/>
+    </div>
     <button class="scan-btn" id="scanBtn" onclick="startScan()">
-      <span>🔍</span> Scan Now
+      <span id="scanBtnText">Run Scanner</span>
+    </button>
+    <button class="scan-btn" style="background:transparent;color:var(--text-secondary);border:1px solid var(--border);grid-column:span 1" onclick="clearSavedResults()">
+      Clear Results
     </button>
   </div>
 
-  <!-- Progress bar -->
-  <div class="scan-progress-wrap" id="scanProgressWrap">
-    <div class="scan-progress-fill" id="scanProgressFill"></div>
+  <!-- Progress -->
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-step" id="progressStep">Starting scan...</div>
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+    <div style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-muted);text-align:right">
+      <span id="progressPercent">0%</span>
+    </div>
   </div>
 
-  <!-- Status bar -->
-  <div class="status-bar" id="statusBar">
-    <span class="spinner" id="statusSpinner" style="display:none"></span>
-    <span id="statusText">Ready</span>
+  <!-- Filters Row -->
+  <div class="filters-row" id="filtersRow" style="display:none">
+    <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted)">Direction:</div>
+    <button class="filter-btn active" onclick="filterBy('direction','all')">All</button>
+    <button class="filter-btn" onclick="filterBy('direction','LONG')">LONG</button>
+    <button class="filter-btn" onclick="filterBy('direction','SHORT')">SHORT</button>
+    
+    <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-left:1rem">Confidence:</div>
+    <button class="filter-btn active" onclick="filterBy('confidence','all')">All</button>
+    <button class="filter-btn" onclick="filterBy('confidence','HIGH')">HIGH</button>
+    <button class="filter-btn" onclick="filterBy('confidence','MEDIUM')">MEDIUM</button>
+    <button class="filter-btn" onclick="filterBy('confidence','LOW')">LOW</button>
+
+    <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted);margin-left:1rem">Grade:</div>
+    <button class="filter-btn active" onclick="filterBy('grade','all')">All</button>
+    <button class="filter-btn" onclick="filterBy('grade','A+')">A+</button>
+    <button class="filter-btn" onclick="filterBy('grade','A')">A</button>
+    <button class="filter-btn" onclick="filterBy('grade','B')">B</button>
+
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.5rem">
+      <div style="font-size:0.85rem;font-weight:600;color:var(--text-muted)">Sort:</div>
+      <select onchange="sortBy(this.value)" style="background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);padding:0.4rem 0.6rem;border-radius:var(--radius-sm);font-family:var(--font-ui);font-size:0.85rem">
+        <option value="score">Score</option>
+        <option value="confidence">Confidence</option>
+        <option value="grade">Grade</option>
+      </select>
+    </div>
+    <div class="results-count" id="resultsCount">Showing 0 signals</div>
   </div>
 
-  <!-- Log feed -->
-  <div class="section-title" id="logTitle" style="display:none">Scan Progress</div>
-  <div class="log-box" id="logBox"></div>
+  <!-- Signals Grid -->
+  <div class="signals-grid" id="signalsGrid"></div>
 
-  <!-- Results -->
-  <div id="resultsTitleRow" style="display:none;align-items:center;gap:0.75rem;margin-bottom:0.65rem;flex-wrap:wrap">
-    <div class="section-title" style="margin-bottom:0">Passed Hard Filters</div>
-    <span id="resultsScanTime" style="font-size:0.75rem;color:var(--text-muted)"></span>
-    <button id="clearResultsBtn" onclick="clearSavedResults()" style="margin-left:auto;background:transparent;border:1px solid var(--border-mid);border-radius:var(--radius-sm);color:var(--text-muted);font-size:0.75rem;font-weight:600;padding:0.2rem 0.65rem;cursor:pointer;font-family:var(--font-ui);transition:color 0.15s,border-color 0.15s" onmouseover="this.style.color='var(--red)';this.style.borderColor='var(--red)'" onmouseout="this.style.color='var(--text-muted)';this.style.borderColor='var(--border-mid)'">✕ Clear Results</button>
+  <!-- Empty State -->
+  <div class="empty-state" id="emptyState" style="display:none">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-text">No signals found</div>
+    <div class="empty-sub">Run a scan to find trading signals</div>
   </div>
-  <div id="resultsContainer"></div>
 
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-const SETUPS_KEY   = 'monty-setups-results';
-const scanBtn      = document.getElementById('scanBtn');
-const statusBar    = document.getElementById('statusBar');
-const statusText   = document.getElementById('statusText');
-const statusSpinner = document.getElementById('statusSpinner');
-const logBox       = document.getElementById('logBox');
-const logTitle     = document.getElementById('logTitle');
-const resultsTitleRow = document.getElementById('resultsTitleRow');
-const resultsScanTime = document.getElementById('resultsScanTime');
-const resultsContainer = document.getElementById('resultsContainer');
-const progressWrap = document.getElementById('scanProgressWrap');
-const progressFill = document.getElementById('scanProgressFill');
-let _scanTotal = 0, _scanDone = 0;
+const scanBtn = document.getElementById('scanBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressStep = document.getElementById('progressStep');
+const progressPercent = document.getElementById('progressPercent');
+const signalsGrid = document.getElementById('signalsGrid');
+const emptyState = document.getElementById('emptyState');
+const filtersRow = document.getElementById('filtersRow');
+const resultsCount = document.getElementById('resultsCount');
 
-function setStatus(msg, spinning = false) {
-  statusBar.classList.add('visible');
-  statusText.textContent = msg;
-  statusSpinner.style.display = spinning ? 'inline-block' : 'none';
+let allSignals = [];
+let currentFilters = { direction: 'all', confidence: 'all', grade: 'all', sort: 'score' };
+let sockReady = false;
+const SETUPS_RESULTS_KEY = 'setups_saved_results_v1';
+const SETUPS_AI_KEY = 'setups_saved_ai_v1';
+const expandedRows = new Set();
+const aiCache = new Map();
+
+// Socket.io setup first
+let sock = null;
+try {
+  sock = io();
+  
+  sock.on('connect', () => {
+    console.log('[Setups] Socket connected');
+    sockReady = true;
+  });
+  
+  sock.on('disconnect', () => {
+    console.log('[Setups] Socket disconnected');
+    sockReady = false;
+  });
+  
+  sock.on('apex:progress', (data) => {
+    console.log('[Setups] Progress:', data);
+    progressStep.textContent = data.step;
+    progressFill.style.width = data.progress + '%';
+    progressPercent.textContent = data.progress + '%';
+  });
+  
+  sock.on('apex:done', (data) => {
+    console.log('[Setups] Scan done:', data.count, 'signals');
+    allSignals = data.signals || [];
+    localStorage.setItem(SETUPS_RESULTS_KEY, JSON.stringify(allSignals));
+    progressStep.textContent = `Scan complete! Found ${allSignals.length} signals`;
+    progressFill.style.width = '100%';
+    progressPercent.textContent = '100%';
+    setTimeout(() => {
+      progressWrap.style.display = 'none';
+      renderSignals();
+    }, 800);
+    scanBtn.disabled = false;
+  });
+  
+  sock.on('apex:error', (data) => {
+    console.log('[Setups] Error:', data.error);
+    progressStep.textContent = `Error: ${data.error}`;
+    progressFill.style.width = '0%';
+    progressPercent.textContent = '0%';
+    scanBtn.disabled = false;
+  });
+} catch (e) {
+  console.error('[Setups] Socket error:', e);
 }
 
-function addLog(msg, level = 'info') {
-  logTitle.style.display = 'block';
-  logBox.style.display = 'block';
-  const el = document.createElement('div');
-  el.className = 'log-line log-' + level;
-  el.textContent = msg;
-  logBox.appendChild(el);
-  logBox.scrollTop = logBox.scrollHeight;
+async function startScan() {
+  try {
+    console.log('[Setups] Starting scan...', 'Socket ready:', sockReady);
+    
+    if (!sockReady) {
+      progressStep.textContent = 'Waiting for connection...';
+      // Wait up to 5 seconds for socket to connect
+      for (let i = 0; i < 50; i++) {
+        if (sockReady) break;
+        await new Promise(r => setTimeout(r, 100));
+      }
+      if (!sockReady) {
+        progressStep.textContent = 'Error: Socket connection failed';
+        scanBtn.disabled = false;
+        return;
+      }
+    }
+    
+    scanBtn.disabled = true;
+    signalsGrid.innerHTML = '';
+    emptyState.style.display = 'none';
+    filtersRow.style.display = 'none';
+    progressWrap.style.display = 'block';
+    progressFill.style.width = '0%';
+    progressPercent.textContent = '0%';
+    progressStep.textContent = 'Starting scan...';
+    
+    const params = new URLSearchParams({
+      coins: document.getElementById('coinsToScan').value,
+      minScore: document.getElementById('minScore').value,
+    });
+    
+    console.log('[Setups] Calling /api/setups/run');
+    const res = await fetch(`/api/setups/run?${params}`, { method: 'POST' });
+    console.log('[Setups] Response status:', res.status);
+    console.log('[Setups] Response content-type:', res.headers.get('content-type'));
+    
+    // Check if response is JSON
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const textBody = await res.text();
+      console.error('[Setups] Response is not JSON, got:', textBody.substring(0, 200));
+      progressStep.textContent = `Error: Server returned invalid response (${res.status})`;
+      scanBtn.disabled = false;
+      return;
+    }
+    
+    if (!res.ok) {
+      const err = await res.json();
+      console.error('[Setups] API error:', err);
+      progressStep.textContent = `Error: ${err.error || 'Scan failed'}`;
+      scanBtn.disabled = false;
+      return;
+    }
+    
+    const data = await res.json();
+    console.log('[Setups] Scan initiated:', data);
+  } catch (err) {
+    console.error('[Setups] Error:', err);
+    progressStep.textContent = `Error: ${err.message}`;
+    scanBtn.disabled = false;
+  }
 }
 
-function renderResults(candidates, timestamp) {
-  if (!candidates || !candidates.length) {
-    resultsTitleRow.style.display = 'flex';
-    resultsScanTime.textContent = timestamp ? '— ' + _fmtTime(timestamp) : '';
-    resultsContainer.innerHTML = '<div class="results-empty">No coins passed the hard filters this time.</div>';
+function renderSignals() {
+  let filtered = allSignals;
+  
+  // Apply filters
+  if (currentFilters.direction !== 'all') {
+    filtered = filtered.filter(s => s.direction === currentFilters.direction);
+  }
+  if (currentFilters.confidence !== 'all') {
+    filtered = filtered.filter(s => s.confidence === currentFilters.confidence);
+  }
+  if (currentFilters.grade !== 'all') {
+    filtered = filtered.filter(s => s.grade === currentFilters.grade);
+  }
+  
+  // Sort
+  if (currentFilters.sort === 'score') {
+    filtered.sort((a, b) => b.score - a.score);
+  } else if (currentFilters.sort === 'confidence') {
+    const confOrder = { 'HIGH': 0, 'MEDIUM': 1, 'LOW': 2 };
+    filtered.sort((a, b) => confOrder[a.confidence] - confOrder[b.confidence]);
+  } else if (currentFilters.sort === 'grade') {
+    const gradeOrder = { 'A+': 0, 'A': 1, 'B': 2, 'C': 3, 'D': 4, 'F': 5 };
+    filtered.sort((a, b) => gradeOrder[a.grade] - gradeOrder[b.grade]);
+  }
+  
+  resultsCount.textContent = `Showing ${filtered.length} signals`;
+  
+  if (filtered.length === 0) {
+    signalsGrid.innerHTML = '';
+    emptyState.style.display = 'block';
+    filtersRow.style.display = 'none';
     return;
   }
-  resultsTitleRow.style.display = 'flex';
-  resultsScanTime.textContent = timestamp ? '— ' + _fmtTime(timestamp) : '';
-  resultsContainer.innerHTML = '<div class="results-grid">' +
-    candidates.map(c => {
-      const dir   = c.direction || 'long';
-      const rsiClr = dir === 'long' ? 'var(--green)' : 'var(--red)';
-      const sym   = c.symbol.replace('USDT', '');
-      const price = c.price < 1 ? c.price.toFixed(5) : Number(c.price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      return `<div class="result-card">
-        <div class="rc-sym">${sym}<span class="usdt" style="font-size:0.68rem;color:var(--text-muted);font-weight:400;margin-left:3px">USDT</span>
-          <span class="rc-badge ${dir}">${dir.toUpperCase()}</span>
-        </div>
-        <div class="rc-stats">
-          <div class="rc-stat"><label>Price</label><span>$${price}</span></div>
-          <div class="rc-stat"><label>RSI 5m</label><span style="color:${rsiClr}">${c.rsi5m}</span></div>
-          <div class="rc-stat"><label>Vol 24h</label><span>${c.volume}M</span></div>
-          <div class="rc-stat"><label>ATR 5m</label><span>${c.atr5m}</span></div>
-        </div>
-        <a class="rc-view" href="/coin-detail?sym=${c.symbol}">View Details →</a>
-      </div>`;
-    }).join('') + '</div>';
-}
-
-function _fmtTime(ts) {
-  const d = new Date(ts);
-  return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }) + ' ' +
-    d.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
-}
-
-function saveResults(candidates) {
-  try {
-    localStorage.setItem(SETUPS_KEY, JSON.stringify({ time: Date.now(), candidates }));
-  } catch(_) {}
+  
+  filtersRow.style.display = 'flex';
+  
+  signalsGrid.innerHTML = `
+    <table class="signals-table">
+      <thead>
+        <tr>
+          <th>Symbol</th><th>Dir</th><th>Score</th><th>Conf</th><th>Grade</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${filtered.map(s => `
+          <tr id="row-${s.symbol}" class="basic-row ${expandedRows.has(s.symbol) ? 'open' : ''}" onclick="toggleAI('${s.symbol}')">
+            <td>${s.symbol.replace('USDT','')}</td>
+            <td class="${s.direction === 'LONG' ? 'dir-long' : 'dir-short'}">${s.direction}</td>
+            <td>${s.score}</td>
+            <td>${s.confidence}</td>
+            <td>${s.grade}</td>
+          </tr>
+          ${expandedRows.has(s.symbol) ? `<tr class="ai-expand-row"><td colspan="5">
+            ${renderAIPanel(s.symbol)}
+          </td></tr>` : ''}
+        `).join('')}
+      </tbody>
+    </table>
+  `;
 }
 
 function clearSavedResults() {
-  try { localStorage.removeItem(SETUPS_KEY); } catch(_) {}
-  resultsTitleRow.style.display = 'none';
-  resultsContainer.innerHTML = '';
-  statusBar.classList.remove('visible');
+  allSignals = [];
+  expandedRows.clear();
+  aiCache.clear();
+  localStorage.removeItem(SETUPS_RESULTS_KEY);
+  localStorage.removeItem(SETUPS_AI_KEY);
+  renderSignals();
 }
 
-// Load saved results on page load
-(function loadSavedResults() {
-  try {
-    const raw = localStorage.getItem(SETUPS_KEY);
-    if (!raw) return;
-    const { time, candidates } = JSON.parse(raw);
-    renderResults(candidates, time);
-  } catch(_) {}
-})();
-
-async function startScan() {
-  scanBtn.disabled = true;
-  logBox.innerHTML = '';
-  logBox.style.display = 'none';
-  logTitle.style.display = 'none';
-  resultsContainer.innerHTML = '';
-  resultsTitleRow.style.display = 'none';
-  _scanTotal = 0; _scanDone = 0;
-  progressFill.style.width = '0%';
-  progressWrap.style.display = 'none';
-  setStatus('Starting scan…', true);
-
-  try {
-    const r = await fetch('/api/scan/setups', { method: 'POST' });
-    const j = await r.json();
-    if (!j.ok) {
-      setStatus(j.error || 'Failed to start scan', false);
-      scanBtn.disabled = false;
+function filterBy(type, value) {
+  currentFilters[type] = value;
+  // Update button states
+  document.querySelectorAll(`.filter-btn`).forEach(btn => {
+    btn.classList.remove('active');
+    const btnValue = btn.textContent.trim();
+    if (btnValue === value || (value === 'all' && btnValue === 'All')) {
+      btn.classList.add('active');
     }
-    // Results come via socket.io
-  } catch (e) {
-    setStatus('Error: ' + e.message, false);
-    scanBtn.disabled = false;
+  });
+  renderSignals();
+}
+
+function sortBy(value) {
+  currentFilters.sort = value;
+  renderSignals();
+}
+
+function buildSetupsAIPrompt(signal) {
+  return `You are an expert crypto futures technical analyst. Analyze ${signal.symbol} on 1h/4h setup data.
+Current price: ${signal.entry}
+Direction signal: ${signal.direction}
+Score: ${signal.score}, Confidence: ${signal.confidence}, Grade: ${signal.grade}
+Indicators: RSI1h=${signal.indicators?.rsi1h}, RSI4h=${signal.indicators?.rsi4h}, Funding=${signal.indicators?.fundingRate ?? 'N/A'}
+Setup: ${signal.setup || ''}
+Reasons: ${(signal.reasons || []).join('; ')}
+Warnings: ${(signal.warnings || []).join('; ') || 'None'}
+
+Respond ONLY in JSON:
+{"direction":"LONG or SHORT or NEUTRAL","entry":<number>,"tp":<number>,"sl":<number>,"rr":"<e.g. 1:2.3>","confidence":"LOW or MEDIUM or HIGH","reasoning":"<4-6 sentences>"}`
+}
+
+function renderAIPanel(symbol) {
+  const cached = aiCache.get(symbol);
+  if (!cached) return `<div class="ai-panel"><div style="color:var(--text-muted)">Click "Analyze with AI" to analyze this setup.</div><div class="table-actions" style="margin-top:.7rem"><button class="action-btn" onclick="event.stopPropagation();runRowAI('${symbol}')">Analyze with AI</button><button class="action-btn primary" onclick="event.stopPropagation();openTrade('${symbol}')">Trade</button></div></div>`;
+  if (cached.loading) return `<div class="ai-panel"><div class="spinner"></div> <span style="color:var(--text-muted);margin-left:.4rem">Analyzing...</span><div class="table-actions" style="margin-top:.7rem"><button class="action-btn" disabled>Analyzing...</button><button class="action-btn primary" onclick="event.stopPropagation();openTrade('${symbol}')">Trade</button></div></div>`;
+  if (cached.error) return `<div class="ai-panel"><div style="color:var(--red)">Error: ${cached.error}</div><div class="table-actions" style="margin-top:.7rem"><button class="action-btn" onclick="event.stopPropagation();runRowAI('${symbol}')">Analyze with AI</button><button class="action-btn primary" onclick="event.stopPropagation();openTrade('${symbol}')">Trade</button></div></div>`;
+  const r = cached.result || {};
+  const dirColor = (r.direction === 'LONG') ? 'var(--green)' : (r.direction === 'SHORT' ? 'var(--red)' : 'var(--amber)');
+  return `<div class="ai-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:800;color:${dirColor}">${r.direction || 'NEUTRAL'}</div>
+      <div style="font-size:.72rem;color:var(--text-muted)">${r.confidence || ''}</div>
+    </div>
+    <div class="ai-grid">
+      <div class="ai-box"><div class="ai-box-label">Entry</div><div class="ai-box-value">${r.entry ?? '—'}</div></div>
+      <div class="ai-box"><div class="ai-box-label">SL</div><div class="ai-box-value" style="color:var(--red)">${r.sl ?? '—'}</div></div>
+      <div class="ai-box"><div class="ai-box-label">TP</div><div class="ai-box-value" style="color:var(--green)">${r.tp ?? '—'}</div></div>
+      <div class="ai-box"><div class="ai-box-label">R:R</div><div class="ai-box-value">${r.rr ?? '—'}</div></div>
+    </div>
+    <div style="font-size:.82rem;color:var(--text-secondary);line-height:1.55">${(r.reasoning || '').replace(/\n/g,'<br>')}</div>
+    <div class="table-actions" style="margin-top:.7rem">
+      <button class="action-btn" onclick="event.stopPropagation();runRowAI('${symbol}')">Analyze with AI</button>
+      <button class="action-btn primary" onclick="event.stopPropagation();openTrade('${symbol}')">Trade</button>
+    </div>
+  </div>`;
+}
+
+function toggleAI(symbol) {
+  if (expandedRows.has(symbol)) {
+    expandedRows.delete(symbol);
+    renderSignals();
+    return;
   }
+  expandedRows.add(symbol);
+  renderSignals();
 }
 
-// Socket.io
-try {
-  const sock = io();
-  sock.on('setups:start', ({ total }) => {
-    _scanTotal = total || 0;
-    _scanDone = 0;
-    progressFill.style.width = '0%';
-    progressWrap.style.display = 'block';
-  });
-  sock.on('setups:log', ({ message, level }) => {
-    setStatus('Scanning…', true);
-    addLog(message, level === 'pass' ? 'pass' : level === 'error' ? 'error' : level === 'filtered' ? 'filtered' : 'info');
-    if (level === 'pass' || level === 'filtered' || level === 'error') {
-      _scanDone++;
-      if (_scanTotal > 0) progressFill.style.width = Math.min(Math.round(_scanDone / _scanTotal * 100), 95) + '%';
+async function runRowAI(symbol) {
+  const signal = allSignals.find(s => s.symbol === symbol);
+  if (!signal) return;
+  aiCache.set(symbol, { loading: true });
+  renderSignals();
+  try {
+    const prompt = buildSetupsAIPrompt(signal);
+    const resp = await fetch('/api/ai/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) throw new Error(data.error || `Server ${resp.status}`);
+    const cleaned = (data.result || '').replace(/```json|```/gi, '').trim();
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    const result = JSON.parse(match ? match[0] : cleaned);
+    aiCache.set(symbol, { loading: false, result });
+    try {
+      const savedAI = JSON.parse(localStorage.getItem(SETUPS_AI_KEY) || '{}');
+      savedAI[symbol] = { result };
+      localStorage.setItem(SETUPS_AI_KEY, JSON.stringify(savedAI));
+    } catch {}
+  } catch (e) {
+    aiCache.set(symbol, { loading: false, error: e.message });
+  }
+  renderSignals();
+}
+
+function openTrade(symbol) {
+  window.location.href = `/terminal?sym=${symbol}`;
+}
+
+// Load on page load
+(function() {
+  try {
+    const saved = localStorage.getItem(SETUPS_RESULTS_KEY);
+    if (saved) allSignals = JSON.parse(saved) || [];
+    const savedAI = JSON.parse(localStorage.getItem(SETUPS_AI_KEY) || '{}');
+    Object.keys(savedAI).forEach(sym => aiCache.set(sym, savedAI[sym]));
+  } catch {}
+  fetch('/api/setups/signals').then(r => r.json()).then(d => {
+    if (d.signals && d.signals.length > 0) {
+      allSignals = d.signals;
+      localStorage.setItem(SETUPS_RESULTS_KEY, JSON.stringify(allSignals));
+      renderSignals();
+    } else if (allSignals.length > 0) {
+      renderSignals();
     }
   });
-  sock.on('setups:done', ({ candidates, error }) => {
-    progressFill.style.width = '100%';
-    setTimeout(() => { progressWrap.style.display = 'none'; progressFill.style.width = '0%'; }, 700);
-    scanBtn.disabled = false;
-    if (error) {
-      setStatus('Error: ' + error, false);
-      return;
-    }
-    const n = (candidates || []).length;
-    setStatus(`Scan complete — ${n} coin${n !== 1 ? 's' : ''} passed hard filters`, false);
-    const now = Date.now();
-    saveResults(candidates || []);
-    renderResults(candidates, now);
-  });
-} catch {}
+})();
 </script>
 <script src="/js/session-check.js"></script>
 </body>

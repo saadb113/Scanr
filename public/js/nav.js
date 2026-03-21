@@ -26,10 +26,10 @@
     <nav class="sh-nav" id="shNav">
       <a class="sh-link" href="/dashboard">Dashboard</a>
       <a class="sh-link" href="/scanner">Scanner</a>
+      <a class="sh-link" href="/setups">Setups</a>
       <a class="sh-link" href="/strategy">Strategy</a>
       <a class="sh-link" href="/terminal">Trade</a>
       <a class="sh-link" href="/challenge">Challenge</a>
-      <a class="sh-link" href="/setups">Setups</a>
       <a class="sh-link" href="/agent">AI Agent(Beta)</a>
     
       <a class="sh-link sh-admin-link" href="/admin" id="shAdminLink" style="display:none">Admin</a>
@@ -62,20 +62,26 @@
     setTimeout(() => loaderEl.remove(), 320);
   });
 
-  // ── PST clock (UTC+5) ──────────────────────────────────────
+  let __clockTimezone = 'America/New_York';
   function updateClock() {
-    const d    = new Date(Date.now() + 5 * 60 * 60 * 1000);
-    const day  = d.getUTCDate();
-    const mon  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
-    let   hr   = d.getUTCHours();
-    const ampm = hr >= 12 ? 'PM' : 'AM';
-    hr = hr % 12 || 12;
-    const mm   = String(d.getUTCMinutes()).padStart(2, '0');
-    const el   = document.getElementById('shClock');
-    if (el) el.textContent = `${day} ${mon}, ${hr}:${mm}${ampm} PKT`;
+    const d = new Date();
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: __clockTimezone,
+      day: '2-digit',
+      month: 'short',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).formatToParts(d);
+    const day = parts.find(p => p.type === 'day')?.value || '';
+    const mon = parts.find(p => p.type === 'month')?.value || '';
+    const hr = parts.find(p => p.type === 'hour')?.value || '';
+    const mm = parts.find(p => p.type === 'minute')?.value || '';
+    const ampm = parts.find(p => p.type === 'dayPeriod')?.value || '';
+    const tz = (__clockTimezone || 'America/New_York').split('/').pop().replace('_', ' ');
+    const el = document.getElementById('shClock');
+    if (el) el.textContent = `${day} ${mon}, ${hr}:${mm}${ampm} ${tz}`;
   }
-  updateClock();
-  setInterval(updateClock, 1000);
 
   // ── Active link highlight ──────────────────────────────────
   const path = window.location.pathname;
@@ -179,8 +185,14 @@
   // Apply on load for pages that don't use app.js
   fetch('/api/settings')
     .then(r => r.ok ? r.json() : null)
-    .then(s => { if (s && s.accentColor) window.applyAccentColor(s.accentColor); })
+    .then(s => {
+      if (s && s.accentColor) window.applyAccentColor(s.accentColor);
+      __clockTimezone = s?.clockTimezone || 'America/New_York';
+      updateClock();
+    })
     .catch(() => {});
+  updateClock();
+  setInterval(updateClock, 1000);
 
   // ── Hamburger mobile menu ─────────────────────────────────────
   const hamburger = document.getElementById('shHamburger');

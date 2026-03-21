@@ -1,184 +1,77 @@
-Redesign the entire payment + license activation flow. Remove the 
-pricing page popup entirely and replace with this new flow:
+Revert ALL market data API calls back to Binance fapi.
+We are using server-side proxy for Binance so geo-restriction 
+and CORS are not an issue anymore.
 
-FLOW OVERVIEW:
-Pricing page "Buy Now" → Register/Login → Payment page → 
-Submit proof → Wait for admin verification → 
-Admin verifies → License key sent live → User activates
+1. SEARCH entire codebase for Bybit market data calls and 
+   replace with Binance equivalents:
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. PRICING PAGE:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- "Buy Now" button on each plan → redirect to /register
-- Pass selected plan in URL: /register?plan=lifetime
-- If user already logged in → redirect directly to /payment
+   grep -r "api.bybit.com/v5/market" .
+   grep -r "proxy/bybit" public/
+   
+   Replace every occurrence:
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2. REGISTER/LOGIN PAGE:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- After successful register or login → redirect to /payment
-- Pass plan through the flow: /payment?plan=lifetime
+   KLINES:
+   FROM: /api/proxy/bybit?endpoint=market/kline&category=linear&symbol=X&interval=Y&limit=Z
+   TO:   /api/proxy/binance?path=/fapi/v1/klines&symbol=X&interval=Ym&limit=Z
+   Note: interval format change — "1" → "1m", "5" → "5m", "60" → "1h", "240" → "4h"
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-3. PAYMENT PAGE (payment.html) — NEW PAGE:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Requires login — redirect to /login if not authenticated.
-If user already has active license → redirect to /dashboard.
+   24HR TICKER:
+   FROM: api.bybit.com/v5/market/tickers?category=linear&symbol=X
+   TO:   /api/proxy/binance?path=/fapi/v1/ticker/24hr&symbol=X
 
-PAGE LAYOUT — two column on desktop, stacked on mobile:
+   ALL SYMBOLS:
+   FROM: api.bybit.com/v5/market/instruments-info?category=linear
+   TO:   /api/proxy/binance?path=/fapi/v1/exchangeInfo
 
-LEFT COLUMN — Payment Details:
-- Heading: "Complete Your Purchase"
-- Selected plan badge (Lifetime $69 / Monthly $19 / Yearly $129)
-- USDT Payment section:
-  * Network tabs: TRC20 | ERC20 | BEP20
-  * Wallet address box with copy button
-  * Amount to send in big text: "$69 USDT"
-  * Warning: "Send exact amount. Double check network before sending."
-- Features reminder list below:
-  * ✓ All current features
-  * ✓ All future updates
-  * ✓ Bybit integration
-  * ✓ AI Trading Agent
-  * ✓ Strategy Builder Bot
-  * ✓ WhatsApp support
+   FUNDING RATE:
+   FROM: api.bybit.com/v5/market/funding/history?category=linear&symbol=X
+   TO:   /api/proxy/binance?path=/fapi/v1/fundingRate&symbol=X&limit=1
 
-RIGHT COLUMN — Submit Payment Proof form:
-- Heading: "I've Sent Payment"
-- Fields:
-  * Transaction ID / Hash (text input) *
-  * Screenshot upload (image only — jpg/png/webp) *
-  * Message (optional textarea)
-- Submit button: "Submit Payment Proof"
-- On submit:
-  * POST /api/payment/submit
-  * Save to DB: userId, email, name, txId, screenshotPath,
-    message, planType, amount, status: 'pending', createdAt
-  * Upload screenshot to /uploads/payments/
-  * Send email to admin (support@scanr.me):
-    Subject: "New Payment — [name] — [plan] — $[amount]"
-    Body: all details + screenshot attached
-  * Show transaction status section (see point 4 below)
+   OPEN INTEREST:
+   FROM: api.bybit.com/v5/market/open-interest?category=linear&symbol=X
+   TO:   /api/proxy/binance?path=/fapi/v1/openInterest?symbol=X
 
-BOTTOM SECTION — Always visible on payment page:
-- "Already have a license key?" button (outlined, subtle)
-- Clicking opens License Activation Popup (see point 5)
+2. UPDATE response parsing back to Binance format:
+   Binance kline array format:
+   [openTime, open, high, low, close, volume, closeTime, 
+    quoteVolume, trades, takerBuyBase, takerBuyQuote, ignore]
+   index: 0=time, 1=open, 2=high, 3=low, 4=close, 5=volume
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-4. TRANSACTION STATUS SECTION:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-After submitting payment proof, hide the form and show:
+   Bybit format was: [startTime, open, high, low, close, volume]
+   Make sure all indicator calculations use correct array indexes
 
-If status = 'pending':
-- Yellow pulsing badge: "⏳ Payment Pending Verification"
-- Details: TxID, plan, amount, submitted time
-- Message: "We'll verify your payment and send your license 
-  key to [email] within 24 hours."
-- Email contact: "Need help? support@scanr.me"
-- Page auto-refreshes status every 30 seconds via:
-  GET /api/payment/my-status (returns current payment status)
+3. UPDATE WebSocket back to Binance:
+   FROM: wss://stream.bybit.com/v5/public/linear
+   TO:   wss://fstream.binance.com/ws/
+   
+   Binance stream subscription:
+   Single stream: wss://fstream.binance.com/ws/btcusdt@kline_1m
+   Combined: wss://fstream.binance.com/stream?streams=btcusdt@kline_1m/ethusdt@kline_1m
+   
+   Candle closed check:
+   FROM: data.data[0].confirm === true
+   TO:   data.k.x === true
 
-If status = 'verified' (admin verified):
-- Green badge: "✅ Payment Confirmed!"
-- Big card appears:
-  * "Your License Key:"
-  * License key in styled box with show/hide toggle (eye icon)
-  * Copy button → shows "Copied!" for 2 seconds
-  * Message: "Copy this key and activate your account below"
-- "Activate License" button → opens License Activation Popup
-- Confetti animation on page when status changes to verified
+4. FILES TO UPDATE:
+   - All public/js/ files
+   - All .html files with inline JS
+   - coinScanner.js (if any Bybit market calls were added)
+   - strategyBot.js (if any Bybit market calls were added)
+   - setups_routes.js
+   - agent.js / agent_routes.js / agent_day_routes.js
 
-If status = 'rejected':
-- Red badge: "❌ Payment Rejected"
-- Rejection reason shown if admin provided one
-- Message: "Contact us at support@scanr.me for help"
-- Show payment form again so user can resubmit
+5. KEEP Bybit for trading only (do not touch these):
+   - Order placement
+   - Position fetching
+   - Balance fetching
+   - Account data
+   - Anything using user's Bybit API key
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-5. LICENSE ACTIVATION POPUP:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Modal popup triggered by "Activate License" button or 
-  "Already have a license key?" button
-- Single input: License Key (text input, large, monospace font)
-- Paste button next to input
-- "Activate Account" button
-- On submit: POST /api/license/activate (existing endpoint)
-- On success:
-  * Show green success message: "🎉 Account Activated!"
-  * "Go to Dashboard" button → redirect to /dashboard
-- On error:
-  * Show error message (invalid key, already used, expired etc)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-6. ADMIN PANEL — Payments tab:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Table: Name | Email | Plan | Amount | TxID | Screenshot | 
-  Submitted | Status | Actions
-
-- Screenshot column: clickable thumbnail → opens full image in 
-  new tab
-
-- Status badges: 
-  Pending (yellow) | Verified (green) | Rejected (red)
-
-- Actions — "Verify & Send Key" button:
-  * Opens a small inline panel below the row (accordion style)
-  * Panel contains:
-    - License key input field (text input, monospace)
-    - "Generate Key" button next to input:
-      * Uses EXACT same license key generation logic as 
-        Admin Panel → Licenses tab generate button
-      * Generates key and auto-fills the input field
-    - "Confirm & Send to User" button:
-      * Saves license key to payment record in DB
-      * Updates payment status to 'verified'
-      * Sends email to user:
-        Subject: "Your Scanr License Key is Ready! 🎉"
-        Body: license key in big bold text, activation instructions
-      * Via Socket.io: emit 'payment_verified' event to that 
-        user's session so their payment page updates in real time
-        without needing to refresh
-      * Creates a License record in DB same as manually created keys
-      * Links license to user account (userId)
-  
-  * "Reject" button:
-    - Opens small input for rejection reason
-    - "Confirm Reject" button:
-      * Updates status to 'rejected'
-      * Sends rejection email to user
-      * Via Socket.io: emit 'payment_rejected' to user's session
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-7. REAL-TIME UPDATE VIA SOCKET.IO:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- When admin clicks "Confirm & Send to User":
-  * Server emits to that specific user's socket:
-    socket.to(userSocketId).emit('payment_verified', { licenseKey })
-  * Payment page listens for this event
-  * On receiving: instantly update UI to verified state
-  * Show license key immediately
-  * Trigger confetti animation
-  * No page refresh needed — fully real-time
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-8. ADMIN SETTINGS — add wallet address fields:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- USDT TRC20 wallet address
-- USDT ERC20 wallet address
-- USDT BEP20 wallet address
-- Lifetime price USD (default 69)
-- Monthly price USD (default 19)
-- Yearly price USD (default 129)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-9. STYLING:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Dark theme matching Scanr (#0b0e11, #1a1d26, #252936)
-- Green: #0ecb81 for confirmed/success states
-- Yellow: #f0b90b for pending states
-- Red: #f6465d for rejected states
-- Mobile fully responsive
-- Smooth transitions on status changes
-- Confetti animation (use canvas-confetti CDN) on payment verified
-- Loading states on all form submissions
-- Auto-scroll to status section after form submit
+6. VERIFY after changes:
+   grep -r "api.bybit.com/v5/market" public/
+   grep -r "stream.bybit.com" public/
+   Both should return 0 results
+   
+   grep -r "fapi.binance.com" *.js
+   grep -r "fstream.binance.com" *.js
+   These should still exist in backend files — that is correct

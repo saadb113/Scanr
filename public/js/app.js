@@ -703,8 +703,9 @@ async function fetchAndDraw(sym, tf, rl, fa, sl, sig) {
     sig = sig || +el('signalLen').value||9;
     try {
         const limit = Math.max(sl+sig+rl+150, 200);  // extra bars for pivot divergence
-        const res = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${tf}&limit=${limit}`);
-        const klines = await res.json();
+        const res = await fetch(`/api/proxy/binance?path=/fapi/v1/klines&symbol=${sym}&interval=${tf}&limit=${limit}`);
+        const raw = await res.json();
+        const klines = Array.isArray(raw) ? raw : [];
         if (!Array.isArray(klines)||klines.length<10) return;
         const highs   = klines.map(k=>parseFloat(k[2]));
         const lows    = klines.map(k=>parseFloat(k[3]));
@@ -2971,9 +2972,9 @@ let bybitClockOffset = 0;
 async function bybitSyncClock() {
     try {
         // Always use mainnet for time sync — both envs share same server time
-        const res = await fetch('https://api.bybit.com/v5/market/time');
+        const res = await fetch('/api/proxy/binance?path=/fapi/v1/time');
         const data = await res.json();
-        const serverTs = parseInt(data.result?.timeNano ? data.result.timeNano / 1000000 : data.result?.timeSecond * 1000);
+        const serverTs = parseInt(data.serverTime);
         if (serverTs) bybitClockOffset = serverTs - Date.now();
     } catch(_) { bybitClockOffset = 0; }
 }
@@ -3162,11 +3163,9 @@ function bytSetCategory(cat) {
 async function bytFetchLivePriceForSym(sym) {
     if (!sym) return;
     try {
-        const creds   = bybitGetCreds();
-        const base    = creds.env === 'testnet' ? 'https://api-demo.bybit.com' : 'https://api.bybit.com';
-        const res     = await fetch(`${base}/v5/market/tickers?category=${bytCategory}&symbol=${sym}`);
+        const res     = await fetch(`/api/proxy/binance?path=/fapi/v1/ticker/24hr&symbol=${sym}`);
         const data    = await res.json();
-        const px      = parseFloat(data?.result?.list?.[0]?.markPrice || data?.result?.list?.[0]?.lastPrice);
+        const px      = parseFloat(data?.lastPrice);
         if (px > 0) {
             bytLivePrice = px;
             // Show as placeholder in entry input so user sees live price for market orders
@@ -3274,23 +3273,19 @@ async function bytFetchMaxLev(sym) {
     el('bytSymInfo').textContent = 'Fetching info…';
     el('bytSymInfo').style.color = '#4a5568';
     try {
-        const creds = bybitGetCreds();
-        const base = creds.env === 'testnet' ? 'https://api-demo.bybit.com' : 'https://api.bybit.com';
-        const res = await fetch(`${base}/v5/market/instruments-info?category=${bytCategory}&symbol=${sym}`);
+        const res = await fetch(`/api/proxy/binance?path=/fapi/v1/exchangeInfo&symbol=${sym}`);
         const data = await res.json();
-        if (data.retCode !== 0) { el('bytSymInfo').textContent = ''; return; }
-        const info = data.result?.list?.[0];
+        const info = data?.symbols?.[0];
         if (!info) { el('bytSymInfo').textContent = ''; return; }
 
         // Spot doesn't have leverage; clamp to 1
-        const maxLev = bytCategory === 'spot' ? 1 : parseFloat(info.leverageFilter?.maxLeverage || 125);
-        const minLev = bytCategory === 'spot' ? 1 : parseFloat(info.leverageFilter?.minLeverage || 1);
-        const tickSize = info.priceFilter?.tickSize || '';
-        const minQty  = info.lotSizeFilter?.minOrderQty || '0';
-        // Spot uses 'basePrecision' for qty decimal precision; futures uses 'qtyStep'
-        const qtyStep = bytCategory === 'spot'
-            ? (info.lotSizeFilter?.basePrecision || info.lotSizeFilter?.minOrderQty || '0.001')
-            : (info.lotSizeFilter?.qtyStep || '0.001');
+        const lot = (info.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
+        const pf  = (info.filters || []).find(f => f.filterType === 'PRICE_FILTER') || {};
+        const maxLev = bytCategory === 'spot' ? 1 : 125;
+        const minLev = 1;
+        const tickSize = pf.tickSize || '';
+        const minQty  = lot.minQty || '0';
+        const qtyStep = lot.stepSize || '0.001';
         bytMaxLev  = maxLev;
         bytQtyStep = parseFloat(qtyStep) || 0.001;
         bytMinQty  = parseFloat(minQty)  || 0;
@@ -4467,9 +4462,9 @@ function apMilestoneHit(id, text) {
 // ── Fetch mark price (still used for live price placeholder) ──
 async function apFetchMarkPrice(sym) {
     try {
-        const res  = await fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${sym}`);
+        const res  = await fetch(`/api/proxy/binance?path=/fapi/v1/ticker/24hr&symbol=${sym}`);
         const data = await res.json();
-        const mark = parseFloat(data?.result?.list?.[0]?.markPrice);
+        const mark = parseFloat(data?.lastPrice);
         return mark > 0 ? mark : null;
     } catch { return null; }
 }

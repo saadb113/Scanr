@@ -22,6 +22,7 @@ const agentRoutes    = require('./agent_day_routes');
 const dayAgent       = require('./dayAgent');
 const strategyRoutes = require('./strategy_routes');
 const strategyBot    = require('./strategyBot');
+const setupsScanner  = require('./setups_routes');
 const { sendDiscordAlert, orderSummaryEmbed, priceAlertEmbed } = require('./discordNotifier');
 const { analyzeWithAI, testAIProvider }                        = require('./aiAnalysis');
 
@@ -49,10 +50,125 @@ io.use((socket, next) => {
 });
 io.on('connection', socket => {
     const uid = socket.request.session?.userId;
-    if (uid) socket.join(uid);
+    if (uid) {
+        socket.join(uid);
+        console.log('[Socket.io] User', uid, 'connected');
+    } else {
+        console.log('[Socket.io] Connection without userId');
+    }
 });
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// ── Bybit public market proxy (CORS/geoblock mitigation) ─────────
+const bybitProxyHits = new Map();
+const bybitProxyCache = new Map();
+const BYBIT_PROXY_CACHE_TTL_MS = 3000;
+function bybitProxyAllow(ip) {
+    const now = Date.now();
+    const windowMs = 60 * 1000;
+    const maxHits = 500;
+    const hits = (bybitProxyHits.get(ip) || []).filter(ts => now - ts < windowMs);
+    if (hits.length >= maxHits) {
+        bybitProxyHits.set(ip, hits);
+        return false;
+    }
+    hits.push(now);
+    bybitProxyHits.set(ip, hits);
+    return true;
+}
+function bybitProxyBypassRateLimit(req) {
+    const ip = req.ip || req.socket?.remoteAddress || '';
+    const host = (req.hostname || '').toLowerCase();
+    return host === 'localhost' || ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+function bybitProxyCacheKey(endpoint, params = {}) {
+    if (params.symbol || params.interval || params.limit) {
+        return `${endpoint}|${params.symbol || ''}|${params.interval || ''}|${params.limit || ''}`;
+    }
+    return endpoint + '|' + new URLSearchParams(Object.entries(params).sort(([a], [b]) => a.localeCompare(b))).toString();
+}
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+app.get('/api/proxy/bybit', requireActiveAuth, async (req, res) => {
+    try {
+        const { endpoint, ...params } = req.query || {};
+        if (!endpoint || typeof endpoint !== 'string') {
+            return res.status(400).json({ ok: false, error: 'Missing endpoint' });
+        }
+        if (!endpoint.startsWith('market/') || endpoint.includes('..') || endpoint.includes('://')) {
+            return res.status(400).json({ ok: false, error: 'Invalid endpoint' });
+        }
+        const cacheKey = bybitProxyCacheKey(endpoint, params);
+        const now = Date.now();
+        const cached = bybitProxyCache.get(cacheKey);
+        if (cached && now - cached.ts < BYBIT_PROXY_CACHE_TTL_MS) return res.status(cached.status).json(cached.body);
+
+        const ip = req.ip || req.socket?.remoteAddress || 'unknown';
+        if (!bybitProxyBypassRateLimit(req) && !bybitProxyAllow(ip)) {
+            if (cached) return res.status(cached.status).json(cached.body);
+            await sleep(1000);
+            if (!bybitProxyAllow(ip)) {
+                return res.status(503).json({ ok: false, error: 'Proxy temporarily busy, please retry' });
+            }
+        }
+
+        const url = new URL(`https://api.bybit.com/v5/${endpoint}`);
+        Object.entries(params).forEach(([k, v]) => {
+            if (v != null) url.searchParams.set(k, String(v));
+        });
+        const doFetch = async () => {
+            const response = await fetch(url.toString());
+            let data;
+            try { data = await response.json(); }
+            catch { data = { ok: false, error: 'Invalid upstream response' }; }
+            return { response, data };
+        };
+
+        let { response, data } = await doFetch();
+        const upstreamRateLimited = !response.ok && response.status === 429;
+        const upstreamRetRateLimited = data && (data.retCode === 10006 || /rate.?limit/i.test(String(data.retMsg || data.error || '')));
+        if (upstreamRateLimited || upstreamRetRateLimited) {
+            await sleep(1000);
+            ({ response, data } = await doFetch());
+        }
+
+        if (!response.ok || (data && data.retCode && data.retCode !== 0)) {
+            if (cached) return res.status(cached.status).json(cached.body);
+            return res.status(response.ok ? 502 : response.status).json({ ok: false, error: 'Upstream market data unavailable' });
+        }
+
+        bybitProxyCache.set(cacheKey, { ts: now, status: 200, body: data });
+        return res.json(data);
+    } catch (e) {
+        return res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+// ── Binance public market proxy ───────────────────────────────────
+app.get('/api/proxy/binance', requireActiveAuth, async (req, res) => {
+    try {
+        const { path: apiPath, ...params } = req.query || {};
+        if (!apiPath || typeof apiPath !== 'string') {
+            return res.status(400).json({ ok: false, error: 'Missing path' });
+        }
+        if (!apiPath.startsWith('/') || apiPath.includes('..') || apiPath.includes('://')) {
+            return res.status(400).json({ ok: false, error: 'Invalid path' });
+        }
+        const base = apiPath.startsWith('/fapi/') ? 'https://fapi.binance.com' : 'https://api.binance.com';
+        const url = new URL(base + apiPath);
+        Object.entries(params).forEach(([k, v]) => {
+            if (v != null) url.searchParams.set(k, String(v));
+        });
+        const r = await fetch(url.toString());
+        const d = await r.json();
+        if (!r.ok) return res.status(r.status).json(d);
+        return res.json(d);
+    } catch (e) {
+        return res.status(500).json({ ok: false, error: e.message });
+    }
+});
 
 // ── helper: upsert single-user doc ────────────────────────────────────────
 async function upsert(Model, update, uid) {
@@ -130,8 +246,11 @@ async function requireActiveAuth(req, res, next) {
             if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License not active' });
             return res.redirect('/license');
         }
-        next();
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        return next();
+    } catch (e) { 
+        console.error('[Auth] Error:', e.message);
+        return res.status(500).json({ error: e.message }); 
+    }
 }
 
 // Requires admin role
@@ -1129,10 +1248,71 @@ app.delete('/api/admin/contacts/:id', requireAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Apex Scanner (Setups) - MUST BE BEFORE requireActiveAuth MIDDLEWARE ──────────────────────────────────────
+app.get('/api/setups/status', (req, res) => {
+    console.log('[Setups Status] GET /api/setups/status');
+    res.json({ scanning: setupsScanner.getScanStatus() });
+});
+
+app.get('/api/setups/signals', (req, res) => {
+    console.log('[Setups Signals] GET /api/setups/signals');
+    res.json({ signals: setupsScanner.getLastSignals() });
+});
+
+app.post('/api/setups/run', (req, res, next) => {
+    // Manually call the async middleware wrapper
+    requireActiveAuth(req, res, () => {
+        try {
+            console.log('[Setups Endpoint] POST /api/setups/run called');
+            console.log('[Setups Endpoint] appUserId:', req.appUserId);
+            
+            if (!req.appUserId) {
+                console.error('[Setups Endpoint] No appUserId!');
+                return res.status(401).json({ error: 'Not authenticated' });
+            }
+            
+            if (setupsScanner.getScanStatus()) {
+                console.log('[Setups Endpoint] Scan already in progress');
+                return res.status(400).json({ error: 'Scan already running' });
+            }
+            
+            const {coins, accountSize, riskPercent, rrRatio, minScore} = req.query;
+            const options = {
+                coins: parseInt(coins) || 50,
+                accountSize: parseFloat(accountSize) || 1000,
+                riskPercent: parseFloat(riskPercent) || 1,
+                rrRatio: parseFloat(rrRatio) || 1.5,
+                minScore: parseInt(minScore) || 35,
+            };
+            
+            console.log('[Setups Endpoint] Starting scan with options:', options);
+            
+            // Start scan asynchronously
+            setupsScanner.runApexScanner(io, req.appUserId, options).catch(err => {
+                console.error('[Setups Endpoint] Scan error:', err.message);
+            });
+            
+            console.log('[Setups Endpoint] Sending response');
+            res.json({ ok: true, message: 'Scan started' });
+        } catch (err) {
+            console.error('[Setups Endpoint] Exception:', err.message, err.stack);
+            res.status(500).json({ error: err.message });
+        }
+    });
+});
+
+// TEST ENDPOINT - SIMPLE VERSION WITHOUT MIDDLEWARE
+app.post('/test-scan', (req, res) => {
+    console.log('[TEST] Test endpoint called');
+    res.json({ ok: true, test: 'works' });
+});
+
 // ═══════════════════════════════════════════════════════════════
 //  ALL OTHER /api/* ROUTES REQUIRE ACTIVE AUTH
 // ═══════════════════════════════════════════════════════════════
-app.use('/api/', requireActiveAuth);
+app.use('/api/', (req, res, next) => {
+    requireActiveAuth(req, res, next);
+});
 app.use('/api/agent', agentRoutes);
 app.use('/api/strategy', strategyRoutes);
 
@@ -2038,7 +2218,10 @@ connectDB()
         try { await AppSettings.collection.dropIndex('singleton_1'); } catch (_) {}
         await createAdminIfNeeded();
         httpServer.listen(PORT, () => {
-            console.log(`RSI + MACD Scanner running at http://localhost:${PORT}`);
+            console.log(`\n╔═══════════════════════════════════════════════════╗`);
+            console.log(`║  🚀 RSI + MACD Scanner running at http://localhost:${PORT}  ║`);
+            console.log(`║  ✅ SETUPS ROUTES REGISTERED (before middleware)   ║`);
+            console.log(`╚═══════════════════════════════════════════════════╝\n`);
         });
         await autopilot.resumeOnBoot();
         await dayAgent.resumeOnBoot();

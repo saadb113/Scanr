@@ -112,12 +112,13 @@ function roundToStep(val, step) {
 
 async function getInstrumentInfo(sym) {
     try {
-        const r = await fetch(`https://api.bybit.com/v5/market/instrument-info?category=linear&symbol=${sym}`);
+        const r = await fetch(`https://fapi.binance.com/fapi/v1/exchangeInfo?symbol=${sym}`);
         const d = await r.json();
-        const i = d.result?.list?.[0];
+        const i = d.symbols?.[0];
+        const lot = (i?.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
         return {
-            qtyStep: parseFloat(i?.lotSizeFilter?.qtyStep     || '0.001'),
-            minQty:  parseFloat(i?.lotSizeFilter?.minOrderQty || '0.001'),
+            qtyStep: parseFloat(lot.stepSize || '0.001'),
+            minQty:  parseFloat(lot.minQty || '0.001'),
         };
     } catch { return { qtyStep: 0.001, minQty: 0.001 }; }
 }
