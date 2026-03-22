@@ -137,6 +137,14 @@
       border-radius: 8px;
       margin-bottom: 24px;
     }
+    .plan-badge-original {
+      display: none;
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-decoration: line-through;
+      margin-top: 6px;
+    }
+    .plan-badge-original.active { display: block; }
 
     /* Network Tabs */
     .network-tabs {
@@ -240,6 +248,12 @@
       font-size: 13px;
       color: var(--text-primary);
       font-weight: 600;
+    }
+    .paying-summary {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-align: center;
     }
 
     /* Features List */
@@ -635,7 +649,8 @@
     <!-- LEFT COLUMN: Payment Details -->
     <div class="payment-details active" id="purchaseTab">
       <h2>Complete Your Purchase</h2>
-      <div class="plan-badge" id="planBadge">Lifetime Plan - $49</div>
+      <div class="plan-badge" id="planBadge">Lifetime Plan - $<span data-price="lifetime">49</span></div>
+      <div class="plan-badge-original" id="planBadgeOriginal">Was $<span data-price-original="lifetime">69</span></div>
 
       <div class="wallet-box">
         <div class="wallet-label">USDT Payment - Select Network</div>
@@ -652,7 +667,8 @@
 
       <div class="amount-display">
         <div class="label">Amount to Send</div>
-        <div class="amount" id="amountDisplay">$49 USDT</div>
+        <div class="amount" id="amountDisplay">$<span data-price="lifetime">49</span> USDT</div>
+        <div class="paying-summary" id="payingSummary"></div>
       </div>
 
       <div class="warning-box">
@@ -737,12 +753,34 @@
 </div>
 
 <script>
+  const PRICING_CACHE_KEY = 'scanr_pricing';
+  const PRICING_CACHE_TTL_MS = 5 * 60 * 1000;
   let selectedNetwork = 'TRC20';
   let walletAddresses = {};
   let selectedPlan = 'lifetime';
-  let planPrices = { lifetime: 49, monthly: 19, yearly: 129 };
+  let pricingData = {
+    lifetime: { original: 49, discounted: null, displayPrice: 49, discountPct: null },
+    discountLabel: null
+  };
   let currentPayment = null;
   const socket = io();
+
+  function readPricingCache() {
+    try {
+      const raw = sessionStorage.getItem(PRICING_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.ts || !parsed?.data) return null;
+      if (Date.now() - parsed.ts > PRICING_CACHE_TTL_MS) return null;
+      return parsed.data;
+    } catch (_) { return null; }
+  }
+
+  function writePricingCache(data) {
+    try {
+      sessionStorage.setItem(PRICING_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+    } catch (_) {}
+  }
 
   // Tab switching function
   function switchTab(tabName) {
@@ -787,13 +825,11 @@
     }
 
     // Get plan from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const plan = urlParams.get('plan') || 'lifetime';
-    selectedPlan = plan;
+    selectedPlan = 'lifetime';
 
     // Load data
     loadWalletAddresses();
-    loadPrices();
+    loadPricing();
     checkExistingPayment();
 
     // Socket.io real-time updates
@@ -824,28 +860,43 @@
     }
   }
 
-  async function loadPrices() {
+  async function loadPricing() {
     try {
-      const res = await fetch('/api/payment/prices');
+      const res = await fetch('/api/settings/pricing', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        planPrices = {
-          lifetime: data.priceLifetime || 49,
-          monthly: data.priceMonthly || 19,
-          yearly: data.priceYearly || 129
-        };
+        pricingData = data;
+        writePricingCache(data);
         updatePlanDisplay();
       }
     } catch (err) {
-      console.error('Failed to load prices:', err);
+      const cached = readPricingCache();
+      if (cached) {
+        pricingData = cached;
+        updatePlanDisplay();
+      } else {
+        console.error('Failed to load pricing:', err);
+      }
     }
   }
 
   function updatePlanDisplay() {
-    const planNames = { lifetime: 'Lifetime', monthly: 'Monthly', yearly: 'Yearly' };
-    const price = planPrices[selectedPlan];
-    document.getElementById('planBadge').textContent = `${planNames[selectedPlan]} Plan - $${price}`;
-    document.getElementById('amountDisplay').textContent = `$${price} USDT`;
+    const plan = pricingData.lifetime || { original: 49, discounted: null, displayPrice: 49, discountPct: null };
+    const price = Number(plan.displayPrice || plan.original || 49);
+    const original = Number(plan.original || price);
+    const hasDiscount = plan.discounted !== null && plan.discountPct !== null;
+    document.getElementById('planBadge').textContent = `Lifetime Plan - $${price.toFixed(2)}`;
+    document.getElementById('amountDisplay').textContent = `$${price.toFixed(2)} USDT`;
+    const originalEl = document.getElementById('planBadgeOriginal');
+    const payingSummaryEl = document.getElementById('payingSummary');
+    if (hasDiscount && original > price) {
+      originalEl.textContent = `Was $${original.toFixed(2)} (${plan.discountPct}% OFF)`;
+      originalEl.classList.add('active');
+      payingSummaryEl.textContent = `You are paying $${price.toFixed(2)} USDT (was $${original.toFixed(2)})`;
+    } else {
+      originalEl.classList.remove('active');
+      payingSummaryEl.textContent = `You are paying $${price.toFixed(2)} USDT`;
+    }
   }
 
   function selectNetwork(network) {
@@ -894,7 +945,8 @@
     formData.append('message', document.getElementById('message').value);
     formData.append('network', selectedNetwork);
     formData.append('planType', selectedPlan);
-    formData.append('amount', planPrices[selectedPlan]);
+    const plan = pricingData.lifetime || { displayPrice: 49, original: 49 };
+    formData.append('amount', Number(plan.displayPrice || plan.original || 49));
 
     try {
       const res = await fetch('/api/payment/submit', {
@@ -979,14 +1031,14 @@
     if (!currentPayment) return;
 
     const { status, txId, planType, amount, createdAt, licenseKeyIssued, rejectionReason } = currentPayment;
-    const planNames = { lifetime: 'Lifetime', monthly: 'Monthly', yearly: 'Yearly' };
+    const planName = planType === 'lifetime' ? 'Lifetime' : 'Lifetime';
 
     if (status === 'pending') {
       content.innerHTML = `
         <div class="status-badge pending">Payment Pending Verification</div>
         <div class="status-details">
           <p><span class="label">Transaction ID:</span> <span class="value">${txId}</span></p>
-          <p><span class="label">Plan:</span> <span class="value">${planNames[planType] || planType}</span></p>
+          <p><span class="label">Plan:</span> <span class="value">${planName}</span></p>
           <p><span class="label">Amount:</span> <span class="value">$${amount} USDT</span></p>
           <p><span class="label">Submitted:</span> <span class="value">${new Date(createdAt).toLocaleString()}</span></p>
         </div>

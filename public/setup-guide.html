@@ -516,7 +516,7 @@
         <li>Click "Activate License", paste the key and you're in</li>
       </ul>
       <div class="step-note">
-        <strong>No key yet?</strong>&nbsp;Purchase on the <a href="/pricing">Pricing page</a> &mdash; $49 lifetime access.
+        <strong>No key yet?</strong>&nbsp;Purchase on the <a href="/pricing">Pricing page</a> &mdash; $<span data-price="lifetime">49</span> lifetime access.
       </div>
     </div>
   </div>
@@ -691,7 +691,7 @@
 
     <details class="fade-in">
       <summary>Is this a monthly subscription?</summary>
-      <p>No. One time payment of $49 gives you lifetime access to all current and future features.</p>
+      <p>No. One time payment of $<span data-price="lifetime">49</span> gives you lifetime access to all current and future features.</p>
     </details>
 
     <details class="fade-in">
@@ -777,6 +777,48 @@
 </footer>
 
 <script>
+  const PRICING_CACHE_KEY = 'scanr_pricing';
+  const PRICING_CACHE_TTL_MS = 5 * 60 * 1000;
+
+  function readPricingCache() {
+    try {
+      const raw = sessionStorage.getItem(PRICING_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.ts || !parsed?.data) return null;
+      if (Date.now() - parsed.ts > PRICING_CACHE_TTL_MS) return null;
+      return parsed.data;
+    } catch (_) { return null; }
+  }
+
+  function writePricingCache(data) {
+    try {
+      sessionStorage.setItem(PRICING_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+    } catch (_) {}
+  }
+
+  async function loadPricingData() {
+    try {
+      const res = await fetch('/api/settings/pricing', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch pricing');
+      const data = await res.json();
+      writePricingCache(data);
+      return data;
+    } catch (e) {
+      const cached = readPricingCache();
+      if (cached) return cached;
+      throw e;
+    }
+  }
+
+  function applyPricingToSetupGuide(pricing) {
+    const lifetime = pricing?.lifetime || { displayPrice: 49, original: 49 };
+    const display = Number(lifetime.displayPrice || lifetime.original || 49);
+    document.querySelectorAll('[data-price="lifetime"]').forEach(el => {
+      el.textContent = String(display.toFixed(0));
+    });
+  }
+
   // App name
   fetch('/api/public/app-name').then(r=>r.ok?r.json():null).then(d=>{
     if(!d?.appName)return;
@@ -808,6 +850,8 @@
   window.addEventListener('scroll',()=>{
     document.getElementById('lpHeader').classList.toggle('scrolled',window.scrollY>10);
   },{passive:true});
+
+  loadPricingData().then(applyPricingToSetupGuide).catch(()=>{});
 </script>
 </body>
 </html>

@@ -783,7 +783,9 @@ app.get('/api/admin/settings', requireAdmin, async (req, res) => {
 app.post('/api/admin/settings', requireAdmin, async (req, res) => {
     try {
         const { emailAdmin, appName, commissionPct, referralBaseUrl,
-                walletTRC20, walletERC20, walletBEP20, pricePlanStandard, pricePlanPKR } = req.body;
+                walletTRC20, walletERC20, walletBEP20, pricePlanStandard, pricePlanPKR,
+                pricing_lifetime_original, pricing_lifetime_discounted,
+                pricing_discount_label } = req.body;
 
         // Admin email (replaces old whatsapp)
         await AppSettings.findOneAndUpdate({ key: 'emailAdmin' }, { key: 'emailAdmin', value: emailAdmin || 'support@scanr.me' }, { upsert: true });
@@ -818,6 +820,29 @@ app.post('/api/admin/settings', requireAdmin, async (req, res) => {
         }
         if (pricePlanPKR !== undefined) {
             await AppSettings.findOneAndUpdate({ key: 'pricePlanPKR' }, { key: 'pricePlanPKR', value: String(pricePlanPKR) }, { upsert: true });
+        }
+
+        // Dynamic pricing settings
+        if (pricing_lifetime_original !== undefined) {
+            await AppSettings.findOneAndUpdate(
+                { key: 'pricing_lifetime_original' },
+                { key: 'pricing_lifetime_original', value: String(pricing_lifetime_original) },
+                { upsert: true }
+            );
+        }
+        if (pricing_lifetime_discounted !== undefined) {
+            await AppSettings.findOneAndUpdate(
+                { key: 'pricing_lifetime_discounted' },
+                { key: 'pricing_lifetime_discounted', value: pricing_lifetime_discounted === '' || pricing_lifetime_discounted === null ? '' : String(pricing_lifetime_discounted) },
+                { upsert: true }
+            );
+        }
+        if (pricing_discount_label !== undefined) {
+            await AppSettings.findOneAndUpdate(
+                { key: 'pricing_discount_label' },
+                { key: 'pricing_discount_label', value: String(pricing_discount_label || '').trim() },
+                { upsert: true }
+            );
         }
 
         res.json({ ok: true });
@@ -1157,6 +1182,25 @@ app.post('/api/admin/payment/reject/:paymentId', requireAdmin, async (req, res) 
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+function parseNum(value, fallback) {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? n : fallback;
+}
+
+function buildPlanPricing(originalValue, discountedValue, fallbackOriginal) {
+    const original = parseNum(originalValue, fallbackOriginal);
+    const discountedParsed = parseFloat(discountedValue);
+    const hasDiscount = Number.isFinite(discountedParsed) && discountedParsed > 0 && discountedParsed < original;
+    const discounted = hasDiscount ? discountedParsed : null;
+    const discountPct = hasDiscount ? Math.round(((original - discounted) / original) * 100) : null;
+    return {
+        original,
+        discounted,
+        displayPrice: hasDiscount ? discounted : original,
+        discountPct
+    };
+}
+
 // Public: fetch wallet addresses
 app.get('/api/payment/wallet-addresses', async (req, res) => {
     try {
@@ -1172,20 +1216,52 @@ app.get('/api/payment/wallet-addresses', async (req, res) => {
     } catch (e) { res.json({ walletTRC20: '', walletERC20: '', walletBEP20: '' }); }
 });
 
+// Public: fetch normalized pricing settings
+app.get('/api/settings/pricing', async (req, res) => {
+    try {
+        const keys = [
+            'pricing_lifetime_original',
+            'pricing_lifetime_discounted',
+            'pricing_discount_label'
+        ];
+        const docs = await AppSettings.find({ key: { $in: keys } }).lean();
+        const map = {};
+        docs.forEach(d => { map[d.key] = d.value; });
+
+        const lifetime = buildPlanPricing(map.pricing_lifetime_original, map.pricing_lifetime_discounted, 49);
+        const anyDiscount = Boolean(lifetime.discountPct);
+        const discountLabelRaw = String(map.pricing_discount_label || '').trim();
+
+        res.json({
+            lifetime,
+            discountLabel: anyDiscount ? (discountLabelRaw || null) : null
+        });
+    } catch (e) {
+        const lifetime = buildPlanPricing(null, null, 49);
+        res.json({ lifetime, discountLabel: null });
+    }
+});
+
 // Public: fetch payment prices
 app.get('/api/payment/prices', async (req, res) => {
     try {
-        const lifetimePrice = await AppSettings.findOne({ key: 'priceLifetime' });
-        const monthlyPrice = await AppSettings.findOne({ key: 'priceMonthly' });
-        const yearlyPrice = await AppSettings.findOne({ key: 'priceYearly' });
+        const keys = [
+            'pricing_lifetime_original',
+            'pricing_lifetime_discounted'
+        ];
+        const docs = await AppSettings.find({ key: { $in: keys } }).lean();
+        const map = {};
+        docs.forEach(d => { map[d.key] = d.value; });
+
+        const lifetime = buildPlanPricing(map.pricing_lifetime_original, map.pricing_lifetime_discounted, 49);
 
         res.json({
-            priceLifetime: parseFloat(lifetimePrice?.value || 49),
-            priceMonthly: parseFloat(monthlyPrice?.value || 19),
-            priceYearly: parseFloat(yearlyPrice?.value || 129)
+            priceLifetime: lifetime.displayPrice,
+            priceMonthly: lifetime.displayPrice,
+            priceYearly: lifetime.displayPrice
         });
     } catch (e) {
-        res.json({ priceLifetime: 49, priceMonthly: 19, priceYearly: 129 });
+        res.json({ priceLifetime: 49, priceMonthly: 49, priceYearly: 49 });
     }
 });
 

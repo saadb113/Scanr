@@ -318,6 +318,25 @@
       </div>
 
       <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:16px">Pricing</div>
+        <div class="form-field">
+          <label>Lifetime Original Price (USDT)</label>
+          <input type="number" id="pricingLifetimeOriginal" placeholder="69" step="0.01"/>
+        </div>
+        <div class="form-field">
+          <label>Lifetime Discounted Price (USDT)</label>
+          <input type="number" id="pricingLifetimeDiscounted" placeholder="49" step="0.01"/>
+        </div>
+        <div class="form-field">
+          <label>Discount Label</label>
+          <input type="text" id="pricingDiscountLabel" placeholder="Limited Time Offer"/>
+        </div>
+        <button class="save-btn" type="button" onclick="savePricing()">Save Pricing</button>
+        <div id="pricingPreview" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.7;"></div>
+        <div class="form-msg" id="pricingMsg"></div>
+      </div>
+
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
         <div style="font-size:13px;font-weight:700;margin-bottom:16px">Referral System</div>
         <div class="form-field">
           <label>Referral Commission Rate (%)</label>
@@ -908,6 +927,10 @@ async function loadSettings() {
     if (d.walletBEP20) document.getElementById('settingWalletBEP20').value = d.walletBEP20;
     if (d.pricePlanStandard) document.getElementById('settingPricePlanStandard').value = d.pricePlanStandard;
     if (d.pricePlanPKR) document.getElementById('settingPricePlanPKR').value = d.pricePlanPKR;
+    if (d.pricing_lifetime_original) document.getElementById('pricingLifetimeOriginal').value = d.pricing_lifetime_original;
+    if (d.pricing_lifetime_discounted !== undefined) document.getElementById('pricingLifetimeDiscounted').value = d.pricing_lifetime_discounted;
+    if (d.pricing_discount_label !== undefined) document.getElementById('pricingDiscountLabel').value = d.pricing_discount_label;
+    renderPricingPreview();
   } catch (e) { console.error(e); }
 }
 
@@ -933,6 +956,68 @@ async function saveSettings() {
     // Reload referrals to show updated commission %
     loadReferrals();
   } catch (e) { msg.textContent = e.message; msg.className = 'form-msg err'; }
+}
+
+function parseAdminPrice(id, fallback) {
+  const raw = document.getElementById(id).value.trim();
+  if (raw === '') return fallback;
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function parseAdminDiscount(id) {
+  const raw = document.getElementById(id).value.trim();
+  if (raw === '') return null;
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatPreview(plan, original, discounted) {
+  if (discounted && discounted > 0 && discounted < original) {
+    const pct = Math.round(((original - discounted) / original) * 100);
+    return `${plan}: <span style="text-decoration:line-through;opacity:.7;">$${original}</span> $${discounted} (${pct}% OFF)`;
+  }
+  return `${plan}: $${original} (no discount)`;
+}
+
+function renderPricingPreview() {
+  const lifetimeOriginal = parseAdminPrice('pricingLifetimeOriginal', 49);
+  const lifetimeDiscounted = parseAdminDiscount('pricingLifetimeDiscounted');
+  const label = document.getElementById('pricingDiscountLabel').value.trim();
+
+  document.getElementById('pricingPreview').innerHTML = `
+    <div>${formatPreview('Lifetime', lifetimeOriginal, lifetimeDiscounted)}</div>
+    <div style="opacity:.8;">Label: ${label || 'None'}</div>
+  `;
+}
+
+['pricingLifetimeOriginal','pricingLifetimeDiscounted','pricingDiscountLabel']
+  .forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', renderPricingPreview);
+  });
+
+async function savePricing() {
+  const msg = document.getElementById('pricingMsg');
+  const lifetimeOriginal = parseAdminPrice('pricingLifetimeOriginal', 49);
+  const lifetimeDiscounted = parseAdminDiscount('pricingLifetimeDiscounted');
+  const pricing_discount_label = document.getElementById('pricingDiscountLabel').value.trim();
+
+  try {
+    await api('POST', '/api/admin/settings', {
+      pricing_lifetime_original: lifetimeOriginal,
+      pricing_lifetime_discounted: lifetimeDiscounted === null ? '' : lifetimeDiscounted,
+      pricing_discount_label
+    });
+    try { sessionStorage.removeItem('scanr_pricing'); } catch (_) {}
+    renderPricingPreview();
+    msg.textContent = 'Pricing saved!';
+    msg.className = 'form-msg ok';
+    setTimeout(() => { msg.textContent = ''; }, 3000);
+  } catch (e) {
+    msg.textContent = e.message;
+    msg.className = 'form-msg err';
+  }
 }
 
 // ── REFERRALS ──────────────────────────────────────────────────

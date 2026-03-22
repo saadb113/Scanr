@@ -1,68 +1,124 @@
-After removing the AI agent code, also audit the entire 
-Scanr codebase and remove unused files and dead code.
-Be conservative — only remove things that are clearly 
-unused. Do NOT delete anything if unsure.
+Make pricing dynamic across entire Scanr website.
+Admin can set prices from settings and they update everywhere.
 
-1. FIND UNUSED FILES:
-   Check these file types for usage:
-   - Any .js files in root not imported anywhere
-   - Any .html files in public/ not linked anywhere
-   - Any .css files not referenced anywhere
-   - Any uploaded/temp files in uploads/ folder older than 7 days
-
-   Before deleting any file:
-   - Search entire codebase for filename references
-   - Only delete if ZERO references found
-   - Log every file being deleted: "Deleting unused: filename"
-
-2. FIND DEAD CODE in .js files:
-   - Functions defined but never called anywhere
-   - Routes defined but never used by frontend
-   - Variables declared but never used
-   - Commented out code blocks (large chunks)
-   - console.log statements left from debugging
+1. ADMIN SETTINGS — add pricing fields:
    
-   Remove only if 100% certain unused.
-   Do NOT remove:
-   - Any route that might be called from frontend
-   - Any function that might be called indirectly
-   - Any exported function
-   - When in doubt → leave it
+   In admin panel Settings tab add "Pricing" section:
+   
+   Lifetime Plan:
+   - Original Price (USDT) input — e.g. 69
+   - Discounted Price (USDT) input — leave empty = no discount
+   
+   Monthly Plan:
+   - Original Price (USDT) input — e.g. 19
+   - Discounted Price (USDT) input — leave empty = no discount
+   
+   Yearly Plan:
+   - Original Price (USDT) input — e.g. 129
+   - Discounted Price (USDT) input — leave empty = no discount
+   
+   Discount Label input — e.g. "Limited Time Offer" or "Ramadan Sale"
+   (shown on pricing cards when discount is active)
+   
+   Save Pricing button
+   
+   Preview below save button showing:
+   - Lifetime: ~~$69~~ $49 (29% OFF)
+   - Monthly: $19 (no discount)
+   - Yearly: ~~$129~~ $99 (23% OFF)
+   
+   Discount % calculated automatically:
+   discountPct = Math.round((original - discounted) / original × 100)
 
-3. FIND UNUSED npm PACKAGES:
-   Check package.json dependencies:
-   - Search each package name in entire codebase
-   - If package not imported anywhere → 
-     npm uninstall that package
-   - Run npm install after cleanup
-   - Common candidates: twitter-api-v2, node-cron 
-     (from Twitter feature we removed)
+2. BACKEND — pricing API:
+   
+   Save to AppSettings in DB:
+   - pricing_lifetime_original
+   - pricing_lifetime_discounted
+   - pricing_monthly_original
+   - pricing_monthly_discounted
+   - pricing_yearly_original
+   - pricing_yearly_discounted
+   - pricing_discount_label
+   
+   Add public endpoint (no auth needed):
+   GET /api/settings/pricing
+   Returns:
+   {
+     lifetime: {
+       original: 69,
+       discounted: 49,  // null if no discount
+       displayPrice: 49, // discounted if set, else original
+       discountPct: 29,  // null if no discount
+     },
+     monthly: { ... },
+     yearly: { ... },
+     discountLabel: "Limited Time Offer" // null if no discount
+   }
 
-4. FIND UNUSED DB MODELS in models.js:
-   - Check each Schema/model definition
-   - Search if model is imported or used anywhere
-   - If completely unused → remove from models.js
-   - Keep ALL models that are used anywhere
+3. UPDATE ALL FRONTEND PAGES:
+   
+   Pages to update:
+   - pricing.html
+   - index.html (pricing section)
+   - payment.html (shows amount to pay)
+   
+   On page load fetch /api/settings/pricing
+   then dynamically update all price elements.
+   
+   Use data attributes to mark price elements:
+   <span data-price="lifetime">$69</span>
+   <span data-price="monthly">$19</span>
+   <span data-price="yearly">$129</span>
+   
+   JS updates all elements after fetch:
+   document.querySelectorAll('[data-price]').forEach(el => {
+     const plan = el.dataset.price
+     el.textContent = '$' + pricing[plan].displayPrice
+   })
 
-5. CLEAN UP .env:
-   - Remove any env variables no longer used
-   - Add comment sections for organization:
-     # Server, # Database, # Email, # Bybit, # AI Providers
-   - Keep all variables that are still referenced in code
+4. PRICING CARD display when discount active:
 
-6. SAFETY RULES — never delete:
-   - server.js, db.js, models.js, package.json
-   - Any file referenced in server.js requires
-   - Any HTML page linked in navigation
-   - Any file modified in last 7 days
-   - public/css/styles.css
-   - public/js/app.js
-   - .env file
+   Show:
+   - Strikethrough original price (grey, smaller)
+   - Discounted price (big, white/yellow)
+   - Discount badge: "29% OFF" (red badge, top right of card)
+   - Discount label below price: "Limited Time Offer"
+   
+   Example:
+   ~~$69~~ 
+   $49 USDT
+   🏷 29% OFF
+   "Limited Time Offer"
+   
+   When no discount:
+   - Just show original price, no strikethrough
+   - No discount badge
 
-7. AFTER CLEANUP:
-   - Start server and verify no errors
-   - Visit every page and confirm loads correctly:
-     dashboard, scanner, terminal, strategy, 
-     setups, challenge, calendar, settings, admin
-   - Check browser console for 404 errors
-   - Run: npm start and confirm clean startup log
+5. PARAGRAPH/TEXT mentions of price:
+   
+   Any text that mentions price should use 
+   data attributes so it updates dynamically:
+   
+   Instead of hardcoded:
+   "Get lifetime access for $69"
+   
+   Use:
+   "Get lifetime access for $<span data-price='lifetime'>69</span>"
+   
+   Search all HTML files for hardcoded price mentions:
+   - "$69", "$49", "$19", "$129", "$30"
+   - "69 USDT", "49 USDT" etc
+   - Replace all with data-price spans
+
+6. PAYMENT PAGE:
+   - Amount shown on payment page fetches from API
+   - Updates automatically based on current pricing
+   - If discount active: show discounted amount
+   - "You are paying: $49 USDT (was $69)"
+
+7. CACHE pricing on frontend:
+   - Cache pricing response in sessionStorage
+   - Reuse within same session — no repeated API calls
+   - Cache key: 'scanr_pricing'
+   - Cache duration: 5 minutes

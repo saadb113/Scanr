@@ -222,6 +222,29 @@
       border-radius: 20px;
       margin-bottom: 2rem;
     }
+    .pc-discount-badge {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #ef4444;
+      color: #fff;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      display: none;
+    }
+    .pc-discount-badge.active { display: inline-block; }
+    .pc-original {
+      display: none;
+      margin-bottom: 4px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+    }
+    .pc-original.active { display: block; }
     .pc-price-row {
       display: flex;
       align-items: flex-start;
@@ -248,6 +271,15 @@
       font-weight: 500;
       margin-bottom: 2rem;
     }
+    .pc-sale-label {
+      display: none;
+      font-size: 12px;
+      color: #fca5a5;
+      font-weight: 700;
+      margin-top: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .pc-sale-label.active { display: block; }
     .pc-divider {
       border: none;
       border-top: 1px solid var(--border);
@@ -802,10 +834,13 @@
 <div class="pricing-wrap">
   <div class="pricing-card fade-in">
     <div class="pc-badge">Lifetime Access</div>
+    <div class="pc-discount-badge" id="pcDiscountBadge"></div>
+    <div class="pc-original" id="pcOriginalPrice">$69</div>
     <div class="pc-price-row">
       <span class="pc-currency">$</span>
-      <span class="pc-amount">49</span>
+      <span class="pc-amount" data-price="lifetime">49</span>
     </div>
+    <div class="pc-sale-label" id="pcSaleLabel"></div>
     <p class="pc-period">one time payment</p>
     <hr class="pc-divider"/>
     <ul class="pc-features">
@@ -1016,6 +1051,73 @@
 </footer>
 
 <script>
+  const PRICING_CACHE_KEY = 'scanr_pricing';
+  const PRICING_CACHE_TTL_MS = 5 * 60 * 1000;
+
+  function readPricingCache() {
+    try {
+      const raw = sessionStorage.getItem(PRICING_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.ts || !parsed?.data) return null;
+      if (Date.now() - parsed.ts > PRICING_CACHE_TTL_MS) return null;
+      return parsed.data;
+    } catch (_) { return null; }
+  }
+
+  function writePricingCache(data) {
+    try {
+      sessionStorage.setItem(PRICING_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+    } catch (_) {}
+  }
+
+  async function loadPricingData() {
+    try {
+      const res = await fetch('/api/settings/pricing', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch pricing');
+      const data = await res.json();
+      writePricingCache(data);
+      return data;
+    } catch (e) {
+      const cached = readPricingCache();
+      if (cached) return cached;
+      throw e;
+    }
+  }
+
+  function applyPricingToPage(pricing) {
+    const lifetime = pricing?.lifetime || { original: 49, discounted: null, displayPrice: 49, discountPct: null };
+    const display = Number(lifetime.displayPrice || lifetime.original || 49);
+    document.querySelectorAll('[data-price]').forEach(el => {
+      if (el.dataset.price === 'lifetime') el.textContent = String(display);
+    });
+    const amountEl = document.getElementById('amountDisplay');
+    if (amountEl) amountEl.textContent = `$${display.toFixed(2)}`;
+
+    const hasDiscount = lifetime.discounted !== null && lifetime.discountPct !== null;
+    const originalEl = document.getElementById('pcOriginalPrice');
+    const badgeEl = document.getElementById('pcDiscountBadge');
+    const labelEl = document.getElementById('pcSaleLabel');
+    if (hasDiscount) {
+      if (originalEl) {
+        originalEl.textContent = `$${Number(lifetime.original).toFixed(0)}`;
+        originalEl.classList.add('active');
+      }
+      if (badgeEl) {
+        badgeEl.textContent = `${lifetime.discountPct}% OFF`;
+        badgeEl.classList.add('active');
+      }
+      if (labelEl) {
+        labelEl.textContent = pricing.discountLabel || 'Limited Time Offer';
+        labelEl.classList.add('active');
+      }
+    } else {
+      if (originalEl) originalEl.classList.remove('active');
+      if (badgeEl) badgeEl.classList.remove('active');
+      if (labelEl) labelEl.classList.remove('active');
+    }
+  }
+
   // App name
   fetch('/api/public/app-name').then(r=>r.ok?r.json():null).then(d=>{
     if(!d?.appName)return;
@@ -1069,6 +1171,8 @@
   window.addEventListener('scroll',()=>{
     document.getElementById('lpHeader').classList.toggle('scrolled',window.scrollY>10);
   },{passive:true});
+
+  loadPricingData().then(applyPricingToPage).catch(()=>{});
 </script>
 </body>
 </html>

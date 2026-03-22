@@ -245,7 +245,7 @@
       max-width: 1180px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
     }
     .stat-item {
       padding: 30px 20px;
@@ -397,6 +397,27 @@
       border-radius: 40px;
       margin-bottom: 1.75rem;
     }
+    .pricing-discount-badge {
+      display: none;
+      margin-left: 8px;
+      background: #ef4444;
+      color: #fff;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      vertical-align: middle;
+    }
+    .pricing-discount-badge.active { display: inline-flex; }
+    .pricing-original {
+      display: none;
+      color: var(--text-secondary);
+      font-size: 1.2rem;
+      text-decoration: line-through;
+      margin-bottom: 6px;
+    }
+    .pricing-original.active { display: block; }
     .pricing-price {
       font-size: 4.25rem;
       font-weight: 800;
@@ -416,6 +437,15 @@
       color: var(--text-secondary);
       margin: 8px 0 1.875rem;
     }
+    .pricing-sale-label {
+      display: none;
+      font-size: 12px;
+      color: #fca5a5;
+      font-weight: 700;
+      margin-top: 6px;
+      margin-bottom: 12px;
+    }
+    .pricing-sale-label.active { display: block; }
     .pricing-list {
       list-style: none;
       text-align: left;
@@ -758,6 +788,11 @@
         <h3>No-Code Strategy Builder</h3>
         <p>Build your own trading bot using drag and drop blocks — no coding required. Set conditions, actions, and let the bot trade automatically on Bybit.</p>
       </div>
+      <div class="feature-card fade-in">
+        <span class="fc-icon">📊</span>
+        <h3>Setup Finder</h3>
+        <p>Hard filter scanner finds only the highest quality tradeable setups using volume, ATR, trend alignment, and RSI confluence filters.</p>
+      </div>
 
     </div>
   </div>
@@ -804,8 +839,10 @@
     <h2 class="lp-h2 fade-in">One Plan. Full Access. Forever.</h2>
     <p class="lp-sub fade-in">No subscriptions, no hidden fees. Pay once and trade for life.</p>
     <div class="pricing-card fade-in">
-      <span class="pricing-chip">Lifetime Access</span>
-      <div class="pricing-price"><sup>$</sup>49</div>
+      <span class="pricing-chip">Lifetime Access</span><span class="pricing-discount-badge" id="homePricingDiscountBadge"></span>
+      <div class="pricing-original" id="homePricingOriginal">$69</div>
+      <div class="pricing-price"><sup>$</sup><span data-price="lifetime">49</span></div>
+      <div class="pricing-sale-label" id="homePricingSaleLabel"></div>
       <div class="pricing-period">one time payment</div>
       <ul class="pricing-list">
          <li><span class="pc-check"></span>All current features</li>
@@ -846,7 +883,7 @@
       </details>
       <details class="faq-item fade-in">
         <summary>Is this a monthly subscription?</summary>
-        <div class="faq-body">No. Scanr is a one-time payment of $49 for lifetime access. There are no monthly fees, no renewal charges, and all future updates are included at no extra cost.</div>
+        <div class="faq-body">No. Scanr is a one-time payment of $<span data-price="lifetime">49</span> for lifetime access. There are no monthly fees, no renewal charges, and all future updates are included at no extra cost.</div>
       </details>
       <details class="faq-item fade-in">
         <summary>What is a license key?</summary>
@@ -947,6 +984,57 @@
 </footer>
 
 <script>
+const PRICING_CACHE_KEY='scanr_pricing';
+const PRICING_CACHE_TTL_MS=5*60*1000;
+
+function readPricingCache(){
+  try{
+    const raw=sessionStorage.getItem(PRICING_CACHE_KEY);
+    if(!raw)return null;
+    const parsed=JSON.parse(raw);
+    if(!parsed?.ts||!parsed?.data)return null;
+    if(Date.now()-parsed.ts>PRICING_CACHE_TTL_MS)return null;
+    return parsed.data;
+  }catch(_){return null;}
+}
+
+function writePricingCache(data){
+  try{sessionStorage.setItem(PRICING_CACHE_KEY,JSON.stringify({ts:Date.now(),data}));}catch(_){}
+}
+
+async function loadPricingData(){
+  try{
+    const r=await fetch('/api/settings/pricing',{cache:'no-store'});
+    if(!r.ok)throw new Error('Failed to fetch pricing');
+    const d=await r.json();
+    writePricingCache(d);
+    return d;
+  }catch(_){
+    const cached=readPricingCache();
+    if(cached)return cached;
+    throw _;
+  }
+}
+
+function applyPricingToHome(pricing){
+  const lifetime=pricing?.lifetime||{original:49,discounted:null,displayPrice:49,discountPct:null};
+  const display=Number(lifetime.displayPrice||lifetime.original||49);
+  document.querySelectorAll('[data-price="lifetime"]').forEach(el=>{el.textContent=String(display.toFixed(0));});
+  const hasDiscount=lifetime.discounted!==null&&lifetime.discountPct!==null;
+  const originalEl=document.getElementById('homePricingOriginal');
+  const badgeEl=document.getElementById('homePricingDiscountBadge');
+  const labelEl=document.getElementById('homePricingSaleLabel');
+  if(hasDiscount){
+    if(originalEl){originalEl.textContent=`$${Number(lifetime.original).toFixed(0)}`;originalEl.classList.add('active');}
+    if(badgeEl){badgeEl.textContent=`${lifetime.discountPct}% OFF`;badgeEl.classList.add('active');}
+    if(labelEl){labelEl.textContent=pricing.discountLabel||'Limited Time Offer';labelEl.classList.add('active');}
+  }else{
+    if(originalEl)originalEl.classList.remove('active');
+    if(badgeEl)badgeEl.classList.remove('active');
+    if(labelEl)labelEl.classList.remove('active');
+  }
+}
+
 /* ── Dynamic app name ── */
 fetch('/api/public/app-name').then(r=>r.ok?r.json():null).then(d=>{
   if(!d?.appName)return;
@@ -1003,6 +1091,7 @@ async function submitContact(){
     msgEl.className='form-msg err';
   }
 }
+loadPricingData().then(applyPricingToHome).catch(()=>{});
 </script>
 </body>
 </html>
