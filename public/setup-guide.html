@@ -815,7 +815,7 @@
     const lifetime = pricing?.lifetime || { displayPrice: 49, original: 49 };
     const display = Number(lifetime.displayPrice || lifetime.original || 49);
     document.querySelectorAll('[data-price="lifetime"]').forEach(el => {
-      el.textContent = String(display.toFixed(0));
+      el.textContent = String(display.toFixed(2));
     });
   }
 

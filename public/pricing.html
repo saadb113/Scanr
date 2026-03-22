@@ -1100,7 +1100,7 @@
     const labelEl = document.getElementById('pcSaleLabel');
     if (hasDiscount) {
       if (originalEl) {
-        originalEl.textContent = `$${Number(lifetime.original).toFixed(0)}`;
+        originalEl.textContent = `$${Number(lifetime.original).toFixed(2)}`;
         originalEl.classList.add('active');
       }
       if (badgeEl) {

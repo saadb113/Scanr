@@ -1019,13 +1019,13 @@ async function loadPricingData(){
 function applyPricingToHome(pricing){
   const lifetime=pricing?.lifetime||{original:49,discounted:null,displayPrice:49,discountPct:null};
   const display=Number(lifetime.displayPrice||lifetime.original||49);
-  document.querySelectorAll('[data-price="lifetime"]').forEach(el=>{el.textContent=String(display.toFixed(0));});
+  document.querySelectorAll('[data-price="lifetime"]').forEach(el=>{el.textContent=String(display.toFixed(2));});
   const hasDiscount=lifetime.discounted!==null&&lifetime.discountPct!==null;
   const originalEl=document.getElementById('homePricingOriginal');
   const badgeEl=document.getElementById('homePricingDiscountBadge');
   const labelEl=document.getElementById('homePricingSaleLabel');
   if(hasDiscount){
-    if(originalEl){originalEl.textContent=`$${Number(lifetime.original).toFixed(0)}`;originalEl.classList.add('active');}
+    if(originalEl){originalEl.textContent=`$${Number(lifetime.original).toFixed(2)}`;originalEl.classList.add('active');}
     if(badgeEl){badgeEl.textContent=`${lifetime.discountPct}% OFF`;badgeEl.classList.add('active');}
     if(labelEl){labelEl.textContent=pricing.discountLabel||'Limited Time Offer';labelEl.classList.add('active');}
   }else{
