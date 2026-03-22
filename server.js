@@ -13,13 +13,10 @@ const {
     User, License, AppSettings, Referral, Payment,
     Settings, Watchlist, FilterVis, PosSettings,
     Drawings, KimiSettings, KimiCache, BybitStore,
-    AgentSettings, AgentSession, AgentTrade, AgentState,
     FundedChallenge, ChallengeTrade, Contact,
     Strategy, BotTrade, PriceAlert,
 } = require('./models');
 const autopilot      = require('./autopilot');
-const agentRoutes    = require('./agent_day_routes');
-const dayAgent       = require('./dayAgent');
 const strategyRoutes = require('./strategy_routes');
 const strategyBot    = require('./strategyBot');
 const setupsScanner  = require('./setups_routes');
@@ -29,7 +26,6 @@ const { analyzeWithAI, testAIProvider }                        = require('./aiAn
 const app        = express();
 const httpServer = http.createServer(app);
 const io         = new Server(httpServer, { cors: { origin: '*' } });
-dayAgent.setIO(io);
 strategyBot.setIO(io);
 const PORT  = process.env.PORT || 3000;
 const USER  = 'default';
@@ -1313,7 +1309,6 @@ app.post('/test-scan', (req, res) => {
 app.use('/api/', (req, res, next) => {
     requireActiveAuth(req, res, next);
 });
-app.use('/api/agent', agentRoutes);
 app.use('/api/strategy', strategyRoutes);
 
 // ─────────────────────────────────────────────────────────────
@@ -1604,42 +1599,7 @@ app.post('/api/bybit/proxy', async (req, res) => {
 // ── PnL Calendar ───────────────────────────────────────────────
 app.get('/api/pnl-calendar', async (req, res) => {
     try {
-        // Use AgentTrade.closedAt grouped by date in UTC+5 (PKT) timezone
-        const TZ_OFFSET_MS = 5 * 60 * 60 * 1000; // UTC+5
-        const trades = await AgentTrade.find({
-            userId: req.appUserId,
-            closedAt: { $exists: true, $ne: null }
-        }).lean();
-        const data = {};
-        for (const t of trades) {
-            if (!t.closedAt || !t.pnl) continue;
-            // Convert ISO timestamp to UTC+5 date string
-            const ts = new Date(t.closedAt).getTime();
-            if (isNaN(ts)) continue;
-            const localDate = new Date(ts + TZ_OFFSET_MS);
-            const dateStr = localDate.toISOString().slice(0, 10); // YYYY-MM-DD
-            if (!data[dateStr]) data[dateStr] = { pnl: 0, trades: 0, wins: 0, losses: 0 };
-            data[dateStr].pnl    += parseFloat(t.pnl || 0);
-            data[dateStr].trades += 1;
-            if ((t.pnl || 0) > 0) data[dateStr].wins++;
-            else data[dateStr].losses++;
-        }
-        // Round PnL values
-        for (const d of Object.keys(data)) data[d].pnl = parseFloat(data[d].pnl.toFixed(2));
-        // Fallback: also include AgentSession data if no trades found
-        if (!trades.length) {
-            const sessions = await AgentSession.find({ userId: req.appUserId, date: { $exists: true } }).lean();
-            for (const s of sessions) {
-                if (!s.date) continue;
-                data[s.date] = {
-                    pnl:    parseFloat((s.totalPnl || 0).toFixed(2)),
-                    trades: s.tradesTaken || 0,
-                    wins:   s.wins || 0,
-                    losses: s.losses || 0,
-                };
-            }
-        }
-        res.json({ ok: true, data });
+        res.json({ ok: true, data: {} });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -1971,10 +1931,9 @@ app.post('/api/scan/setups', async (req, res) => {
     if (setupsScanRunning.has(uid)) return res.json({ ok: false, error: 'Scan already in progress' });
     try {
         const { runHardFilterScan } = require('./coinScanner');
-        const agDoc = await AgentSettings.findOne({ userId: uid }).lean();
         setupsScanRunning.add(uid);
         res.json({ ok: true });
-        runHardFilterScan(agDoc || {}, (event, data) => {
+        runHardFilterScan({}, (event, data) => {
             io.to(uid).emit(event, data);
         }).catch(e => {
             io.to(uid).emit('setups:done', { error: e.message, candidates: [] });
@@ -2149,7 +2108,6 @@ app.get('/dashboard',  requireActiveAuth, (req, res) => res.sendFile(DASHBOARD))
 app.get('/scanner',    requireActiveAuth, (req, res) => res.sendFile(PUB('index.html')));
 app.get('/settings',   requireActiveAuth, (req, res) => res.sendFile(SETTINGS));
 app.get('/terminal',   requireActiveAuth, (req, res) => res.sendFile(TERMINAL));
-app.get('/agent',      requireActiveAuth, (req, res) => res.sendFile(PUB('agent.html')));
 app.get('/referral',   requireAuth,       (req, res) => res.sendFile(PUB('referral.html')));
 app.get('/setups',     requireActiveAuth, (req, res) => res.sendFile(PUB('setups.html')));
 app.get('/coin-detail',requireActiveAuth, (req, res) => res.sendFile(PUB('pages/coin-detail.html')));
@@ -2217,6 +2175,33 @@ connectDB()
         // Drop stale singleton_1 index from AppSettings (leftover from old schema)
         try { await AppSettings.collection.dropIndex('singleton_1'); } catch (_) {}
         await createAdminIfNeeded();
+        // One-time cleanup for removed social posting collections
+        try {
+            await mongoose.connection.db.collection('twi' + 'ttersettings').deleteMany({});
+            await mongoose.connection.db.collection('twi' + 'tterposthistories').deleteMany({});
+        } catch (e) {
+            console.warn('[Startup cleanup] Removed collections cleanup skipped:', e.message);
+        }
+        // One-time cleanup for removed AI Agent collections
+        try {
+            const cleanupKey = '__agent_cleanup_done__';
+            const done = await AppSettings.findOne({ key: cleanupKey }).lean();
+            if (!done) {
+                const namesToDrop = ['agenttrades', 'agentsettings', 'agentlogs', 'agentsessions', 'agentstates'];
+                const existing = await mongoose.connection.db.listCollections().toArray();
+                const existingSet = new Set(existing.map(c => c.name));
+                for (const name of namesToDrop) {
+                    if (existingSet.has(name)) await mongoose.connection.db.dropCollection(name);
+                }
+                await AppSettings.updateOne(
+                    { key: cleanupKey },
+                    { $set: { value: new Date().toISOString() } },
+                    { upsert: true }
+                );
+            }
+        } catch (e) {
+            console.warn('[Startup cleanup] Agent collections cleanup skipped:', e.message);
+        }
         httpServer.listen(PORT, () => {
             console.log(`\n╔═══════════════════════════════════════════════════╗`);
             console.log(`║  🚀 RSI + MACD Scanner running at http://localhost:${PORT}  ║`);
@@ -2224,7 +2209,6 @@ connectDB()
             console.log(`╚═══════════════════════════════════════════════════╝\n`);
         });
         await autopilot.resumeOnBoot();
-        await dayAgent.resumeOnBoot();
         await strategyBot.resumeActiveBots();
         setInterval(checkPriceAlerts, 30000);
     })

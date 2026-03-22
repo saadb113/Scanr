@@ -30,7 +30,6 @@ const SettingsSchema = new mongoose.Schema({
             autopilotMilestone:  { type: Boolean, default: true },
             tpSlHit:             { type: Boolean, default: true },
             strategyBotAlerts:   { type: Boolean, default: true },
-            aiAgentAlerts:       { type: Boolean, default: true },
         },
     },
     ai: {
@@ -156,84 +155,6 @@ const BotTradeSchema = new mongoose.Schema({
     openedAt:      { type: Date, default: Date.now },
     closedAt:      { type: Date, default: null },
 }, { timestamps: true });
-
-// ── Agent settings (user config) ──
-const AgentSettingsSchema = new mongoose.Schema({
-    userId:                { type: String, default: 'default' },
-    startTime:             { type: String, default: '08:00' },
-    endTime:               { type: String, default: '18:00' },
-    maxTrades:             { type: Number, default: 3 },
-    scanInterval:          { type: Number, default: 30 },
-    cooldownMinutes:       { type: Number, default: 15 },
-    minScore:              { type: Number, default: 75 },
-    basePositionSize:      { type: Number, default: 0 },
-    maxLossPerTradePct:    { type: Number, default: 1 },
-    dailyDrawdownPct:      { type: Number, default: 5 },
-    maxConsecutiveLosses:  { type: Number, default: 3 },
-    minVolume:             { type: Number, default: 30 },
-    atrMin:                { type: Number, default: 0 },
-    atrMax:                { type: Number, default: 9999999 },
-    timeframe:             { type: String, default: '5m' },
-    customCoins:           { type: String, default: '' },
-    demoMode:              { type: Boolean, default: false },
-    whatsappRecipient:     String,
-    emailRecipient:        String,
-    notifyOnTradePlaced:   { type: Boolean, default: true },
-    notifyOnTradeClosed:   { type: Boolean, default: true },
-    notifyOnAgentShutdown: { type: Boolean, default: true },
-    notifyOnDailySummary:  { type: Boolean, default: true },
-}, { timestamps: true });
-AgentSettingsSchema.index({ userId: 1 }, { unique: true });
-
-// ── Agent day sessions ──
-const AgentSessionSchema = new mongoose.Schema({
-    userId:            { type: String, default: 'default' },
-    date:              String,
-    tradesTaken:       { type: Number, default: 0 },
-    wins:              { type: Number, default: 0 },
-    losses:            { type: Number, default: 0 },
-    totalPnl:          { type: Number, default: 0 },
-    startBalance:      Number,
-    endBalance:        Number,
-    maxTrades:         { type: Number, default: 3 },
-    consecutiveLosses: { type: Number, default: 0 },
-    startedAt:         String,
-    endedAt:           String,
-    endReason:         String,
-}, { timestamps: true });
-
-// ── Agent individual trades ──
-const AgentTradeSchema = new mongoose.Schema({
-    userId:        { type: String, default: 'default' },
-    sessionId:     String,
-    symbol:        String,
-    side:          String,
-    entryPrice:    Number,
-    closePrice:    Number,
-    sl:            Number,
-    tp:            Number,
-    pnl:           Number,
-    pnlPercent:    Number,
-    aiScore:       Number,
-    aiConfidence:  String,
-    aiReasoning:   String,
-    dcaCount:      { type: Number, default: 0 },
-    openedAt:      String,
-    closedAt:      String,
-}, { timestamps: true });
-
-// ── Agent runtime state (for resume on boot) ──
-const AgentStateSchema = new mongoose.Schema({
-    userId:       { type: String, default: 'default' },
-    running:      { type: Boolean, default: false },
-    status:       { type: String, default: 'idle' },
-    sessionId:    String,
-    date:         String,
-    tradesTaken:  { type: Number, default: 0 },
-    startBalance: { type: Number, default: 0 },
-    lastScanAt:   { type: String, default: '' },
-}, { timestamps: true });
-AgentStateSchema.index({ userId: 1 }, { unique: true });
 
 // ── Auth: Users ──
 const UserSchema = new mongoose.Schema({
@@ -394,10 +315,6 @@ module.exports = {
     KimiCache:      mongoose.model('KimiCache',      KimiCacheSchema),
     BybitStore:     mongoose.model('BybitStore',     BybitStoreSchema),
     AutopilotState: mongoose.model('AutopilotState', AutopilotStateSchema),
-    AgentSettings:  mongoose.model('AgentSettings', AgentSettingsSchema),
-    AgentSession:   mongoose.model('AgentSession',  AgentSessionSchema),
-    AgentTrade:     mongoose.model('AgentTrade',    AgentTradeSchema),
-    AgentState:     mongoose.model('AgentState',    AgentStateSchema),
     User:             mongoose.model('User',             UserSchema),
     License:          mongoose.model('License',          LicenseSchema),
     AppSettings:      mongoose.model('AppSettings',      AppSettingsSchema),

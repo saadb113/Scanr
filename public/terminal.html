@@ -1034,6 +1034,15 @@
   // Init on load
   document.addEventListener('DOMContentLoaded', function() {
     bytInitTvWidget('BTCUSDT');
+    // Default order form symbol
+    if (typeof bytSelectSym === 'function') {
+      bytSelectSym('BTCUSDT');
+    } else {
+      const symInput = document.getElementById('bytSymbol');
+      const symLabel = document.getElementById('bytSymLabel');
+      if (symInput) symInput.value = 'BTC';
+      if (symLabel) symLabel.textContent = 'BTC/USDT';
+    }
 
     // Sync symbol label → TV chart and read-only spans
     const symLabel = document.getElementById('bytSymLabel');

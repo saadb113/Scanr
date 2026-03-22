@@ -30,7 +30,6 @@
       <a class="sh-link" href="/strategy">Strategy</a>
       <a class="sh-link" href="/terminal">Trade</a>
       <a class="sh-link" href="/challenge">Challenge</a>
-      <a class="sh-link" href="/agent">AI Agent(Beta)</a>
     
       <a class="sh-link sh-admin-link" href="/admin" id="shAdminLink" style="display:none">Admin</a>
       

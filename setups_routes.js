@@ -716,6 +716,14 @@ async function runApexScanner(io, userId, options = {}) {
 
 module.exports = {
     runApexScanner,
+    getTopSymbols,
+    get24hrStats,
+    runAllFilters,
+    runIndicatorsForAll,
+    runFundingAndOIForAll,
+    scoreAllCoins,
+    runDirectionForAll,
+    generateAllSignals,
     getScanStatus: () => scanInProgress,
     getLastSignals: () => lastSignals,
 };

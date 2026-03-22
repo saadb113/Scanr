@@ -1,94 +1,68 @@
-Optimize setups page scanner performance — currently scanning 
-coins sequentially (1 by 1) which is slow for 100+ coins.
-Replace with parallel batch processing.
+After removing the AI agent code, also audit the entire 
+Scanr codebase and remove unused files and dead code.
+Be conservative — only remove things that are clearly 
+unused. Do NOT delete anything if unsure.
 
-1. PARALLEL SCANNING with Promise.allSettled:
-   Instead of:
-   for (const coin of coins) {
-     const result = await scanCoin(coin) // waits for each one
-   }
+1. FIND UNUSED FILES:
+   Check these file types for usage:
+   - Any .js files in root not imported anywhere
+   - Any .html files in public/ not linked anywhere
+   - Any .css files not referenced anywhere
+   - Any uploaded/temp files in uploads/ folder older than 7 days
+
+   Before deleting any file:
+   - Search entire codebase for filename references
+   - Only delete if ZERO references found
+   - Log every file being deleted: "Deleting unused: filename"
+
+2. FIND DEAD CODE in .js files:
+   - Functions defined but never called anywhere
+   - Routes defined but never used by frontend
+   - Variables declared but never used
+   - Commented out code blocks (large chunks)
+   - console.log statements left from debugging
    
-   Replace with:
-   const BATCH_SIZE = 20 // process 20 coins simultaneously
-   const results = []
-   
-   for (let i = 0; i < coins.length; i += BATCH_SIZE) {
-     const batch = coins.slice(i, i + BATCH_SIZE)
-     const batchResults = await Promise.allSettled(
-       batch.map(coin => scanCoin(coin))
-     )
-     results.push(...batchResults)
-     
-     // Emit progress after each batch
-     const progress = Math.round((i + BATCH_SIZE) / coins.length * 100)
-     io.to(socketId).emit('scan_progress', { 
-       progress: Math.min(progress, 100),
-       scanned: Math.min(i + BATCH_SIZE, coins.length),
-       total: coins.length
-     })
-     
-     // Small delay between batches to avoid rate limiting
-     await new Promise(r => setTimeout(r, 200))
-   }
+   Remove only if 100% certain unused.
+   Do NOT remove:
+   - Any route that might be called from frontend
+   - Any function that might be called indirectly
+   - Any exported function
+   - When in doubt → leave it
 
-2. BATCH SIZE recommendation:
-   - 20 coins per batch = safe for Binance rate limits
-   - 200ms delay between batches
-   - 100 coins = 5 batches × ~2-3 seconds each = ~15 seconds total
-   - vs current sequential = ~60-90 seconds
-   - 4-6x faster
+3. FIND UNUSED npm PACKAGES:
+   Check package.json dependencies:
+   - Search each package name in entire codebase
+   - If package not imported anywhere → 
+     npm uninstall that package
+   - Run npm install after cleanup
+   - Common candidates: twitter-api-v2, node-cron 
+     (from Twitter feature we removed)
 
-3. CACHE candle data:
-   - Cache fetched candles per symbol per timeframe for 60 seconds
-   - If same coin scanned again within 60 seconds use cached data
-   - Saves repeat API calls massively
-   - Use a simple Map: candleCache = new Map()
-   - Key: `${symbol}_${interval}`
-   - Value: { data, fetchedAt }
-   - Check age: if (Date.now() - fetchedAt < 60000) use cache
+4. FIND UNUSED DB MODELS in models.js:
+   - Check each Schema/model definition
+   - Search if model is imported or used anywhere
+   - If completely unused → remove from models.js
+   - Keep ALL models that are used anywhere
 
-4. FETCH 1h and 4h candles in parallel per coin:
-   Instead of:
-   const candles1h = await fetchCandles(symbol, '1h')
-   const candles4h = await fetchCandles(symbol, '4h') // waits
-   
-   Replace with:
-   const [candles1h, candles4h] = await Promise.all([
-     fetchCandles(symbol, '1h'),
-     fetchCandles(symbol, '4h')  // runs simultaneously
-   ])
-   
-   Also fetch funding rate and OI in same Promise.all:
-   const [candles1h, candles4h, fundingRate, openInterest] = 
-     await Promise.all([
-       fetchCandles(symbol, '1h'),
-       fetchCandles(symbol, '4h'),
-       fetchFundingRate(symbol),
-       fetchOpenInterest(symbol)
-     ])
+5. CLEAN UP .env:
+   - Remove any env variables no longer used
+   - Add comment sections for organization:
+     # Server, # Database, # Email, # Bybit, # AI Providers
+   - Keep all variables that are still referenced in code
 
-5. PRE-FETCH 24hr stats for ALL coins in ONE request:
-   Binance supports fetching ALL tickers in single call:
-   GET /api/proxy/binance?path=/fapi/v1/ticker/24hr
-   (no symbol param = returns ALL coins at once)
-   
-   Fetch this ONCE before the scan loop starts
-   Store in a Map keyed by symbol
-   Each coin lookup is instant from memory — no extra API call
-   
-   Same for exchange info — fetch once, reuse for all coins
+6. SAFETY RULES — never delete:
+   - server.js, db.js, models.js, package.json
+   - Any file referenced in server.js requires
+   - Any HTML page linked in navigation
+   - Any file modified in last 7 days
+   - public/css/styles.css
+   - public/js/app.js
+   - .env file
 
-6. FRONTEND progress bar update:
-   Show real-time progress during parallel scan:
-   - "Scanning batch 1/5 (coins 1-20)..."
-   - "Scanning batch 2/5 (coins 21-40)..."
-   - Progress bar fills smoothly
-   - Show count: "Analyzed: 40/100 coins"
-   - When done: "Scan complete — found X signals in Y seconds"
-   - Show total time taken at end
-
-7. ERROR HANDLING:
-   - Use Promise.allSettled not Promise.all
-   - If one coin fails, continue with rest
-   - Log failed coins but don't stop the scan
-   - Skip coins that error out, don't include in results
+7. AFTER CLEANUP:
+   - Start server and verify no errors
+   - Visit every page and confirm loads correctly:
+     dashboard, scanner, terminal, strategy, 
+     setups, challenge, calendar, settings, admin
+   - Check browser console for 404 errors
+   - Run: npm start and confirm clean startup log
