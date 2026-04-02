@@ -18,7 +18,7 @@
       overflow-y: auto;
     }
     /* Integrations grid */
-    .int-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+    .int-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; }
     .int-card { background:#0f1319; border:1px solid #1e2535; border-radius:12px; padding:1.25rem 1rem; display:flex; flex-direction:column; align-items:center; gap:0.6rem; text-align:center; }
     .int-icon { font-size:2rem; }
     .int-name { font-size:0.95rem; font-weight:700; color:#e5e9f2; }
@@ -229,6 +229,13 @@
           <div class="int-status not-set" id="intBybitStatus">Checking…</div>
           <button class="int-cfg-btn" onclick="openIntModal('bybit')">Configure</button>
         </div>
+        <!-- Binance card -->
+        <div class="int-card">
+          <div class="int-icon">🟡</div>
+          <div class="int-name">Binance Futures</div>
+          <div class="int-status not-set" id="intBinanceStatus">Checking…</div>
+          <button class="int-cfg-btn" onclick="openIntModal('binance')">Configure</button>
+        </div>
         <!-- AI Analysis card -->
         <div class="int-card">
           <div class="int-icon">🤖</div>
@@ -243,6 +250,19 @@
           <div class="int-status not-set" id="intDiscordStatus">Not set ⚪</div>
           <button class="int-cfg-btn" onclick="openIntModal('discord')">Configure</button>
         </div>
+      </div>
+
+      <div class="sp-card" style="margin-top:1.2rem;max-width:520px">
+        <div class="sp-card-title">Default Trading Exchange</div>
+        <div class="s-row">
+          <label>Preferred Exchange</label>
+          <select id="defaultExchange" class="s-input-full" style="max-width:260px">
+            <option value="bybit">Bybit</option>
+            <option value="binance">Binance Futures</option>
+          </select>
+        </div>
+        <button onclick="saveDefaultExchange()" style="margin-top:0.6rem;background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:8px;padding:0.45rem 1.1rem;font-size:13px;font-weight:800;color:#fff;cursor:pointer;font-family:inherit">💾 Save Preference</button>
+        <span id="defaultExchangeMsg" style="display:none;font-size:0.82rem;color:#48bb78;margin-left:0.6rem;font-weight:600">✓ Saved</span>
       </div>
     </div>
 
@@ -538,7 +558,7 @@ document.querySelectorAll('.sp-tab[data-tab="profile"]').forEach(el => {
 
 async function profLoad() {
     try {
-        const r = await fetch('/api/settings');
+        const r = await fetch('/api/settings', { credentials: 'include' });
         const s = await r.json();
         if (s.firstName)   document.getElementById('profFirstName').value   = s.firstName;
         if (s.lastName)    document.getElementById('profLastName').value    = s.lastName;
@@ -640,9 +660,10 @@ function profClearPfp() {
 // ── Integrations ──────────────────────────────────────────────
 
 function openIntModal(type) {
-    const id = { bybit: 'bybitModal', kimi: 'kimiModal', discord: 'discordModal' }[type];
+  const id = { bybit: 'bybitModal', binance: 'binanceModal', kimi: 'kimiModal', discord: 'discordModal' }[type];
     if (!id) return;
     document.getElementById(id).classList.add('open');
+  if (type === 'binance' && typeof window.binanceLoad === 'function') window.binanceLoad();
     if (type === 'discord') discLoadConfig();
     if (type === 'kimi') {
         // Load AI settings and populate all fields
@@ -718,15 +739,15 @@ async function aiTestConnection() {
 }
 
 function closeIntModal(type) {
-    const id = { bybit: 'bybitModal', kimi: 'kimiModal', discord: 'discordModal' }[type];
+  const id = { bybit: 'bybitModal', binance: 'binanceModal', kimi: 'kimiModal', discord: 'discordModal' }[type];
     if (id) document.getElementById(id).classList.remove('open');
 }
 
 // Close modal on backdrop click
-['bybitModal','kimiModal','discordModal'].forEach(id => {
+['bybitModal','binanceModal','kimiModal','discordModal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
         if (e.target === this) {
-            const type = { bybitModal:'bybit', kimiModal:'kimi', discordModal:'discord' }[id];
+      const type = { bybitModal:'bybit', binanceModal:'binance', kimiModal:'kimi', discordModal:'discord' }[id];
             closeIntModal(type);
         }
     });
@@ -734,8 +755,9 @@ function closeIntModal(type) {
 
 async function loadIntegrationStatuses() {
     try {
-        const [bybitR, aiR, discR] = await Promise.all([
+    const [bybitR, binanceR, aiR, discR] = await Promise.all([
             fetch('/api/bybit-store'),
+      fetch('/api/binance-store'),
             fetch('/api/ai/settings'),
             fetch('/api/discord/config'),
         ]);
@@ -747,6 +769,15 @@ async function loadIntegrationStatuses() {
             const hasKey = bybitJ?.mainnet?.apiKey || bybitJ?.testnet?.apiKey;
             bybitEl.className = 'int-status ' + (hasKey ? 'connected' : 'not-set');
             bybitEl.textContent = hasKey ? 'Connected ✅' : 'Not configured ⚪';
+        }
+
+        // Binance status
+        const binanceJ = await binanceR.json();
+        const binanceEl = document.getElementById('intBinanceStatus');
+        if (binanceEl) {
+          const hasKey = !!(binanceJ?.apiKey && binanceJ?.apiSecret);
+          binanceEl.className = 'int-status ' + (hasKey ? 'connected' : 'not-set');
+          binanceEl.textContent = hasKey ? `Connected ${binanceJ?.testnet ? '🧪' : '✅'}` : 'Not configured ⚪';
         }
 
         // AI Analysis status
@@ -768,8 +799,55 @@ async function loadIntegrationStatuses() {
             discEl.className = 'int-status ' + (hasUrl ? 'connected' : 'not-set');
             discEl.textContent = hasUrl ? 'Connected ✅' : 'Not set ⚪';
         }
+
+        loadDefaultExchange();
     } catch(e) { console.warn('loadIntegrationStatuses', e); }
 }
+
+    async function loadDefaultExchange() {
+      try {
+        const r = await fetch('/api/settings', { credentials: 'include' });
+        const s = await r.json();
+        const el = document.getElementById('defaultExchange');
+        if (!el) return;
+        el.value = s?.defaultExchange === 'binance' ? 'binance' : 'bybit';
+      } catch (_) {}
+    }
+
+    async function saveDefaultExchange() {
+      const el = document.getElementById('defaultExchange');
+      const msg = document.getElementById('defaultExchangeMsg');
+      if (!el) return;
+      const value = el.value === 'binance' ? 'binance' : 'bybit';
+      try {
+        const r = await fetch('/api/settings', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ defaultExchange: value }),
+        });
+        const j = await r.json();
+        if (!r.ok || j?.error) throw new Error(j?.error || 'Save failed');
+        if (msg) {
+          msg.style.display = 'inline';
+          msg.textContent = `✓ Saved (${value})`;
+          msg.style.color = '#48bb78';
+          setTimeout(() => { msg.style.display = 'none'; }, 2000);
+        }
+        await loadDefaultExchange();
+      } catch (e) {
+        if (msg) {
+          msg.textContent = '✗ Save failed';
+          msg.style.color = '#f87171';
+          msg.style.display = 'inline';
+          setTimeout(() => {
+            msg.style.display = 'none';
+            msg.textContent = '✓ Saved';
+            msg.style.color = '#48bb78';
+          }, 2500);
+        }
+      }
+    }
 
 async function discLoadConfig() {
     try {
@@ -920,6 +998,39 @@ function resetAccentColor() {
   </div>
 </div>
 
+<!-- Binance Modal -->
+<div class="int-modal-bg" id="binanceModal">
+  <div class="int-modal">
+    <div class="int-modal-hdr">
+      <div class="int-modal-title">🟡 Binance Futures Integration</div>
+      <button class="int-modal-close" onclick="closeIntModal('binance')">✕</button>
+    </div>
+    <div class="int-modal-body">
+      <div class="sp-grid" style="align-items:start">
+        <div class="sp-card">
+          <div class="sp-card-title">🟡 Binance API Credentials</div>
+          <div class="s-row"><label>API Key</label><div style="position:relative"><input type="password" id="binanceKey" class="s-input-full" placeholder="Binance API key…" style="padding-right:3rem"><button onclick="toggleVisibility('binanceKey',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size:12px;font-family:inherit">Show</button></div></div>
+          <div class="s-row"><label>API Secret</label><div style="position:relative"><input type="password" id="binanceSecret" class="s-input-full" placeholder="Binance API secret…" style="padding-right:3rem"><button onclick="toggleVisibility('binanceSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size:12px;font-family:inherit">Show</button></div></div>
+          <div class="filter-toggle-row" style="margin:0.25rem 0 0.5rem 0"><span class="filter-toggle-label"><span class="fdot" style="background:#f59e0b"></span>Use Testnet</span><label class="toggle-switch"><input type="checkbox" id="binanceTestnet" checked><span class="slider"></span></label></div>
+          <div style="display:flex;gap:0.5rem">
+            <button onclick="binanceTestConnection()" style="flex:1;background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:8px;padding:0.45rem;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">🔌 Test Connection</button>
+            <button onclick="binanceSave()" style="flex:1;background:linear-gradient(135deg,#a16207,#f59e0b);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">💾 Save</button>
+          </div>
+          <button onclick="binanceDisconnect()" style="width:100%;margin-top:0.6rem;background:#2d0a0a;border:1px solid #7f1d1d;color:#f87171;border-radius:8px;padding:0.45rem;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Disconnect</button>
+          <div id="binanceMsg" style="display:none;text-align:center;font-size:13px;margin-top:0.5rem;font-weight:600"></div>
+        </div>
+        <div class="sp-card" style="background:#0a0d12">
+          <div class="sp-card-title">📋 Setup Guide</div>
+          <div style="font-size:13px;color:#7a8499;line-height:1.85;display:flex;flex-direction:column;gap:0.6rem">
+            <div style="background:#0f1319;border-radius:8px;padding:0.7rem 0.85rem;border-left:3px solid #f59e0b"><div style="color:#f59e0b;font-weight:700;font-size:12px;margin-bottom:0.4rem">🔑 Get Futures API Keys</div>1. Binance → API Management<br>2. Enable <strong style="color:#e5e9f2">Futures</strong> permissions<br>3. For testnet use futures testnet keys<br>4. Paste key + secret here</div>
+            <div style="background:#0f1319;border-radius:8px;padding:0.7rem 0.85rem;border-left:3px solid #60a5fa"><div style="color:#60a5fa;font-weight:700;font-size:12px;margin-bottom:0.25rem">🧪 Testnet</div>Keep testnet enabled while testing bot/trade flows. Disable only when you are ready for live trading.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- AI Analysis Modal -->
 <div class="int-modal-bg" id="kimiModal">
   <div class="int-modal">
@@ -1052,5 +1163,150 @@ function resetAccentColor() {
 </div>
 
 <script src="/js/session-check.js"></script>
+
+<!-- AI Chatbot Widget -->
+<div id="ai-chatbot-widget" style="position:fixed;bottom:20px;right:20px;z-index:9999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"><div id="chatbot-toggle" style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(102,126,234,0.4);transition:all 0.3s ease;position:relative"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="unread-badge" id="chatbot-unread-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#ff4757;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold">1</span></div><div id="chatbot-window" style="display:none;position:absolute;bottom:90px;right:0;width:400px;height:600px;background:white;border-radius:12px;box-shadow:0 5px 40px rgba(0,0,0,0.16);flex-direction:column;overflow:hidden;animation:slideUp 0.3s ease"><div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1)"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:28px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.2);border-radius:50%">🤖</div><div><h3 style="margin:0;font-size:16px;font-weight:600">Scanr AI Assistant</h3><p style="margin:2px 0 0 0;font-size:12px;opacity:0.9;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:#2ed573;border-radius:50%;animation:pulse 2s infinite"></span>Online</p></div></div></div><div style="display:flex;gap:8px"><button id="chatbot-clear" style="background:0;border:0;color:white;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m1 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button><button id="chatbot-minimize" style="background:0;border:0;color:white;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button></div></div><div id="chatbot-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#f8f9fa"><div style="text-align:center;padding:20px"><div style="font-size:48px;margin-bottom:12px">👋</div><h3 style="margin:0 0 8px 0;color:#333;font-size:18px">Welcome to Scanr AI!</h3><p style="margin:0 0 16px 0;color:#666;font-size:14px;line-height:1.5">Ask me about trading strategies, platform features, risk management, or technical analysis.</p></div></div><div style="display:flex;gap:8px;padding:12px;border-top:1px solid #e0e0e0;background:white"><input id="chatbot-input" type="text" placeholder="Ask me anything..." style="flex:1;border:1px solid #ddd;border-radius:20px;padding:10px 16px;font-size:14px;outline:0;font-family:inherit" autocomplete="off"/><button id="chatbot-send" style="background:#667eea;color:white;border:0;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button></div><div id="chatbot-loading" style="display:none;justify-content:center;padding:12px"><div style="display:flex;gap:4px"><span style="width:8px;height:8px;background:#667eea;border-radius:50%;animation:typing 1.4s infinite"></span><span style="width:8px;height:8px;background:#667eea;border-radius:50%;animation:typing 1.4s infinite;animation-delay:0.2s"></span><span style="width:8px;height:8px;background:#667eea;border-radius:50%;animation:typing 1.4s infinite;animation-delay:0.4s"></span></div></div></div></div>
+
+<style>
+@keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+@keyframes pulse { 0%, 100% { opacity:1; } 50% { opacity:0.5; } }
+@keyframes typing { 0%, 60%, 100% { opacity:0.3; transform:translateY(0); } 30% { opacity:1; transform:translateY(-10px); } }
+.typing-indicator { display: flex !important; align-items: center; gap: 6px; padding: 12px 14px; background: #f0f0f0; border-radius: 0 12px 12px 12px; width: fit-content; }
+.typing-dot { width: 8px; height: 8px; border-radius: 50%; background: #999; animation: typing 1.4s infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+.chatbot-message { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; animation: slideUp 0.3s ease; }
+.chatbot-message.user { align-items: flex-end; }
+.chatbot-message.assistant { align-items: flex-start; }
+.message-content { padding: 10px 14px; border-radius: 8px; font-size: 14px; line-height: 1.4; max-width: 85%; word-wrap: break-word; }
+.message-content.user { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 16px 4px 4px 16px; }
+.message-content.assistant { background: #f0f0f0; color: #333; border-radius: 4px 16px 16px 4px; }
+.message-timestamp { font-size: 11px; color: #999; }
+.chatbot-welcome { text-align: center; padding: 24px 16px; }
+.welcome-icon { font-size: 48px; margin-bottom: 12px; }
+.chatbot-toggle-styles:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6); }
+.chatbot-toggle-styles:active { transform: scale(0.95); }
+.icon-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.quick-btn:hover { background: #667eea; color: white; border-color: #667eea; }
+.chatbot-input:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+.chatbot-send-btn:hover { background: #5568d3; }
+.chatbot-send-btn:active { transform: scale(0.95); }
+.trade-confirm-card { background: linear-gradient(135deg, #f8f9fa 0%, #fff 100%); border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px; margin: 8px 0; animation: slideUp 0.3s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.confirm-header { font-weight: 700; color: #333; margin-bottom: 10px; font-size: 14px; }
+.confirm-details { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; font-size: 13px; color: #666; white-space:pre-wrap; word-break: break-word; }
+.confirm-buttons { display: flex; gap: 8px; }
+.btn-confirm { background: linear-gradient(135deg, #00e5a0 0%, #00c88e 100%); color: white; border: none; border-radius: 6px; padding: 9px 14px; cursor: pointer; font-weight: 600; font-size: 12px; font-family: inherit; transition: all 0.2s; flex: 1; }
+.btn-confirm:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 229, 160, 0.3); }
+.btn-cancel { background: linear-gradient(135deg, #ff4d6a 0%, #ff3355 100%); color: white; border: none; border-radius: 6px; padding: 9px 14px; cursor: pointer; font-weight: 600; font-size: 12px; font-family: inherit; transition: all 0.2s; flex: 1; }
+#chatbot-send:active { transform: scale(0.95); }
+.trade-confirm-card { background: #f8f9fa; border: 2px solid #667eea; border-radius: 8px; padding: 12px; margin: 8px 0; animation: slideUp 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15); }
+.confirm-header { font-weight: bold; font-size: 14px; margin-bottom: 8px; color: #ff9800; }
+.confirm-details { font-size: 13px; color: #333; margin-bottom: 10px; line-height: 1.6; }
+.confirm-buttons { display: flex; gap: 8px; }
+.btn-confirm { background: #00c57d; color: white; border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 13px; transition: background 0.2s; }
+.btn-confirm:hover { background: #00b36d; }
+.btn-cancel { background: #ff4757; color: white; border: none; border-radius: 4px; padding: 8px 16px; font-weight: 600; cursor: pointer; font-size: 13px; transition: background 0.2s; }
+.btn-cancel:hover { background: #ff3730; }
+.market-type-card { background: linear-gradient(135deg, #f0f4ff 0%, #f8f9fa 100%); border: 2px solid #667eea; border-radius: 8px; padding: 14px; margin: 8px 0; animation: slideUp 0.3s ease; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15); }
+.market-type-buttons { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.btn-market-type { background: white; border: 2px solid #ddd; border-radius: 6px; padding: 12px 8px; font-weight: 600; cursor: pointer; font-size: 12px; transition: all 0.2s; text-align: center; line-height: 1.4; }
+.btn-market-type:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2); border-color: #667eea; }
+.btn-market-type.spot { color: #1976d2; }
+.btn-market-type.spot:active, .btn-market-type.spot:focus { background: #e3f2fd; border-color: #1976d2; }
+.btn-market-type.futures { color: #d32f2f; }
+.btn-market-type.futures:active, .btn-market-type.futures:focus { background: #ffebee; border-color: #d32f2f; }
+.btn-market-type.margin { color: #f57c00; }
+.btn-market-type.margin:active, .btn-market-type.margin:focus { background: #fff3e0; border-color: #f57c00; }
+.chatbot-message { margin: 8px 0; padding: 8px 12px; border-radius: 6px; word-wrap: break-word; }
+.chatbot-message.user { background: #667eea; color: white; align-self: flex-end; max-width: 85%; }
+.chatbot-message.assistant { background: #e8edf6; color: #333; align-self: flex-start; max-width: 85%; }
+#chatbot-messages { display: flex !important; flex-direction: column; }
+@media (max-width: 480px) { #chatbot-window { width: 100vw; height: 100vh; bottom: 0 !important; right: 0 !important; border-radius: 0; max-width: 100vw !important; } }
+</style>
+
+<script src="/js/chatbot.js"></script>
+<script>
+async function binanceLoad() {
+  try {
+    const r = await fetch('/api/binance-store');
+    const j = await r.json();
+    document.getElementById('binanceKey').value = j.apiKey || '';
+    document.getElementById('binanceSecret').value = j.apiSecret || '';
+    document.getElementById('binanceTestnet').checked = j.testnet !== false;
+  } catch (_) {}
+}
+
+async function binanceSave() {
+  const body = {
+    apiKey: document.getElementById('binanceKey').value.trim(),
+    apiSecret: document.getElementById('binanceSecret').value.trim(),
+    testnet: document.getElementById('binanceTestnet').checked,
+  };
+  try {
+    const r = await fetch('/api/settings/binance/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const j = await r.json();
+    const msg = document.getElementById('binanceMsg');
+    msg.style.display = 'block';
+    if (j.success) {
+      msg.style.color = '#4ade80';
+      msg.textContent = '✓ Binance credentials saved';
+      loadIntegrationStatuses();
+    } else {
+      msg.style.color = '#f87171';
+      msg.textContent = '✗ ' + (j.error || 'Save failed');
+    }
+    setTimeout(() => msg.style.display = 'none', 3000);
+  } catch (e) {
+    const msg = document.getElementById('binanceMsg');
+    msg.style.display = 'block';
+    msg.style.color = '#f87171';
+    msg.textContent = '✗ ' + e.message;
+    setTimeout(() => msg.style.display = 'none', 3500);
+  }
+}
+
+async function binanceTestConnection() {
+  const body = {
+    apiKey: document.getElementById('binanceKey').value.trim(),
+    apiSecret: document.getElementById('binanceSecret').value.trim(),
+    testnet: document.getElementById('binanceTestnet').checked,
+  };
+  const msg = document.getElementById('binanceMsg');
+  msg.style.display = 'block';
+  msg.style.color = '#9aa3b5';
+  msg.textContent = 'Testing…';
+  try {
+    const r = await fetch('/api/settings/binance/test', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (j.success) {
+      msg.style.color = '#4ade80';
+      msg.textContent = `✓ Connected — Balance: $${Number(j.balance || 0).toFixed(2)} USDT`;
+    } else {
+      msg.style.color = '#f87171';
+      msg.textContent = '✗ ' + (j.error || 'Connection failed');
+    }
+  } catch (e) {
+    msg.style.color = '#f87171';
+    msg.textContent = '✗ ' + e.message;
+  }
+  setTimeout(() => msg.style.display = 'none', 4500);
+}
+
+async function binanceDisconnect() {
+  document.getElementById('binanceKey').value = '';
+  document.getElementById('binanceSecret').value = '';
+  document.getElementById('binanceTestnet').checked = true;
+  await binanceSave();
+}
+
+window.addEventListener('load', () => {
+  // Give socket.io a moment to connect, then initialize chatbot
+  setTimeout(() => {
+    if (typeof io !== 'undefined' && typeof ScanrChatbot !== 'undefined') {
+      window.scanrChatbot = new ScanrChatbot(io);
+    }
+  }, 500);
+});
+</script>
 </body>
 </html>

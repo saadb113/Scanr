@@ -39,6 +39,7 @@ const SettingsSchema = new mongoose.Schema({
         glmApiKey:    { type: String, default: '' },
         claudeApiKey: { type: String, default: '' },
     },
+    defaultExchange: { type: String, default: 'bybit' },
 }, { timestamps: true });
 SettingsSchema.index({ userId: 1 }, { unique: true });
 
@@ -112,6 +113,16 @@ const BybitStoreSchema = new mongoose.Schema({
 }, { timestamps: true });
 BybitStoreSchema.index({ userId: 1 }, { unique: true });
 
+// ── Binance credentials ──
+const BinanceStoreSchema = new mongoose.Schema({
+    userId:      { type: String, default: 'default' },
+    apiKey:      { type: String, default: '' },
+    apiSecret:   { type: String, default: '' },
+    testnet:     { type: Boolean, default: true },
+    connected:   { type: Boolean, default: false },
+}, { timestamps: true });
+BinanceStoreSchema.index({ userId: 1 }, { unique: true });
+
 // ── Autopilot persistent state ──
 const AutopilotStateSchema = new mongoose.Schema({
     userId:    { type: String, default: 'default' },
@@ -138,6 +149,7 @@ const StrategySchema = new mongoose.Schema({
     dailyDrawdownLimit:  { type: Number, default: 50 },
     tradingHoursFrom: { type: String, default: '' },
     tradingHoursTo:   { type: String, default: '' },
+    exchange:         { type: String, default: 'bybit' },
 }, { timestamps: true });
 
 const BotTradeSchema = new mongoose.Schema({
@@ -349,6 +361,7 @@ module.exports = {
     KimiSettings:   mongoose.model('KimiSettings',  KimiSettingsSchema),
     KimiCache:      mongoose.model('KimiCache',      KimiCacheSchema),
     BybitStore:     mongoose.model('BybitStore',     BybitStoreSchema),
+    BinanceStore:   mongoose.model('BinanceStore',   BinanceStoreSchema),
     AutopilotState: mongoose.model('AutopilotState', AutopilotStateSchema),
     AgentSettings:  mongoose.model('AgentSettings', AgentSettingsSchema),
     AgentSession:   mongoose.model('AgentSession',  AgentSessionSchema),

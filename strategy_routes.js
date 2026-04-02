@@ -79,7 +79,7 @@ router.delete('/trades/clear', async (req, res) => {
 // POST /api/strategy — create new
 router.post('/', async (req, res) => {
     try {
-        const { name, blocks, pineScript, coins, timeframe, scanInterval, maxTradesPerDay } = req.body;
+        const { name, blocks, pineScript, coins, timeframe, scanInterval, maxTradesPerDay, exchange } = req.body;
         const s = await Strategy.create({
             userId: req.session.userId,
             name: name || 'My Strategy',
@@ -89,6 +89,7 @@ router.post('/', async (req, res) => {
             timeframe: timeframe || '5m',
             scanInterval: scanInterval || 30,
             maxTradesPerDay: maxTradesPerDay || 3,
+            exchange: exchange === 'binance' ? 'binance' : 'bybit',
         });
         res.json({ ok: true, strategy: s });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }

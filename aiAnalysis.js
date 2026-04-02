@@ -14,20 +14,22 @@ Response format:
 }`;
 
 async function callKimi(prompt, settings) {
-    const apiKey = (settings.ai?.kimiApiKey || '').trim();
+    const apiKey = (settings?.ai?.kimiApiKey || '').trim();
     if (!apiKey) throw new Error('No Kimi API key found. Go to Settings → Integrations → AI Analysis to add your API key.');
 
     const maskedKey = apiKey.length > 8 ? apiKey.slice(0, 4) + '***' + apiKey.slice(-4) : '***';
     console.log('[Kimi] Sending request, key:', maskedKey);
+
+    const systemPrompt = settings?.systemPrompt || TRADING_SYSTEM_PROMPT;
 
     const res = await fetch('https://api.moonshot.ai/v1/chat/completions', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
             model:       'kimi-k2-0905-preview',
-            temperature: 0.3,
+            temperature: settings?.temperature || 0.3,
             messages: [
-                { role: 'system', content: TRADING_SYSTEM_PROMPT },
+                { role: 'system', content: systemPrompt },
                 { role: 'user',   content: prompt },
             ],
         }),
@@ -43,19 +45,21 @@ async function callKimi(prompt, settings) {
 }
 
 async function callGLM(prompt, settings) {
-    const apiKey = (settings.ai?.glmApiKey || '').trim();
+    const apiKey = (settings?.ai?.glmApiKey || '').trim();
     if (!apiKey) throw new Error('No GLM API key found. Go to Settings → Integrations → AI Analysis to add your API key.');
+
+    const systemPrompt = settings?.systemPrompt || TRADING_SYSTEM_PROMPT;
 
     const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
         body: JSON.stringify({
             model:           'glm-4-flash',
-            temperature:      0.3,
-            max_tokens:       1024,
-            response_format:  { type: 'json_object' },
+            temperature:      settings?.temperature || 0.3,
+            max_tokens:       settings?.maxTokens || 1024,
+            response_format:  { type: 'json_object' },  // Always use JSON format
             messages: [
-                { role: 'system', content: TRADING_SYSTEM_PROMPT },
+                { role: 'system', content: systemPrompt },
                 { role: 'user',   content: prompt },
             ],
         }),
@@ -71,8 +75,10 @@ async function callGLM(prompt, settings) {
 }
 
 async function callClaude(prompt, settings) {
-    const apiKey = (settings.ai?.claudeApiKey || '').trim();
+    const apiKey = (settings?.ai?.claudeApiKey || '').trim();
     if (!apiKey) throw new Error('Anthropic API key not set. Add it in Settings → Integrations → AI Analysis.');
+
+    const systemPrompt = settings?.systemPrompt || TRADING_SYSTEM_PROMPT;
 
     const res = await fetch('https://api.anthropic.com/v1/messages', {
         method:  'POST',
@@ -83,8 +89,8 @@ async function callClaude(prompt, settings) {
         },
         body: JSON.stringify({
             model:      'claude-sonnet-4-20250514',
-            max_tokens: 1024,
-            system:     TRADING_SYSTEM_PROMPT,
+            max_tokens: settings?.maxTokens || 1024,
+            system:     systemPrompt,
             messages:   [{ role: 'user', content: prompt }],
         }),
     });
@@ -95,8 +101,11 @@ async function callClaude(prompt, settings) {
 }
 
 async function analyzeWithAI(prompt, userSettings) {
-    const provider = userSettings?.ai?.provider || 'glm';
-    console.log('[AI Analysis] Using provider:', provider);
+    const provider = userSettings?.provider || userSettings?.ai?.provider || 'glm';
+    const systemPrompt = userSettings?.systemPrompt;
+    
+    console.log('[AI Analysis] Using provider:', provider, 'Mode:', systemPrompt ? 'chatbot' : 'trading');
+    
     let raw;
     switch (provider) {
         case 'claude': raw = await callClaude(prompt, userSettings); break;
@@ -104,7 +113,13 @@ async function analyzeWithAI(prompt, userSettings) {
         case 'glm':
         default:       raw = await callGLM(prompt, userSettings);    break;
     }
-    // Extract the JSON object regardless of any preamble/postamble the model adds
+    
+    // For chatbot requests (has systemPrompt), return text as-is
+    if (systemPrompt) {
+        return raw; // Return plain text response
+    }
+    
+    // For trading analysis, extract JSON object
     const start = raw.indexOf('{');
     const end   = raw.lastIndexOf('}');
     if (start !== -1 && end !== -1 && end > start) return raw.slice(start, end + 1).trim();
