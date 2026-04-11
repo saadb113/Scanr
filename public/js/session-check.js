@@ -52,7 +52,7 @@ function _ensurePremiumOverlayStyles() {
 
     .premium-card-title {
       font-size: 20px;
-      font-weight: 800;
+      font-weight: 800 !important;
       color: #ffffff;
       text-align: center;
       margin: 0;
@@ -258,8 +258,7 @@ function _getPremiumOverlayContent() {
       icon: '🎯',
       title: 'Unlock Premium Setups Scanner',
       subtitle: 'Scan the market for high-quality setups and save hours of manual chart work.',
-      summary: 'Find high-probability setups across many coins in minutes instead of checking charts one by one. AI scoring and confidence grading keep your focus on the strongest opportunities.'
-    };
+     };
   }
 
   if (path.includes('/strategy')) {
@@ -267,16 +266,14 @@ function _getPremiumOverlayContent() {
       icon: '🧠',
       title: 'Unlock Premium Strategy Builder',
       subtitle: 'Build, automate, and run strategies with pro-level controls.',
-      summary: 'Build structured strategies and automate execution so your system runs with consistency instead of emotion. Gain better control over entries, exits, and long-term risk management.'
-    };
+     };
   }
 
   return {
     icon: '🔒',
     title: 'Premium Feature',
     subtitle: 'Unlock the full power of Scanr with Premium access',
-    summary: 'Premium unlocks the complete Scanr workflow from setup discovery to strategy execution. Work faster, make clearer decisions, and manage risk with the full toolset.'
-  };
+    };
 }
 
 // Function to show premium overlay
@@ -294,12 +291,10 @@ window.showPremiumOverlay = function() {
   overlay.innerHTML = `
     <div class="premium-card">
       <div class="premium-card-icon">${premiumContent.icon}</div>
-      <h2 class="premium-card-title">${premiumContent.title}</h2>
+      <h2 class="premium-card-title" style="font-weight:800">${premiumContent.title}</h2>
       <p class="premium-card-subtitle">${premiumContent.subtitle}</p>
       
-      <div class="premium-page-summary">
-        ${premiumContent.summary}
-      </div>
+     
 
       <div class="premium-price">$<span data-dynamic-lifetime-price>49.00</span> Lifetime Access</div>
       <div class="premium-price-original" data-dynamic-original-wrap style="display:none;">Was $<span data-dynamic-original-price>69.00</span></div>
