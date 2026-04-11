@@ -66,27 +66,14 @@ function _ensurePremiumOverlayStyles() {
       margin: 0;
     }
 
-    .premium-features {
+    .premium-page-summary {
       background: transparent;
       border: 1px solid #2b2f3e;
       border-radius: 10px;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .premium-feature-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #ffffff;
+      padding: 12px;
+      color: #d7dbe6;
+      line-height: 1.55;
       font-size: 0.88rem;
-    }
-
-    .premium-feature-check {
-      color: #0ecb81;
-      flex-shrink: 0;
     }
 
     .premium-price {
@@ -170,7 +157,7 @@ function _ensurePremiumOverlayStyles() {
         font-size: 0.84rem;
       }
 
-      .premium-feature-item {
+      .premium-page-summary {
         font-size: 0.82rem;
       }
     }
@@ -262,12 +249,7 @@ function _getPremiumOverlayContent() {
       icon: '📈',
       title: 'Unlock Premium Terminal',
       subtitle: 'Trade faster with live execution tools and premium AI support built for active traders.',
-      features: [
-        'Live order execution panel with SL/TP workflow',
-        'Unlimited AI trade analysis on all timeframes',
-        'Real-time positions, open orders, and assets tabs',
-        'Price alerts and faster trade management'
-      ]
+      summary: 'Execute trades faster with real-time order tools, cleaner risk controls, and full account visibility in one place. Unlimited AI analysis helps you validate entries and exits quickly when markets move.'
     };
   }
 
@@ -276,12 +258,7 @@ function _getPremiumOverlayContent() {
       icon: '🎯',
       title: 'Unlock Premium Setups Scanner',
       subtitle: 'Scan the market for high-quality setups and save hours of manual chart work.',
-      features: [
-        'Advanced setup scanning across many coins',
-        'AI scoring and confidence grading per setup',
-        'Cleaner filtering to find A/A+ opportunities',
-        'Faster trade discovery workflow'
-      ]
+      summary: 'Find high-probability setups across many coins in minutes instead of checking charts one by one. AI scoring and confidence grading keep your focus on the strongest opportunities.'
     };
   }
 
@@ -290,12 +267,7 @@ function _getPremiumOverlayContent() {
       icon: '🧠',
       title: 'Unlock Premium Strategy Builder',
       subtitle: 'Build, automate, and run strategies with pro-level controls.',
-      features: [
-        'Drag and drop strategy builder',
-        'Automation bot and strategy execution flow',
-        'Backtesting and structured strategy logic',
-        'Better control over entries, exits, and risk'
-      ]
+      summary: 'Build structured strategies and automate execution so your system runs with consistency instead of emotion. Gain better control over entries, exits, and long-term risk management.'
     };
   }
 
@@ -303,13 +275,7 @@ function _getPremiumOverlayContent() {
     icon: '🔒',
     title: 'Premium Feature',
     subtitle: 'Unlock the full power of Scanr with Premium access',
-    features: [
-      'Trading Terminal',
-      'AI Analysis',
-      'Drag n Drop Strategy Builder',
-      '24/7 Strategy Automation Bot',
-      'Apex Setup Scanner'
-    ]
+    summary: 'Premium unlocks the complete Scanr workflow from setup discovery to strategy execution. Work faster, make clearer decisions, and manage risk with the full toolset.'
   };
 }
 
@@ -331,10 +297,8 @@ window.showPremiumOverlay = function() {
       <h2 class="premium-card-title">${premiumContent.title}</h2>
       <p class="premium-card-subtitle">${premiumContent.subtitle}</p>
       
-      <div class="premium-features">
-        ${premiumContent.features.map((feature) => `
-          <div class="premium-feature-item"><span class="premium-feature-check">✅</span><span>${feature}</span></div>
-        `).join('')}
+      <div class="premium-page-summary">
+        ${premiumContent.summary}
       </div>
 
       <div class="premium-price">$<span data-dynamic-lifetime-price>49.00</span> Lifetime Access</div>
