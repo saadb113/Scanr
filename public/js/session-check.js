@@ -32,38 +32,26 @@ function _ensurePremiumOverlayStyles() {
       background: #1a1d26;
       border: 1px solid #2b2f3e;
       border-radius: 16px;
-      padding: 40px;
-      max-width: 420px;
+      padding: 26px;
+      max-width: 440px;
       width: 100%;
       box-shadow: 0 20px 60px rgba(0,0,0,0.5);
       display: flex;
       flex-direction: column;
-      gap: 14px;
-      max-height: 90vh;
-      overflow: scroll;
-      scrollbar-width: thin;
-      scrollbar-color: var(--accent-green, #00e5a0) transparent;
+      gap: 10px;
+      max-height: none;
+      overflow: hidden;
     }
-.premium-card::-webkit-scrollbar {
-  width: 8px;
-  background: transparent;
-  }
-  .premium-card::-webkit-scrollbar-track {
-  background: transparent;
-  }
-  .premium-card::-webkit-scrollbar-thumb {
-  background: var(--accent-green, #00e5a0);
-  border-radius: 40px;
-  }
+
     .premium-card-icon {
-      font-size: 56px;
+      font-size: 42px;
       line-height: 1;
       text-align: center;
       color: #f0b90b;
     }
 
     .premium-card-title {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 800;
       color: #ffffff;
       text-align: center;
@@ -73,7 +61,8 @@ function _ensurePremiumOverlayStyles() {
     .premium-card-subtitle {
       color: #8b8fa8;
       text-align: center;
-      line-height: 1.55;
+      line-height: 1.45;
+      font-size: 0.9rem;
       margin: 0;
     }
 
@@ -81,10 +70,10 @@ function _ensurePremiumOverlayStyles() {
       background: transparent;
       border: 1px solid #2b2f3e;
       border-radius: 10px;
-      padding: 12px;
+      padding: 10px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
     .premium-feature-item {
@@ -92,7 +81,7 @@ function _ensurePremiumOverlayStyles() {
       align-items: center;
       gap: 8px;
       color: #ffffff;
-      font-size: 0.95rem;
+      font-size: 0.88rem;
     }
 
     .premium-feature-check {
@@ -102,7 +91,7 @@ function _ensurePremiumOverlayStyles() {
 
     .premium-price {
       color: var(--accent-green, #00e5a0);
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 800;
       text-align: center;
     }
@@ -110,7 +99,7 @@ function _ensurePremiumOverlayStyles() {
     .premium-price-original {
       text-align: center;
       color: #8b8fa8;
-      font-size: 0.86rem;
+      font-size: 0.8rem;
       text-decoration: line-through;
       margin-top: -6px;
     }
@@ -133,8 +122,8 @@ function _ensurePremiumOverlayStyles() {
     .premium-actions {
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-top: 4px;
+      gap: 8px;
+      margin-top: 2px;
     }
 
     .premium-btn-primary {
@@ -142,9 +131,9 @@ function _ensurePremiumOverlayStyles() {
       color: #041017;
       border: none;
       border-radius: 8px;
-      padding: 14px 32px;
+      padding: 11px 24px;
       font-weight: 700;
-      font-size: 16px;
+      font-size: 14px;
       width: 100%;
       cursor: pointer;
     }
@@ -158,9 +147,32 @@ function _ensurePremiumOverlayStyles() {
       border: 1px solid #2b2f3e;
       color: #8b8fa8;
       border-radius: 8px;
-      padding: 12px 32px;
+      padding: 10px 20px;
       width: 100%;
       cursor: pointer;
+    }
+
+    @media (max-height: 760px) {
+      .premium-card {
+        padding: 20px;
+        gap: 8px;
+      }
+
+      .premium-card-icon {
+        font-size: 34px;
+      }
+
+      .premium-card-title {
+        font-size: 18px;
+      }
+
+      .premium-card-subtitle {
+        font-size: 0.84rem;
+      }
+
+      .premium-feature-item {
+        font-size: 0.82rem;
+      }
     }
 
     .premium-btn-secondary:hover {
