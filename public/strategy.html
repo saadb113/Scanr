@@ -996,9 +996,9 @@
           <option value="">Switch Strategy…</option>
         </select>
         <button class="strat-btn primary" onclick="stratNew()">+ New</button>
-        <button class="strat-btn accent" onclick="stratSave()">💾 Save</button>
-        <button class="strat-btn accent" onclick="openPineModal()">📜 Pine Script</button>
-        <button class="strat-btn accent" onclick="openBotModal()">🤖 Bot</button>
+        <button class="strat-btn accent" onclick="stratSave()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+        <button class="strat-btn accent" onclick="openPineModal()"><i class="fa-solid fa-code"></i> Pine Script</button>
+        <button class="strat-btn accent" onclick="openBotModal()"><i class="fa-solid fa-robot" ></i> Bot</button>
         <button class="strat-btn danger" id="stratDeleteBtn" onclick="stratDelete()" >Delete</button>
       </div>
     </div>
@@ -1018,7 +1018,7 @@
       <div class="strat-canvas">
 
         <div class="strat-zone strat-zone-filters" id="zoneFilters">
-          <div class="strat-zone-header"><span class="zh-emoji">📋</span> Filters <small style="color:#4a5568;font-weight:500;font-size:0.68rem;margin-left:auto">All must pass before IF blocks run</small></div>
+          <div class="strat-zone-header"><span class="zh-emoji"><i class="fa-solid fa-filter" ></i></span> Filters <small style="color:#4a5568;font-weight:500;font-size:0.68rem;margin-left:auto">All must pass before IF blocks run</small></div>
           <div class="strat-zone-drop drop-zone" id="dropFilters" data-zone="filters" data-zone-key="filters"
                ondragover="stratDragOver(event)" ondrop="stratDrop(event,'filters')" ondragleave="stratDragLeave(event)">
             <div class="strat-zone-empty" id="emptyFilters">Drag filter blocks here</div>

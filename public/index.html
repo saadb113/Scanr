@@ -1,10 +1,11 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RSI + MACD Scanner</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="/css/styles.css">
     <script src="https://s3.tradingview.com/tv.js" async></script>
 </head>
@@ -101,7 +102,7 @@
         <div class="modal-header">
             <h2 id="modalTitle"></h2>
             <div style="display:flex;align-items:center;gap:0.5rem">
-                <button onclick="openCoinDetail()" title="Open detailed chart & trade" style="background:#0d1a0d;border:1px solid #22c55e;border-radius:5px;padding:0.2rem 0.6rem;font-size: 12px;font-weight:700;cursor:pointer;font-family:inherit;color:#22c55e;white-space:nowrap">🔍 More Details</button>
+                <button onclick="openCoinDetail()" title="Open detailed chart & trade" style="background:#0d1a0d;border:1px solid #22c55e;border-radius:5px;padding:0.2rem 0.6rem;font-size: 12px;font-weight:700;cursor:pointer;font-family:inherit;color:#22c55e;white-space:nowrap"><i class="fa-solid fa-magnifying-glass" style="color:#22c55e;     font-size: .7rem;"></i> More Details</button>
                 <button id="modalWlBtn" title="Add to Watchlist" style="background:none;border:1px solid #252d3d;border-radius:6px;padding:0.2rem 0.55rem;cursor:pointer;font-size:1rem;color:#3a4560;transition:all 0.15s">★</button>
                 <button class="modal-close" id="closeModal">&times;</button>
             </div>
@@ -190,14 +191,14 @@
 
 <div id="aiLimitModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3200;align-items:center;justify-content:center;padding:16px">
   <div style="width:min(420px,95vw);background:#121826;border:1px solid #2b3242;border-radius:12px;padding:18px 16px;color:#dde4f0">
-    <div style="font-size:18px;font-weight:800;margin-bottom:10px">🤖 Daily Limit Reached</div>
+    <div style="font-size:18px;font-weight:800;margin-bottom:10px"><i class="fa-solid fa-robot" ></i> Daily Limit Reached</div>
     <div style="font-size:13px;color:#9aa3b5;line-height:1.65;margin-bottom:14px">
       Free users get 3 AI analyses per day.<br><br>
       Your limit resets at midnight (your timezone).<br><br>
       Upgrade to Premium for unlimited AI analysis 🚀
     </div>
     <div style="display:grid;grid-template-columns:1fr;gap:8px">
-      <button onclick="window.location.href='/pricing'" style="padding:11px 12px;background:#00e5a0;color:#041017;border:none;border-radius:8px;font-weight:800;cursor:pointer">⚡ Upgrade to Premium</button>
+      <button onclick="window.location.href='/pricing'" style="padding:11px 12px;background:#00e5a0;color:#041017;border:none;border-radius:8px;font-weight:800;cursor:pointer"><i class="fa-solid fa-rocket" ></i> Upgrade to Premium</button>
       <button onclick="document.getElementById('aiLimitModal').style.display='none'" style="padding:10px 12px;background:#1b2433;color:#c9d1e2;border:1px solid #2f3a4d;border-radius:8px;font-weight:700;cursor:pointer">Maybe Later</button>
     </div>
   </div>
@@ -231,13 +232,13 @@
     <div class="sp-sidebar-label">Preferences</div>
     <div class="sp-tab active" data-tab="appearance">🎨 Appearance</div>
     <div class="sp-tab" data-tab="indicators">📊 Indicators</div>
-    <div class="sp-tab" data-tab="filters">🔍 Filters</div>
+    <div class="sp-tab" data-tab="filters"><i class="fa-solid fa-magnifying-glass" ></i> Filters</div>
     <div class="sp-tab" data-tab="coins">🪙 Coins</div>
-    <div class="sp-tab" data-tab="drawings">✏️ Drawings</div>
+    <div class="sp-tab" data-tab="drawings"><i class="fa-solid fa-pencil" ></i> Drawings</div>
     <div class="sp-sidebar-divider"></div>
     <div class="sp-sidebar-label">Connections</div>
     <div class="sp-tab" data-tab="bybit">⚡ Bybit</div>
-    <div class="sp-tab ai-tab" data-tab="ai">🤖 Kimi AI</div>
+    <div class="sp-tab ai-tab" data-tab="ai"><i class="fa-solid fa-robot" ></i> Kimi AI</div>
     <div class="sp-sidebar-divider"></div>
     <div class="sp-sidebar-label">Account</div>
     <div class="sp-tab profile-tab" data-tab="profile">👤 Profile</div>
@@ -369,7 +370,7 @@
       <div class="sp-grid" style="align-items:start">
 
         <div class="sp-card ai-card">
-          <div class="sp-card-title">🤖 API Credentials</div>
+          <div class="sp-card-title"><i class="fa-solid fa-robot" ></i> API Credentials</div>
           <div class="s-row">
             <label>API Key</label>
             <div style="position:relative">
@@ -392,7 +393,7 @@
             <label>Base URL &nbsp;<span style="color:#2e3a55;font-size: 12px">leave blank = auto</span></label>
             <input type="text" class="s-input-full" id="kimiBaseUrl" placeholder="https://api.moonshot.ai/v1" autocomplete="off">
           </div>
-          <button id="saveKimiSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#6d28d9,#a855f7);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size: 14px;cursor:pointer;font-family:inherit;letter-spacing:0.2px">💾 Save AI Settings</button>
+          <button id="saveKimiSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#6d28d9,#a855f7);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size: 14px;cursor:pointer;font-family:inherit;letter-spacing:0.2px"><i class="fa-solid fa-floppy-disk"></i> Save AI Settings</button>
           <div id="kimiSavedMsg" style="display:none;text-align:center;font-size: 13px;color:#48bb78;margin-top:0.45rem;font-weight:600">✓ Saved!</div>
           <button id="testKimiKey" style="width:100%;margin-top:0.5rem;background:#0f1319;color:#9aa3b5;border:1px solid #1a2030;border-radius:8px;padding:0.5rem;font-weight:600;font-size: 13px;cursor:pointer;font-family:inherit">🔑 Test Server-Side Key</button>
           <div id="kimiTestMsg" style="display:none;text-align:center;font-size: 12px;margin-top:0.4rem;font-weight:600;padding:0.4rem;border-radius:6px"></div>
@@ -429,7 +430,7 @@
       </div>
       <div id="drawingsManagerList" style="display:flex;flex-direction:column;gap:0.5rem"></div>
       <div id="drawingsEmptyMsg" style="display:none;text-align:center;padding:3rem;color:#2e3a55;font-size: 15px">
-        ✏️<br><br>No saved drawings yet.<br><span style="font-size: 13px">Open a coin, draw something, and it'll appear here.</span>
+        <i class="fa-solid fa-pencil" ></i><br><br>No saved drawings yet.<br><span style="font-size: 13px">Open a coin, draw something, and it'll appear here.</span>
       </div>
     </div>
 
@@ -470,7 +471,7 @@
                 <button onclick="toggleVisibility('bybitLiveSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size: 12px;font-family:inherit">Show</button>
               </div>
             </div>
-            <button onclick="bybitSaveAccount('mainnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#166534,#22c55e);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size: 13px;cursor:pointer;font-family:inherit">💾 Save Live Credentials</button>
+            <button onclick="bybitSaveAccount('mainnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#166534,#22c55e);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size: 13px;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Live Credentials</button>
           </div>
 
           <!-- Demo credentials -->
@@ -490,7 +491,7 @@
                 <button onclick="toggleVisibility('bybitDemoSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size: 12px;font-family:inherit">Show</button>
               </div>
             </div>
-            <button onclick="bybitSaveAccount('testnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size: 13px;cursor:pointer;font-family:inherit">💾 Save Demo Credentials</button>
+            <button onclick="bybitSaveAccount('testnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size: 13px;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Demo Credentials</button>
           </div>
 
           <div style="border-top:1px solid #1e2535;margin-top:0.85rem;padding-top:0.85rem;display:flex;gap:0.5rem">
@@ -549,7 +550,7 @@
               <option value="spot">Spot</option>
             </select>
           </div>
-          <button id="savePosSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:8px;padding:0.55rem;font-weight:800;font-size: 14px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px">💾 Save Settings</button>
+          <button id="savePosSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:8px;padding:0.55rem;font-weight:800;font-size: 14px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
           <div id="posSavedMsg" style="display:none;text-align:center;font-size: 13px;color:var(--accent-green);margin-top:0.45rem;font-weight:600">✓ Saved!</div>
         </div>
 
@@ -583,7 +584,7 @@
         </div>
       </div>
       <div style="margin-top:1rem;display:flex;gap:0.6rem;align-items:center">
-        <button onclick="profSave()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:var(--radius-sm);padding:0.5rem 1.4rem;font-size:0.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">💾 Save Profile</button>
+        <button onclick="profSave()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:var(--radius-sm);padding:0.5rem 1.4rem;font-size:0.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Profile</button>
         <span id="profSavedMsg" style="display:none;font-size:0.82rem;color:var(--accent-green);font-weight:600">✓ Profile saved!</span>
         <span id="profErrMsg" style="display:none;font-size:0.82rem;color:var(--accent-red);font-weight:600"></span>
       </div>
@@ -640,7 +641,7 @@
     <button class="byt-tab active" data-byttab="order" onclick="bytSwitchTab('order')">📝 Place Order</button>
     <button class="byt-tab" data-byttab="positions" onclick="bytSwitchTab('positions')">📊 Positions <span id="bytPosCount" class="byt-badge">0</span></button>
     <button class="byt-tab" data-byttab="orders" onclick="bytSwitchTab('orders')">📋 Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
-    <button class="byt-tab" data-byttab="autopilot" onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none">🤖 Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
+    <button class="byt-tab" data-byttab="autopilot" onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none"><i class="fa-solid fa-robot" ></i> Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
   </div>
 
   <!-- ── AUTOPILOT PANEL ── -->
@@ -890,10 +891,10 @@
         <div style="margin-bottom:0.65rem">
           <div class="ap-mode-toggle" style="width:100%">
             <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')" style="flex:1">✋ Manual</button>
-            <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')" style="flex:1">🤖 Autopilot</button>
+            <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')" style="flex:1"><i class="fa-solid fa-robot" ></i> Autopilot</button>
           </div>
           <div id="apModeHint" style="display:none;font-size: 12px;color:#a855f7;margin-top:0.35rem;padding:0.35rem 0.5rem;background:rgba(124,58,237,0.08);border-radius:5px;border:1px solid rgba(124,58,237,0.2);line-height:1.5">
-            🤖 Order will be placed and autopilot will automatically monitor SL/TP milestones. Requires both SL and TP.
+            <i class="fa-solid fa-robot" ></i> Order will be placed and autopilot will automatically monitor SL/TP milestones. Requires both SL and TP.
           </div>
         </div>
 

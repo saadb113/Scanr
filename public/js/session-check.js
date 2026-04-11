@@ -380,7 +380,7 @@ window.showUpgradeModal = function() {
           color: var(--text-primary, #dde4f0);
           margin: 0;
           letter-spacing: -0.5px;
-        ">⚡ Upgrade to Premium</h2>
+        "><i class="fa-solid fa-rocket" ></i> Upgrade to Premium</h2>
         <button onclick="document.getElementById('upgrade-modal').remove()" style="
           background: none;
           border: none;

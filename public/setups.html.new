@@ -210,7 +210,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1
 
   <!-- Empty State -->
   <div class="empty-state" id="emptyState" style="display:none">
-    <div class="empty-icon">🔍</div>
+    <div class="empty-icon"><i class="fa-solid fa-magnifying-glass" ></i></div>
     <div class="empty-text">No signals found</div>
     <div class="empty-sub">Run a scan to find trading signals</div>
   </div>

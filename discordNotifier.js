@@ -53,7 +53,7 @@ function positionClosedEmbed(trade) {
 
 function autopilotMilestoneEmbed(data) {
     return {
-        title:  '🤖 AUTOPILOT MILESTONE',
+        title:  '<i class="fa-solid fa-robot" ></i> AUTOPILOT MILESTONE',
         color:  0xf59e0b,
         fields: [
             { name: 'Symbol',    value: data.symbol,                inline: true },
@@ -144,7 +144,7 @@ function pktTime() {
 
 function stratBotStartEmbed(data) {
     return {
-        title:  '🤖 Strategy Bot Started',
+        title:  '<i class="fa-solid fa-robot" ></i> Strategy Bot Started',
         color:  0x3b82f6,
         fields: [
             { name: 'Strategy',  value: data.strategyName || 'Unknown',  inline: true },

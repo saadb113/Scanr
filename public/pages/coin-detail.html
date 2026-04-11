@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title id="pageTitle">Coin Detail</title>
 <script src="https://s3.tradingview.com/tv.js"></script>
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -294,8 +295,8 @@ body{
     <span class="cd-price-badge" id="hdPrice">—</span>
     <span class="cd-pct-badge" id="hdPct"></span>
     <div class="cd-nav-links">
-      <button class="cd-nav-btn" onclick="cdOpenAI()" style="color:#a855f7;border-color:#7c3aed3a">🤖 Analyze</button>
-      <a href="/terminal" class="cd-nav-btn">⚡ Trade</a>
+      <button class="cd-nav-btn" onclick="cdOpenAI()" style="color:#a855f7;border-color:#7c3aed3a"><i class="fa-solid fa-robot" ></i> Analyze</button>
+      <a href="/terminal" class="cd-nav-btn"><i class="fa-solid fa-rocket" ></i> Trade</a>
     </div>
   </div>
 
@@ -313,9 +314,9 @@ body{
   <!-- ── BELOW: Positions + Orders ── -->
   <div class="cd-below">
     <div class="cd-below-tabs">
-      <button class="cd-below-tab active" onclick="cdBelowTab('positions',this)">📊 Positions <span class="cd-tab-badge" id="cdPosBadge">0</span></button>
-      <button class="cd-below-tab" onclick="cdBelowTab('orders',this)">📋 Orders <span class="cd-tab-badge" id="cdOrdBadge">0</span></button>
-      <button class="cd-below-tab" onclick="cdBelowTab('assets',this)">💰 Assets</button>
+      <button class="cd-below-tab active" onclick="cdBelowTab('positions',this)"><i class="fa-solid fa-chart-area" ></i> Positions <span class="cd-tab-badge" id="cdPosBadge">0</span></button>
+      <button class="cd-below-tab" onclick="cdBelowTab('orders',this)"><i class="fa-solid fa-clipboard" ></i> Orders <span class="cd-tab-badge" id="cdOrdBadge">0</span></button>
+      <button class="cd-below-tab" onclick="cdBelowTab('assets',this)"><i class="fa-solid fa-sack-dollar" ></i> Assets</button>
     </div>
     <!-- ── POSITIONS PAGE ── -->
     <div class="cd-below-page active" id="cdp-positions">
@@ -340,7 +341,7 @@ body{
 <div class="cd-ai-overlay" id="cdAIOverlay" onclick="cdCloseAI()"></div>
 <div class="cd-ai-drawer" id="cdAIDrawer">
   <div class="cd-ai-drawer-hd">
-    <span class="cd-ai-drawer-title">🤖 AI Analysis</span>
+    <span class="cd-ai-drawer-title"><i class="fa-solid fa-robot" ></i> AI Analysis</span>
     <select id="cdAITf" class="cd-ai-tf-sel">
        <option value="1" selected>1m</option>
             <option value="3">3m</option>
@@ -368,7 +369,7 @@ body{
 <!-- Modify SL/TP modal -->
 <div class="cd-modal-overlay" id="cdModifyOverlay">
   <div class="cd-modal-box">
-    <h4>✏️ Modify SL / TP</h4>
+    <h4><i class="fa-solid fa-pencil" ></i> Modify SL / TP</h4>
     <div class="cd-field">
       <label>Stop Loss</label>
       <input type="number" class="cd-input" id="cdModSL" placeholder="Price" step="any" style="border-color:#7f1d1d"/>
@@ -895,7 +896,7 @@ async function cdLoadPositions() {
                 <div class="pos-item"><div class="pi-label">Liq.</div><div class="pi-val" style="color:#f59e0b">${+p.liqPrice>0?(+p.liqPrice).toFixed(4):'—'}</div></div>
               </div>
               <div class="pos-actions">
-                <button class="pos-act modify" onclick="cdOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')">✏️ SL/TP</button>
+                <button class="pos-act modify" onclick="cdOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')"><i class="fa-solid fa-pencil" ></i> SL/TP</button>
                 <button class="pos-act half"   onclick="cdClosePos('${p.symbol}','${p.side}',${size/2},'50%')">Close 50%</button>
                 <button class="pos-act close"  onclick="cdClosePos('${p.symbol}','${p.side}',${size},'all')">Close All</button>
               </div>

@@ -319,7 +319,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             el('cellSizeSlider').addEventListener('input', e => {
                 cellSize = +e.target.value;
                 const lbl = el('sCellSizeVal'); if (lbl) lbl.textContent = cellSize;
-                lsSave();
             });
         }
     }
@@ -614,8 +613,32 @@ function onColorChange() {
     visibility.rsi   = el('sShowRSI').checked;
     visibility.macd  = el('sShowMACD').checked;
     priceType        = el('sPriceType').value;
-    lsSave(); redrawAll();
+    redrawAll();
     if (el('modal')?.classList.contains('open')) { drawModalPrice(); drawModalRSI(); drawModalMACD(); }
+}
+
+async function saveAppearanceSettings() {
+    // Collect the latest appearance values before persisting.
+    onColorChange();
+
+    const body = {
+        cellSize: +el('cellSizeSlider').value,
+        colors: { ...colors },
+        visibility: { ...visibility },
+        priceType,
+        accentColor: window._accentColor || '#00e5a0',
+        clockTimezone: el('sClockTimezone')?.value || 'America/New_York'
+    };
+
+    const res = await apiPost('/api/settings', body);
+    if (!res) return;
+
+    _savedSettings = { ..._savedSettings, ...body };
+    const msg = document.getElementById('appearanceSavedMsg');
+    if (msg) {
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 2500);
+    }
 }
 
 // ═══════════════════════════════════════
@@ -2685,7 +2708,7 @@ function initKimiAI() {
             testMsg.textContent = `✗ Save failed: ${e.message}`;
         } finally {
             btn.disabled = false;
-            btn.textContent = '💾 Save AI Settings';
+            btn.textContent = '<i class="fa-solid fa-floppy-disk"></i> Save AI Settings';
         }
     });
 
@@ -3025,7 +3048,7 @@ function renderAIResult(r, sym, tf, price, analyzedAt) {
             <button onclick="bybitOpenFromAI('${sym}','${dir}',${parseFloat(r.entry)||0},${parseFloat(r.sl)||0},${parseFloat(r.tp)||0},${coinMaxLev})"
               style="width:100%;padding:0.65rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px;display:flex;align-items:center;justify-content:center;gap:0.5rem">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              ⚡ Trade on Bybit · ${coinMaxLev}x Max Lev
+              <i class="fa-solid fa-rocket" ></i> Trade on Bybit · ${coinMaxLev}x Max Lev
             </button>` : ''}
         </div>`;
 }
@@ -3441,7 +3464,7 @@ function bytSetCategory(cat) {
     if (btnLabel) btnLabel.textContent = cat === 'spot'
         ? (bytDirection === 'Buy' ? '▲ Place BUY Order' : '▼ Place SELL Order')
         : (apMode === 'autopilot'
-            ? (bytDirection === 'Buy' ? '🤖 Place LONG + Start Auto Mode' : '🤖 Place SHORT + Start Auto Mode')
+            ? (bytDirection === 'Buy' ? '<i class="fa-solid fa-robot" ></i> Place LONG + Start Auto Mode' : '<i class="fa-solid fa-robot" ></i> Place SHORT + Start Auto Mode')
             : (bytDirection === 'Buy' ? '▲ Place LONG Order' : '▼ Place SHORT Order'));
     // Re-fetch symbol info for the new category
     if (bytSymSelected) bytFetchMaxLev(bytSymSelected);
@@ -3709,10 +3732,10 @@ function bytSetDir(dir) {
     const isSpot = bytCategory === 'spot';
     if (dir === 'Buy') {
         btn.classList.remove('short-mode');
-        el('bytPlaceBtnLabel').textContent = isSpot ? '▲ Place BUY Order' : (isAuto ? '🤖 Place LONG + Start Auto Mode' : '▲ Place LONG Order');
+        el('bytPlaceBtnLabel').textContent = isSpot ? '▲ Place BUY Order' : (isAuto ? '<i class="fa-solid fa-robot" ></i> Place LONG + Start Auto Mode' : '▲ Place LONG Order');
     } else {
         btn.classList.add('short-mode');
-        el('bytPlaceBtnLabel').textContent = isSpot ? '▼ Place SELL Order' : (isAuto ? '🤖 Place SHORT + Start Auto Mode' : '▼ Place SHORT Order');
+        el('bytPlaceBtnLabel').textContent = isSpot ? '▼ Place SELL Order' : (isAuto ? '<i class="fa-solid fa-robot" ></i> Place SHORT + Start Auto Mode' : '▼ Place SHORT Order');
     }
     if (bytSlMode === 'pnl') bytCalcSlFromPnl();
     if (bytTpMode === 'pnl') bytCalcTpFromPnl();
@@ -4117,8 +4140,8 @@ async function bytLoadPositions() {
                     <div class="byt-pos-item"><div class="byt-pos-label">Liq. Price</div><div class="byt-pos-val" style="color:#f59e0b">${parseFloat(p.liqPrice) > 0 ? parseFloat(p.liqPrice).toFixed(4) : '—'}</div></div>
                 </div>
                 <div class="byt-pos-actions">
-                    <button class="byt-act-btn modify" onclick="bytOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')">✏️ Modify SL/TP</button>
-                    <button class="byt-act-btn autopilot-btn" onclick="bytSwitchToAutopilot('${p.symbol}','${p.side}',${parseFloat(p.avgPrice)},${parseFloat(p.stopLoss)},${parseFloat(p.takeProfit)},${parseFloat(p.size)},this)">🤖 Autopilot</button>
+                    <button class="byt-act-btn modify" onclick="bytOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')"><i class="fa-solid fa-pencil" ></i> Modify SL/TP</button>
+                    <button class="byt-act-btn autopilot-btn" onclick="bytSwitchToAutopilot('${p.symbol}','${p.side}',${parseFloat(p.avgPrice)},${parseFloat(p.stopLoss)},${parseFloat(p.takeProfit)},${parseFloat(p.size)},this)"><i class="fa-solid fa-robot" ></i> Autopilot</button>
                     <button class="byt-act-btn close-half" onclick="bytClosePosition('${p.symbol}','${p.side}',${parseFloat(p.size)/2},'half')">Close 50%</button>
                     <button class="byt-act-btn close-all" onclick="bytClosePosition('${p.symbol}','${p.side}',${parseFloat(p.size)},'all')">Close All</button>
                 </div>
@@ -4209,7 +4232,7 @@ async function bytLoadOrders() {
                     <div style="font-size:10px;color:#374151">${o.orderStatus} · ${new Date(parseInt(o.createdTime)).toLocaleTimeString()}</div>
                 </div>
                 <div class="byt-ord-actions">
-                    <button class="byt-act-btn modify" onclick="bytOpenModifyOrder('${o.orderId}','${o.symbol}','${o.price}','${o.qty}','${o.stopLoss}','${o.takeProfit}')">✏️ Edit</button>
+                    <button class="byt-act-btn modify" onclick="bytOpenModifyOrder('${o.orderId}','${o.symbol}','${o.price}','${o.qty}','${o.stopLoss}','${o.takeProfit}')"><i class="fa-solid fa-pencil" ></i> Edit</button>
                     <button class="byt-act-btn close-all" onclick="bytCancelOrder('${o.orderId}','${o.symbol}')">✗ Cancel</button>
                 </div>
             </div>`;
@@ -4376,7 +4399,7 @@ function apSetMode(mode) {
         const isSpot = typeof bytCategory !== 'undefined' && bytCategory === 'spot';
         const dir = bytDirection === 'Buy' ? (isSpot ? 'BUY' : 'LONG') : (isSpot ? 'SELL' : 'SHORT');
         lbl.textContent = mode === 'autopilot'
-            ? `🤖 Place ${dir} + Start Auto Mode`
+            ? `<i class="fa-solid fa-robot" ></i> Place ${dir} + Start Auto Mode`
             : `${bytDirection === 'Buy' ? '▲' : '▼'} Place ${dir} Order`;
     }
 }
@@ -4471,7 +4494,7 @@ async function bytSwitchToAutopilot(sym, side, entry, sl, tp, size, btnEl) {
         apTriggered = { tp40: false, tp50: false, sl60: false };
         apRunning   = true;
         apStartPolling();
-        showMsg('bytMsg', `🤖 Autopilot started for ${sym}`, '#a855f7');
+        showMsg('bytMsg', `<i class="fa-solid fa-robot" ></i> Autopilot started for ${sym}`, '#a855f7');
 
         // Update button to "Stop Autopilot" state
         if (btnEl) {
@@ -4481,11 +4504,11 @@ async function bytSwitchToAutopilot(sym, side, entry, sl, tp, size, btnEl) {
             btnEl.disabled = false;
             btnEl.onclick = () => bytStopAutopilotFromCard(btnEl);
         }
-        // Add "🤖 Autopilot Active" badge to card
+        // Add "<i class="fa-solid fa-robot" ></i> Autopilot Active" badge to card
         if (card && !card.querySelector('.ap-active-badge')) {
             const badge = document.createElement('span');
             badge.className = 'ap-active-badge';
-            badge.textContent = '🤖 Autopilot Active';
+            badge.textContent = '<i class="fa-solid fa-robot" ></i> Autopilot Active';
             badge.style.cssText = 'display:inline-block;background:#3b0764;color:#a855f7;border:1px solid #7e22ce;border-radius:10px;padding:0.15rem 0.55rem;font-size:11px;font-weight:700;margin-bottom:0.5rem';
             card.insertBefore(badge, card.firstChild);
         }
@@ -4494,7 +4517,7 @@ async function bytSwitchToAutopilot(sym, side, entry, sl, tp, size, btnEl) {
         showMsg('bytMsg', `✗ ${e.message}`, '#f56565');
         // Revert button on failure
         if (btnEl) {
-            btnEl.textContent = '🤖 Autopilot';
+            btnEl.textContent = '<i class="fa-solid fa-robot" ></i> Autopilot';
             btnEl.style.background = '';
             btnEl.style.color = '';
             btnEl.disabled = false;
@@ -4506,7 +4529,7 @@ async function bytStopAutopilotFromCard(btnEl) {
     if (!apRunning) return;
     await apStop();
     if (btnEl) {
-        btnEl.textContent = '🤖 Autopilot';
+        btnEl.textContent = '<i class="fa-solid fa-robot" ></i> Autopilot';
         btnEl.style.background = '';
         btnEl.style.color = '';
         btnEl.disabled = false;

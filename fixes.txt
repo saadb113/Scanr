@@ -136,7 +136,7 @@ Copy
 Show on ALL pages for free tier users:
 Position: top navigation bar, right side
 Style: yellow/accent colored pill button
-Text: "⚡ Upgrade to Premium"
+Text: "<i class="fa-solid fa-rocket" ></i> Upgrade to Premium"
 Click → opens popup showing premium features → then /payment
 Hide completely for premium users.
 Implementation:
@@ -145,7 +145,7 @@ JavaScript
 Copy
 <% if (user.accountTier === 'free') { %>
   <button onclick="showUpgradePopup()" class="upgrade-btn">
-    ⚡ Upgrade to Premium
+    <i class="fa-solid fa-rocket" ></i> Upgrade to Premium
   </button>
 <% } %>
 Also add upgrade prompt in sidebar:
@@ -159,20 +159,20 @@ Popup content:
 plain
 Copy
 ┌─────────────────────────────────────────┐
-│ ⚡ Upgrade to Premium                   │
+│ <i class="fa-solid fa-rocket" ></i> Upgrade to Premium                   │
 │                                         │
 │ Unlock the full power of Scanr:         │
 │                                         │
 │ 🎯 Trading Terminal                     │
 │    Place live trades on Bybit/Binance   │
 │                                         │
-│ 🤖 AI Analysis                         │
+│ <i class="fa-solid fa-robot" ></i> AI Analysis                         │
 │    AI Analyzation and trading signals     │
 │                                         │
 │ 🧩 Strategy Builder + Bot               │
 │    Build & automate trading strategies  │
 │                                         │
-│ 🔍 Apex Setup Scanner                   │
+│ <i class="fa-solid fa-magnifying-glass" ></i> Apex Setup Scanner                   │
 │    Find high-quality setups instantly   │
 │                                         │
 │                                         │

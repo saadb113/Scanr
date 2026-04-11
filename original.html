@@ -1043,12 +1043,12 @@
   <div class="sp-tabs">
     <div class="sp-tab active" data-tab="appearance">🎨 Appearance</div>
     <div class="sp-tab" data-tab="indicators">📊 Indicators</div>
-    <div class="sp-tab" data-tab="filters">🔍 Filters</div>
+    <div class="sp-tab" data-tab="filters"><i class="fa-solid fa-magnifying-glass" ></i> Filters</div>
     <div class="sp-tab" data-tab="coins">🪙 Coins</div>
-    <div class="sp-tab" data-tab="drawings">✏️ Drawings</div>
+    <div class="sp-tab" data-tab="drawings"><i class="fa-solid fa-pencil" ></i> Drawings</div>
     <div class="sp-tab" data-tab="position">💰 Position</div>
     <div class="sp-tab" data-tab="bybit" style="">⚡ Bybit</div>
-    <div class="sp-tab ai-tab" data-tab="ai">🤖 Kimi AI</div>
+    <div class="sp-tab ai-tab" data-tab="ai"><i class="fa-solid fa-robot" ></i> Kimi AI</div>
   </div>
 
   <!-- Body -->
@@ -1176,7 +1176,7 @@
       <div class="sp-grid" style="align-items:start">
 
         <div class="sp-card ai-card">
-          <div class="sp-card-title">🤖 API Credentials</div>
+          <div class="sp-card-title"><i class="fa-solid fa-robot" ></i> API Credentials</div>
           <div class="s-row">
             <label>API Key</label>
             <div style="position:relative">
@@ -1199,7 +1199,7 @@
             <label>Base URL &nbsp;<span style="color:#2e3a55;font-size:10px">leave blank = auto</span></label>
             <input type="text" class="s-input-full" id="kimiBaseUrl" placeholder="https://api.moonshot.ai/v1" autocomplete="off">
           </div>
-          <button id="saveKimiSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#6d28d9,#a855f7);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;letter-spacing:0.2px">💾 Save AI Settings</button>
+          <button id="saveKimiSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#6d28d9,#a855f7);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;letter-spacing:0.2px"><i class="fa-solid fa-floppy-disk"></i> Save AI Settings</button>
           <div id="kimiSavedMsg" style="display:none;text-align:center;font-size:12px;color:#48bb78;margin-top:0.45rem;font-weight:600">✓ Saved!</div>
         </div>
 
@@ -1234,7 +1234,7 @@
       </div>
       <div id="drawingsManagerList" style="display:flex;flex-direction:column;gap:0.5rem"></div>
       <div id="drawingsEmptyMsg" style="display:none;text-align:center;padding:3rem;color:#2e3a55;font-size:14px">
-        ✏️<br><br>No saved drawings yet.<br><span style="font-size:12px">Open a coin, draw something, and it'll appear here.</span>
+        <i class="fa-solid fa-pencil" ></i><br><br>No saved drawings yet.<br><span style="font-size:12px">Open a coin, draw something, and it'll appear here.</span>
       </div>
     </div>
 
@@ -1307,7 +1307,7 @@
                 <button onclick="toggleVisibility('bybitLiveSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size:11px;font-family:inherit">Show</button>
               </div>
             </div>
-            <button onclick="bybitSaveAccount('mainnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#166534,#22c55e);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit">💾 Save Live Credentials</button>
+            <button onclick="bybitSaveAccount('mainnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#166534,#22c55e);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Live Credentials</button>
           </div>
 
           <!-- Demo credentials -->
@@ -1327,7 +1327,7 @@
                 <button onclick="toggleVisibility('bybitDemoSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size:11px;font-family:inherit">Show</button>
               </div>
             </div>
-            <button onclick="bybitSaveAccount('testnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit">💾 Save Demo Credentials</button>
+            <button onclick="bybitSaveAccount('testnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Demo Credentials</button>
           </div>
 
           <div style="border-top:1px solid #1e2535;margin-top:0.85rem;padding-top:0.85rem;display:flex;gap:0.5rem">
@@ -1386,7 +1386,7 @@
               <option value="spot">Spot</option>
             </select>
           </div>
-          <button id="savePosSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:8px;padding:0.55rem;font-weight:800;font-size:13px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px">💾 Save Settings</button>
+          <button id="savePosSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:8px;padding:0.55rem;font-weight:800;font-size:13px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
           <div id="posSavedMsg" style="display:none;text-align:center;font-size:12px;color:var(--accent-green);margin-top:0.45rem;font-weight:600">✓ Saved!</div>
         </div>
 
@@ -1411,7 +1411,7 @@
       <!-- Mode toggle -->
       <div class="ap-mode-toggle">
         <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')">✋ Manual</button>
-        <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')">🤖 Autopilot</button>
+        <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')"><i class="fa-solid fa-robot" ></i> Autopilot</button>
       </div>
       <button onclick="bybitTerminalClose()" style="background:none;border:none;color:#6b7897;font-size:1.6rem;cursor:pointer;line-height:1;padding:0 0.3rem">&times;</button>
     </div>
@@ -1443,7 +1443,7 @@
     <button class="byt-tab active" data-byttab="order" onclick="bytSwitchTab('order')">📝 Place Order</button>
     <button class="byt-tab" data-byttab="positions" onclick="bytSwitchTab('positions')">📊 Positions <span id="bytPosCount" class="byt-badge">0</span></button>
     <button class="byt-tab" data-byttab="orders" onclick="bytSwitchTab('orders')">📋 Open Orders <span id="bytOrdCount" class="byt-badge">0</span></button>
-    <button class="byt-tab" data-byttab="autopilot" onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none">🤖 Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
+    <button class="byt-tab" data-byttab="autopilot" onclick="bytSwitchTab('autopilot')" id="apTab" style="display:none"><i class="fa-solid fa-robot" ></i> Autopilot <span id="apStatusBadge" class="byt-badge" style="background:#3b0764;color:#a855f7">OFF</span></button>
   </div>
 
   <!-- ── AUTOPILOT PANEL ── -->
@@ -4249,7 +4249,7 @@ function renderAIResult(r, sym, tf, price, analyzedAt) {
             <button onclick="bybitOpenFromAI('${sym}','${dir}',${parseFloat(r.entry)||0},${parseFloat(r.sl)||0},${parseFloat(r.tp)||0},${coinMaxLev})"
               style="width:100%;padding:0.65rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px;display:flex;align-items:center;justify-content:center;gap:0.5rem">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              ⚡ Trade on Bybit · ${coinMaxLev}x Max Lev
+              <i class="fa-solid fa-rocket" ></i> Trade on Bybit · ${coinMaxLev}x Max Lev
             </button>` : ''}
         </div>`;
 }
@@ -5113,7 +5113,7 @@ async function bytLoadPositions() {
                     <div class="byt-pos-item"><div class="byt-pos-label">Liq. Price</div><div class="byt-pos-val" style="color:#f59e0b">${parseFloat(p.liqPrice) > 0 ? parseFloat(p.liqPrice).toFixed(4) : '—'}</div></div>
                 </div>
                 <div class="byt-pos-actions">
-                    <button class="byt-act-btn modify" onclick="bytOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')">✏️ Modify SL/TP</button>
+                    <button class="byt-act-btn modify" onclick="bytOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')"><i class="fa-solid fa-pencil" ></i> Modify SL/TP</button>
                     <button class="byt-act-btn close-half" onclick="bytClosePosition('${p.symbol}','${p.side}',${parseFloat(p.size)/2},'half')">Close 50%</button>
                     <button class="byt-act-btn close-all" onclick="bytClosePosition('${p.symbol}','${p.side}',${parseFloat(p.size)},'all')">Close All</button>
                 </div>
@@ -5150,7 +5150,7 @@ async function bytLoadOrders() {
                     <div style="font-size:10px;color:#374151">${o.orderStatus} · ${new Date(parseInt(o.createdTime)).toLocaleTimeString()}</div>
                 </div>
                 <div class="byt-ord-actions">
-                    <button class="byt-act-btn modify" onclick="bytOpenModifyOrder('${o.orderId}','${o.symbol}','${o.price}','${o.qty}','${o.stopLoss}','${o.takeProfit}')">✏️ Edit</button>
+                    <button class="byt-act-btn modify" onclick="bytOpenModifyOrder('${o.orderId}','${o.symbol}','${o.price}','${o.qty}','${o.stopLoss}','${o.takeProfit}')"><i class="fa-solid fa-pencil" ></i> Edit</button>
                     <button class="byt-act-btn close-all" onclick="bytCancelOrder('${o.orderId}','${o.symbol}')">✗ Cancel</button>
                 </div>
             </div>`;

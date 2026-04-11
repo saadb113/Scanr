@@ -119,14 +119,14 @@ WHATSAPP_RECIPIENT_NUMBER=
 Send notifications in these exact situations:
 
 1. Agent Started:
-"🤖 Monty Agent Started
+"<i class="fa-solid fa-robot" ></i> Monty Agent Started
 Trading window: 8:00 AM – 6:00 PM PST
 Max trades today: 3
 Daily DD limit: 5%
 Scanning for opportunities..."
 
 2. Pre-trade alert (before placing order):
-"⚡ TRADE ALERT — [SYMBOL]
+"<i class="fa-solid fa-rocket" ></i> Trade ALERT — [SYMBOL]
 Direction: LONG/SHORT
 Entry: [price]
 Stop Loss: [price]
