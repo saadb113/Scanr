@@ -242,9 +242,69 @@ window.isPremium = function() {
   return window.userAccountTier === 'premium';
 };
 
+function _getPremiumOverlayContent() {
+  const path = (window.location.pathname || '').toLowerCase();
+
+  if (path.includes('/terminal')) {
+    return {
+      icon: '📈',
+      title: 'Unlock Premium Terminal',
+      subtitle: 'Trade faster with live execution tools and premium AI support built for active traders.',
+      features: [
+        'Live order execution panel with SL/TP workflow',
+        'Unlimited AI trade analysis on all timeframes',
+        'Real-time positions, open orders, and assets tabs',
+        'Price alerts and faster trade management'
+      ]
+    };
+  }
+
+  if (path.includes('/setups')) {
+    return {
+      icon: '🎯',
+      title: 'Unlock Premium Setups Scanner',
+      subtitle: 'Scan the market for high-quality setups and save hours of manual chart work.',
+      features: [
+        'Advanced setup scanning across many coins',
+        'AI scoring and confidence grading per setup',
+        'Cleaner filtering to find A/A+ opportunities',
+        'Faster trade discovery workflow'
+      ]
+    };
+  }
+
+  if (path.includes('/strategy')) {
+    return {
+      icon: '🧠',
+      title: 'Unlock Premium Strategy Builder',
+      subtitle: 'Build, automate, and run strategies with pro-level controls.',
+      features: [
+        'Drag and drop strategy builder',
+        'Automation bot and strategy execution flow',
+        'Backtesting and structured strategy logic',
+        'Better control over entries, exits, and risk'
+      ]
+    };
+  }
+
+  return {
+    icon: '🔒',
+    title: 'Premium Feature',
+    subtitle: 'Unlock the full power of Scanr with Premium access',
+    features: [
+      'Trading Terminal',
+      'AI Analysis',
+      'Drag n Drop Strategy Builder',
+      '24/7 Strategy Automation Bot',
+      'Apex Setup Scanner'
+    ]
+  };
+}
+
 // Function to show premium overlay
 window.showPremiumOverlay = function() {
   _ensurePremiumOverlayStyles();
+  const premiumContent = _getPremiumOverlayContent();
 
   // Remove any existing overlay
   const existing = document.getElementById('premium-overlay');
@@ -255,16 +315,14 @@ window.showPremiumOverlay = function() {
   overlay.className = 'premium-overlay';
   overlay.innerHTML = `
     <div class="premium-card">
-      <div class="premium-card-icon">🔒</div>
-      <h2 class="premium-card-title">Premium Feature</h2>
-      <p class="premium-card-subtitle">Unlock the full power of Scanr with Premium access</p>
+      <div class="premium-card-icon">${premiumContent.icon}</div>
+      <h2 class="premium-card-title">${premiumContent.title}</h2>
+      <p class="premium-card-subtitle">${premiumContent.subtitle}</p>
       
       <div class="premium-features">
-        <div class="premium-feature-item"><span class="premium-feature-check">✅</span><span>Trading Terminal</span></div>
-        <div class="premium-feature-item"><span class="premium-feature-check">✅</span><span>AI Analysis</span></div>
-        <div class="premium-feature-item"><span class="premium-feature-check">✅</span><span>Drag n Drop Strategy Builder</span></div>
-        <div class="premium-feature-item"><span class="premium-feature-check">✅</span><span>24/7 Strategy Automation Bot</span></div>
-        <div class="premium-feature-item"><span class="premium-feature-check">✅</span><span>Apex Setup Scanner</span></div>
+        ${premiumContent.features.map((feature) => `
+          <div class="premium-feature-item"><span class="premium-feature-check">✅</span><span>${feature}</span></div>
+        `).join('')}
       </div>
 
       <div class="premium-price">$<span data-dynamic-lifetime-price>49.00</span> Lifetime Access</div>
