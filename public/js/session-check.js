@@ -81,7 +81,9 @@ function _ensurePremiumOverlayStyles() {
     .premium-price {
       color: var(--accent-green, #00e5a0);
       font-size: 18px;
-      font-weight: 800;
+      font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+      font-weight: 900;
+      letter-spacing: -0.2px;
       text-align: center;
     }
 
