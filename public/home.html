@@ -364,136 +364,152 @@
     .step p { font-size: 14px; color: var(--text-secondary); line-height: 1.7; }
 
     /* ─────────────────────────────────────
-       PRICING PREVIEW
+       PRICING PREVIEW (matches pricing page)
     ───────────────────────────────────── */
     .pricing-card {
       background: var(--bg-card);
-      border: 1.5px solid rgba(0,229,160,0.22);
-      border-radius: 20px;
-      max-width: 480px;
-      margin: 0 auto;
-      padding: 44px;
+      border: 1.5px solid rgba(0,229,160,0.35);
+      border-radius: 22px;
+      padding: 44px 44px 40px;
+      max-width: 460px;
+      width: 100%;
       text-align: center;
       position: relative;
-      overflow: hidden;
+      box-shadow: 0 0 60px rgba(0,229,160,0.08), 0 12px 48px rgba(0,0,0,0.4);
     }
     .pricing-card::before {
       content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(0,229,160,0.5), transparent);
+      position: absolute; inset: 0;
+      border-radius: 22px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(0,229,160,0.07) 0%, transparent 60%);
+      pointer-events: none;
     }
-    .pricing-chip {
-      display: inline-flex;
-      background: rgba(0,229,160,0.08);
-      border: 1px solid rgba(0,229,160,0.22);
+    .pc-badge {
+      display: inline-block;
+      background: rgba(0,229,160,0.12);
+      border: 1px solid rgba(0,229,160,0.3);
       color: var(--accent);
       font-size: 11px;
-      font-weight: 800;
-      text-transform: uppercase;
+      font-weight: 700;
       letter-spacing: 1.5px;
-      padding: 5px 15px;
-      border-radius: 40px;
-      margin-bottom: 1.75rem;
+      text-transform: uppercase;
+      padding: 5px 16px;
+      border-radius: 20px;
+      margin-bottom: 2rem;
     }
-    .pricing-discount-badge {
-      display: none;
-      margin-left: 8px;
+    .pc-discount-badge {
+      position: absolute;
+      top: 20px;
+      right: 20px;
       background: #ef4444;
       color: #fff;
       border-radius: 999px;
-      padding: 3px 9px;
-      font-size: 10px;
+      padding: 4px 10px;
+      font-size: 11px;
       font-weight: 800;
-      letter-spacing: 0.6px;
-      vertical-align: middle;
-    }
-    .pricing-discount-badge.active { display: inline-flex; }
-    .pricing-original {
+      letter-spacing: 0.5px;
       display: none;
-      color: var(--text-secondary);
-      font-size: 1.2rem;
-      text-decoration: line-through;
-      margin-bottom: 6px;
     }
-    .pricing-original.active { display: block; }
-    .pricing-price {
-      font-size: 4.25rem;
+    .pc-discount-badge.active { display: inline-block; }
+    .pc-original {
+      display: none;
+      margin-bottom: 4px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+    }
+    .pc-original.active { display: block; }
+    .pc-price-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 3px;
+      line-height: 1;
+      margin-bottom: 0.35rem;
+    }
+    .pc-currency {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 14px;
+    }
+    .pc-amount {
+      font-size: 5.5rem;
       font-weight: 800;
       color: var(--accent);
-      letter-spacing: -0.045em;
-      line-height: 1;
+      letter-spacing: -3px;
     }
-    .pricing-price sup {
-      font-size: 1.75rem;
-      vertical-align: top;
-      margin-top: 0.8rem;
-      display: inline-block;
-      font-weight: 700;
-    }
-    .pricing-period {
-      font-size: 13px;
+    .pc-period {
+      font-size: 13.5px;
       color: var(--text-secondary);
-      margin: 8px 0 1.875rem;
+      font-weight: 500;
+      margin-bottom: 2rem;
     }
-    .pricing-sale-label {
+    .pc-sale-label {
       display: none;
       font-size: 12px;
       color: #fca5a5;
       font-weight: 700;
-      margin-top: 6px;
-      margin-bottom: 12px;
+      margin-top: 4px;
+      margin-bottom: 1.5rem;
     }
-    .pricing-sale-label.active { display: block; }
-    .pricing-list {
+    .pc-sale-label.active { display: block; }
+    .pc-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0 0 1.75rem;
+    }
+    .pc-features {
       list-style: none;
       text-align: left;
-      border-top: 1px solid var(--border);
-      padding-top: 1.5rem;
-      margin-bottom: 1.25rem;
+      margin-bottom: 2.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.72rem;
     }
-    .pricing-list li {
-      padding: 7px 0;
-      font-size: 14px;
-      color: var(--text-primary);
+    .pc-features li {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 0.8rem;
+      font-size: 14.5px;
+      font-weight: 500;
+      color: var(--text-primary);
     }
-    .pricing-list li::before {
-      content: '';
-      display: inline-flex;
-      flex-shrink: 0;
-      width: 18px; height: 18px;
+    .pc-check {
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
-      background: rgba(0,229,160,0.08);
-      border: 1.5px solid rgba(0,229,160,0.28);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8' fill='none'%3E%3Cpath d='M1 4L3.5 6.5L9 1' stroke='%2300e5a0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: center;
+      background: rgba(0,229,160,0.12);
+      border: 1.5px solid rgba(0,229,160,0.35);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
-    .pricing-note {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-bottom: 1.75rem;
-      line-height: 1.6;
-    }
-    .pricing-btn {
-      display: block;
-      width: 100%;
-      padding: 15px;
+    .lp-wa-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
       background: var(--accent);
+      color: #fff;
       border: none;
-      border-radius: 10px;
+      border-radius: 11px;
+      padding: 15px 28px;
       font-size: 15px;
       font-weight: 700;
-      color: #000;
-      cursor: pointer;
       font-family: inherit;
+      cursor: pointer;
+      width: 100%;
       transition: opacity 0.15s, transform 0.15s;
+      text-decoration: none;
+      line-height: 1;
     }
-    .pricing-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .lp-wa-btn:hover { opacity: 0.88; transform: translateY(-1px); }
 
     /* ─────────────────────────────────────
        FAQ
@@ -841,47 +857,47 @@
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; width: 100%; max-width: 900px; margin: 2rem auto 0;">
       <!-- FREE TIER -->
       <div class="pricing-card fade-in" style="position: relative; opacity: 0.85;">
-        <span class="pricing-chip" style="background: rgba(100, 120, 160, 0.2); color: var(--text-secondary);">Free</span>
-        <div class="pricing-price"><sup>$</sup><span>0</span></div>
-        <div class="pricing-period">forever</div>
-        <ul class="pricing-list" style="opacity: 0.8;">
-          <li><span class="pc-check"></span>Coin scanner (up to 50 coins)</li>
-          <li><span class="pc-check"></span>Price alerts &amp; Discord alerts</li>
-          <li><span class="pc-check"></span>Challenge tracker (view only)</li>
-          <li><span class="pc-check"></span>1 free AI model (GLM)</li>
-          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Bybit integration (Spot &amp; Futures)</li>
-          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Strategy builder &amp; bot</li>
-          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Premium AI models (Kimi, Claude)</li>
-          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Trade journal &amp; PnL calendar</li>
-          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Email support</li>
-        </ul>
-        <p class="pricing-note">Get started today, no credit card required.</p>
-      <a href="/register?plan=free"><button class="pricing-btn" style="opacity: 0.7;">Sign Up Free &#8594;</button></a>
+        <div class="pc-badge" style="background: rgba(100, 120, 160, 0.2); color: var(--text-secondary);">Free</div>
+        <div style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin: 1rem 0 0.5rem;">$0</div>
+        <p class="pc-period">forever</p>
+        <hr class="pc-divider"/>
+        <ul class="pc-features" style="opacity: 0.8;">
+           <li><span class="pc-check">✓</span>Coin scanner </li>
+        <li><span class="pc-check">✓</span>Price alerts &amp; Discord alerts</li>
+        <li><span class="pc-check">✓</span>Challenge tracker </li>
+        <li><span class="pc-check">✓</span>3 Free AI Analysis/Day</li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Live trading terminal (Spot &amp; Futures)</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Strategy builder</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Strategy automation bot</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Apex Setup Scanner</span></li></ul>
+      <a href="/register?plan=free"><button class="lp-wa-btn" style="opacity: 0.7;">Get Started Free</button></a>
       </div>
 
       <!-- PREMIUM TIER (Highlighted) -->
       <div class="pricing-card fade-in" style="position: relative; border: 2px solid var(--accent); box-shadow: 0 0 32px rgba(0, 229, 160, 0.15);">
-        <div style="position: absolute; top: -12px; right: 20px; background: var(--accent); color: #0a0e1a; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">★ MOST POPULAR</div>
-        <span class="pricing-chip">Lifetime Access</span><span class="pricing-discount-badge" id="homePricingDiscountBadge"></span>
-        <div class="pricing-original" id="homePricingOriginal">$69</div>
-        <div class="pricing-price"><sup>$</sup><span data-price="lifetime">49</span></div>
-        <div class="pricing-sale-label" id="homePricingSaleLabel"></div>
-        <div class="pricing-period">one time payment</div>
-        <ul class="pricing-list">
-          <li><span class="pc-check"></span>All premium features</li>
-          <li><span class="pc-check"></span>All future updates</li>
-          <li><span class="pc-check"></span>Bybit integration (Spot &amp; Futures)</li>
-          <li><span class="pc-check"></span>No-code strategy builder</li>
-          <li><span class="pc-check"></span>Live strategy bot</li>
-          <li><span class="pc-check"></span>Discord alerts + price alerts</li>
-          <li><span class="pc-check"></span>3 AI models (GLM, Kimi, Claude)</li>
-          <li><span class="pc-check"></span>Prop firm challenge tracker</li>
-          <li><span class="pc-check"></span>Trade journal + PnL calendar</li>
-          <li><span class="pc-check"></span>Single license key</li>
-          <li><span class="pc-check"></span>Priority email support</li>
+        <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--accent), #00d18f); color: #0a0f16; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">★ POPULAR</div>
+        <div class="pc-badge">Lifetime Access</div>
+        <div class="pc-discount-badge" id="pcDiscountBadge"></div>
+        <div class="pc-original" id="pcOriginalPrice">$69</div>
+        <div class="pc-price-row">
+          <span class="pc-currency">$</span>
+          <span class="pc-amount" data-price="lifetime">49</span>
+        </div>
+        <div class="pc-sale-label" id="pcSaleLabel"></div>
+        <p class="pc-period">one time payment</p>
+        <hr class="pc-divider"/>
+        <ul class="pc-features">
+          <li><span class="pc-check">✓</span>Coin scanner </li>
+        <li><span class="pc-check">✓</span>Price alerts &amp; Discord alerts</li>
+        <li><span class="pc-check">✓</span>Challenge tracker </li>
+        <li><span class="pc-check">✓</span>3 Free AI Analysis/Day</li>
+        <li><span class="pc-check">✓</span>Live trading terminal (Spot &amp; Futures)</li>
+        <li><span class="pc-check">✓</span>Strategy builder</li>
+        <li><span class="pc-check">✓</span>Strategy automation bot</li>
+        <li><span class="pc-check">✓</span>Apex Setup Scanner</li>
+        <li><span class="pc-check">✓</span>All future updates</li>
         </ul>
-        <p class="pricing-note">30-day happiness guarantee. Email us if you are not satisfied.</p>
-        <button class="pricing-btn" style="background: linear-gradient(135deg, var(--accent), #00d18f); font-weight: 900; cursor: pointer;" onclick="upgradeFromPricingCard()">🚀 Upgrade Now &#8594;</button>
+        <button class="lp-wa-btn" style="background: linear-gradient(135deg, var(--accent), #00d18f); font-weight: 900;" onclick="upgradeFromPricingCard()">🚀 Upgrade to Premium</button>
       </div>
     </div>
   </div>
@@ -1066,9 +1082,9 @@ function applyPricingToHome(pricing){
   const display=Number(lifetime.displayPrice||lifetime.original||49);
   document.querySelectorAll('[data-price="lifetime"]').forEach(el=>{el.textContent=String(display.toFixed(2));});
   const hasDiscount=lifetime.discounted!==null&&lifetime.discountPct!==null;
-  const originalEl=document.getElementById('homePricingOriginal');
-  const badgeEl=document.getElementById('homePricingDiscountBadge');
-  const labelEl=document.getElementById('homePricingSaleLabel');
+  const originalEl=document.getElementById('pcOriginalPrice');
+  const badgeEl=document.getElementById('pcDiscountBadge');
+  const labelEl=document.getElementById('pcSaleLabel');
   if(hasDiscount){
     if(originalEl){originalEl.textContent=`$${Number(lifetime.original).toFixed(2)}`;originalEl.classList.add('active');}
     if(badgeEl){badgeEl.textContent=`${lifetime.discountPct}% OFF`;badgeEl.classList.add('active');}
