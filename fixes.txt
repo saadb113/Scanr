@@ -1,124 +1,271 @@
-Make pricing dynamic across entire Scanr website.
-Admin can set prices from settings and they update everywhere.
+Add Free vs Premium tier system to Scanr.
+Users register without license key and get free access. Premium unlocks additional pages.
+1. FREE vs PREMIUM PAGE ACCESS:
 
-1. ADMIN SETTINGS — add pricing fields:
-   
-   In admin panel Settings tab add "Pricing" section:
-   
-   Lifetime Plan:
-   - Original Price (USDT) input — e.g. 69
-   - Discounted Price (USDT) input — leave empty = no discount
-   
-   Monthly Plan:
-   - Original Price (USDT) input — e.g. 19
-   - Discounted Price (USDT) input — leave empty = no discount
-   
-   Yearly Plan:
-   - Original Price (USDT) input — e.g. 129
-   - Discounted Price (USDT) input — leave empty = no discount
-   
-   Discount Label input — e.g. "Limited Time Offer" or "Ramadan Sale"
-   (shown on pricing cards when discount is active)
-   
-   Save Pricing button
-   
-   Preview below save button showing:
-   - Lifetime: ~~$69~~ $49 (29% OFF)
-   - Monthly: $19 (no discount)
-   - Yearly: ~~$129~~ $99 (23% OFF)
-   
-   Discount % calculated automatically:
-   discountPct = Math.round((original - discounted) / original × 100)
+FREE pages (accessible after registration, no payment):
+/scanner — real-time coin scanner (50+ coins)
+Discord alerts configuration
+/challenge — prop firm challenge tracker
 
-2. BACKEND — pricing API:
-   
-   Save to AppSettings in DB:
-   - pricing_lifetime_original
-   - pricing_lifetime_discounted
-   - pricing_monthly_original
-   - pricing_monthly_discounted
-   - pricing_yearly_original
-   - pricing_yearly_discounted
-   - pricing_discount_label
-   
-   Add public endpoint (no auth needed):
-   GET /api/settings/pricing
-   Returns:
-   {
-     lifetime: {
-       original: 69,
-       discounted: 49,  // null if no discount
-       displayPrice: 49, // discounted if set, else original
-       discountPct: 29,  // null if no discount
-     },
-     monthly: { ... },
-     yearly: { ... },
-     discountLabel: "Limited Time Offer" // null if no discount
-   }
+PREMIUM pages (requires premium account):
+/terminal — Trading Terminal (place trades on Bybit/Binance)
+/setups — Apex Scanner setup finder
+/strategy — Drag n Drop Strategy builder + 24/7 Strategy Automation bot
 
-3. UPDATE ALL FRONTEND PAGES:
-   
-   Pages to update:
-   - pricing.html
-   - index.html (pricing section)
-   - payment.html (shows amount to pay)
-   
-   On page load fetch /api/settings/pricing
-   then dynamically update all price elements.
-   
-   Use data attributes to mark price elements:
-   <span data-price="lifetime">$69</span>
-   <span data-price="monthly">$19</span>
-   <span data-price="yearly">$129</span>
-   
-   JS updates all elements after fetch:
-   document.querySelectorAll('[data-price]').forEach(el => {
-     const plan = el.dataset.price
-     el.textContent = '$' + pricing[plan].displayPrice
-   })
+2. FREE vs PREMIUM FEATURES:
 
-4. PRICING CARD display when discount active:
+FREE Tier Features:
+✅ Real-time coin scanner (50+ coins)
+✅ Discord Alerts
+✅ Bybit/Binance Integration (view-only, no trading)
+✅ Prop firm challenge tracker
+❌ Trading Terminal (blocked)
+❌ AI Integration
+❌ Setup finder (Apex Scanner)
+❌ Drag n Drop Strategy builder
+❌ 24/7 Strategy Automation bot
 
-   Show:
-   - Strikethrough original price (grey, smaller)
-   - Discounted price (big, white/yellow)
-   - Discount badge: "29% OFF" (red badge, top right of card)
-   - Discount label below price: "Limited Time Offer"
-   
-   Example:
-   ~~$69~~ 
-   $49 USDT
-   🏷 29% OFF
-   "Limited Time Offer"
-   
-   When no discount:
-   - Just show original price, no strikethrough
-   - No discount badge
+PREMIUM Tier Features:
+✅ Everything in Free +
+✅ Trading Terminal — live order placement on Bybit/Binance
+✅ Setup finder (Apex Scanner) — advanced setup detection
+✅ Drag n Drop Strategy builder — no-code bot creation
+✅ 24/7 Strategy Automation bot — automated trading execution
+✅ AI Integration — AI Analyzation for charts
 
-5. PARAGRAPH/TEXT mentions of price:
-   
-   Any text that mentions price should use 
-   data attributes so it updates dynamically:
-   
-   Instead of hardcoded:
-   "Get lifetime access for $69"
-   
-   Use:
-   "Get lifetime access for $<span data-price='lifetime'>69</span>"
-   
-   Search all HTML files for hardcoded price mentions:
-   - "$69", "$49", "$19", "$129", "$30"
-   - "69 USDT", "49 USDT" etc
-   - Replace all with data-price spans
+3. USER MODEL CHANGES:
+Add to User schema in models.js:
+accountTier: String, enum: ['free', 'premium'], default: 'free'
+premiumActivatedAt: Date, default: null
+premiumPlan: String, enum: ['lifetime', 'monthly', 'yearly', null], default: null
+Remove requirement for license key on registration:
+Registration creates account with accountTier: 'free'
+License key activation upgrades to 'premium'
+Keep existing license key system — it now sets accountTier to 'premium'
+4. REGISTRATION FLOW CHANGES:
+Current flow:
+Register → Enter license key → Access dashboard
+New flow:
+Register → Access dashboard (free tier)
+→ Optional: Enter license key → Premium access
+Changes to register.html:
+Remove license key requirement from registration form
+After registration → redirect to /dashboard directly
+Show welcome message:
+"Welcome to Scanr! You have free access to Scanner, Discord Alerts, and Challenge Tracker. Upgrade to Premium for Trading Terminal, Strategy Builder, AI Assistant, and more."
+Remove license key prompt on first login.
+License key entry moved to:
+Settings page → "Activate Premium" section
+Or via upgrade flow
+5. PREMIUM PAGE PROTECTION:
+Backend middleware — checkPremium:
+JavaScript
+Copy
+const checkPremium = (req, res, next) => {
+  if (req.session.user.accountTier === 'premium') {
+    return next()
+  }
+  return res.status(403).json({ 
+    error: 'premium_required',
+    message: 'This feature requires Premium access'
+  })
+}
+Apply to premium API routes:
+All /api/terminal/* routes (trading execution)
+All /api/setups/* routes
+All /api/strategy/* routes
+All /api/calendar/* routes
+All /api/referral/* routes
+AI Integration
 
-6. PAYMENT PAGE:
-   - Amount shown on payment page fetches from API
-   - Updates automatically based on current pricing
-   - If discount active: show discounted amount
-   - "You are paying: $49 USDT (was $69)"
+Frontend page protection:
+On page load of premium pages (terminal.html, setups.html, strategy.html, calendar.html, referral.html):
+Check user tier from session
+If free tier → show premium overlay (see section 6)
+If premium → show page normally
+AI Chatbot handling:
 
-7. CACHE pricing on frontend:
-   - Cache pricing response in sessionStorage
-   - Reuse within same session — no repeated API calls
-   - Cache key: 'scanr_pricing'
-   - Cache duration: 5 minutes
+
+6. PREMIUM OVERLAY for locked pages:
+When free user visits a premium page:
+Show blurred page content behind overlay
+Overlay card centered on page:
+┌─────────────────────────────────────────┐
+│ 🔒 Premium Feature                      │
+│                                         │
+│ The Trading Terminal is available       │
+│ on Premium plan only.                   │
+│                                         │
+│ ✅ Live Trading Terminal                │
+│ ✅ Apex Setup Scanner                   │
+│ ✅ Drag & Drop Strategy Builder         │
+│ ✅ 24/7 Automated Trading Bot           │
+│ ✅ AI Analysis                │
+│              │
+│                 │
+│                                         │
+│ From $-- lifetime          │
+│                                         │
+│ [🚀 Upgrade to Premium]                 │
+│ [Maybe Later]                           │
+└─────────────────────────────────────────┘
+Blur effect on background:
+css
+Copy
+.page-content {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+}
+Overlay:
+css
+Copy
+.premium-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+"Upgrade to Premium" button → opens popup with premium features → then /payment
+"Maybe Later" button → redirects to /dashboard
+7. UPGRADE TO PREMIUM BUTTON:
+Show on ALL pages for free tier users:
+Position: top navigation bar, right side
+Style: yellow/accent colored pill button
+Text: "⚡ Upgrade to Premium"
+Click → opens popup showing premium features → then /payment
+Hide completely for premium users.
+Implementation:
+In shared navigation/header include:
+JavaScript
+Copy
+<% if (user.accountTier === 'free') { %>
+  <button onclick="showUpgradePopup()" class="upgrade-btn">
+    ⚡ Upgrade to Premium
+  </button>
+<% } %>
+Also add upgrade prompt in sidebar:
+Bottom of sidebar for free users:
+"🔒 Unlock Trading Terminal, Strategy Bot & More"
+"Upgrade to Premium →"
+8. UPGRADE POPUP:
+When user clicks "Upgrade to Premium" button:
+Show modal popup (not redirect immediately)
+Popup content:
+plain
+Copy
+┌─────────────────────────────────────────┐
+│ ⚡ Upgrade to Premium                   │
+│                                         │
+│ Unlock the full power of Scanr:         │
+│                                         │
+│ 🎯 Trading Terminal                     │
+│    Place live trades on Bybit/Binance   │
+│                                         │
+│ 🤖 AI Analysis                         │
+│    AI Analyzation and trading signals     │
+│                                         │
+│ 🧩 Strategy Builder + Bot               │
+│    Build & automate trading strategies  │
+│                                         │
+│ 🔍 Apex Setup Scanner                   │
+│    Find high-quality setups instantly   │
+│                                         │
+│                                         │
+│ ─────────────────────────────────────   │
+│                                         │
+│ [🚀 Upgrade to Premium]                │
+│ [✕ Close]                               │
+│                                         │
+│ Already have a license key?             │
+│ [Activate Key]                          │
+└─────────────────────────────────────────┘
+"Upgrade to Premium" → redirects to /payment with selected plan
+"Activate Key" → shows license key input field
+"Close" → closes popup
+9. PAYMENT PAGE UPDATES:
+/payment page already exists — update it:
+
+After payment proof submitted → show pending status
+When admin verifies → accountTier set to 'premium'
+User sees premium content immediately
+10. LICENSE KEY ACTIVATION (existing users):
+Keep existing license key system working:
+Settings page → "Activate License Key" section
+User enters key → activates premium
+Sets accountTier = 'premium'
+Also accessible from /payment page
+"Already have a license key?" button
+Existing users migration:
+Set accountTier = 'premium' for all users where licenseStatus = 'active'
+Run once on server start:
+JavaScript
+Copy
+User.updateMany(
+  { licenseStatus: 'active' },
+  { accountTier: 'premium', premiumActivatedAt: new Date() }
+)
+11. ADMIN PANEL UPDATES:
+Users tab — add tier column:
+Show Free / Premium badge per user
+Filter by tier: All | Free | Premium
+Manual upgrade button: admin can upgrade any user to premium directly
+Stats: Total free users, Total premium users, Conversion rate
+When admin verifies payment:
+Set accountTier = 'premium' on user
+Set premiumPlan based on what they paid for
+Set premiumActivatedAt = now
+12. SESSION & API UPDATES:
+Include accountTier in session on login:
+JavaScript
+Copy
+req.session.user = {
+  id, email, firstName, accountTier, ...
+}
+Add to session-check.js:
+Return accountTier in session check response
+Frontend stores tier and uses it for UI decisions
+Add helper function used everywhere:
+JavaScript
+Copy
+function isPremium(user) {
+  return user.accountTier === 'premium'
+}
+13. LANDING PAGE UPDATES:
+Update pricing section on index.html and pricing.html:
+FREE tier card:
+Title: "Free"
+Price: $0
+Features:
+✅ Real-time coin scanner (50+ coins)
+✅ Discord Alerts
+✅ Bybit Integration (view-only)
+✅ Prop firm challenge tracker
+❌ Trading Terminal
+❌ Setup finder (Apex Scanner)
+❌ Drag n Drop Strategy builder
+❌ 24/7 Strategy Automation bot
+❌ AI Integration
+Button: "Get Started Free" → /register
+PREMIUM tier card:
+Title: "Premium"
+Price: $69 lifetime (dynamic from admin settings)
+Features: all features unlocked
+Button: "Upgrade to Premium" → opens upgrade popup
+Update hero CTA button:
+Change from "Get Started" to "Start Free"
+Subtext: "Free forever • Upgrade anytime"
+14. FREE TIER LIMITATIONS:
+Scanner limitations:
+Max 50 coins (premium gets 100+)
+Basic filters only (premium gets Apex hard filters)
+Bybit Integration:
+Free: View account balance, see charts, monitor positions
+Premium: Place trades, execute orders, full terminal access
+Discord Alerts:
+Free: Receive alerts, configure basic notifications
+Premium: Custom alert rules, advanced filtering

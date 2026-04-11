@@ -86,6 +86,58 @@ function priceAlertEmbed(data) {
     };
 }
 
+function newRegistrationEmbed(data) {
+    return {
+        title: '🆕 New User Registration',
+        color: 0x22c55e,
+        fields: [
+            { name: 'Name', value: `${data.firstName || ''} ${data.lastName || ''}`.trim() || '—', inline: true },
+            { name: 'Email', value: data.email || '—', inline: true },
+            { name: 'Tier', value: (data.accountTier || 'free').toUpperCase(), inline: true },
+            { name: 'User ID', value: data.userId || '—', inline: false },
+        ],
+        footer: { text: 'Scanr Admin Alerts' },
+        timestamp: new Date().toISOString(),
+    };
+}
+
+function newContactEmbed(data) {
+    const msg = (data.message || '').trim();
+    const shortened = msg.length > 900 ? msg.slice(0, 900) + '...' : msg;
+    return {
+        title: '📬 New Contact Form Submission',
+        color: 0x3b82f6,
+        fields: [
+            { name: 'Name', value: data.name || '—', inline: true },
+            { name: 'Email', value: data.email || '—', inline: true },
+            { name: 'Phone', value: data.phone || '—', inline: true },
+            { name: 'Message', value: shortened || '—', inline: false },
+        ],
+        footer: { text: 'Scanr Admin Alerts' },
+        timestamp: new Date(data.createdAt || Date.now()).toISOString(),
+    };
+}
+
+function newPaymentSubmissionEmbed(data) {
+    return {
+        title: '💳 New Payment Submitted',
+        color: 0xf59e0b,
+        fields: [
+            { name: 'Buyer', value: data.buyerName || '—', inline: true },
+            { name: 'Email', value: data.buyerEmail || '—', inline: true },
+            { name: 'Phone', value: data.buyerPhone || '—', inline: true },
+            { name: 'Plan', value: (data.planType || 'lifetime').toUpperCase(), inline: true },
+            { name: 'Amount', value: `${data.amount ?? '—'} USDT`, inline: true },
+            { name: 'Network', value: data.network || '—', inline: true },
+            { name: 'TxID', value: data.txId || '—', inline: false },
+            { name: 'Payment ID', value: data.paymentId || '—', inline: false },
+            { name: 'Screenshot', value: data.screenshotPath || '—', inline: false },
+        ],
+        footer: { text: 'Scanr Admin Alerts' },
+        timestamp: new Date(data.createdAt || Date.now()).toISOString(),
+    };
+}
+
 function pktTime() {
     return new Date(Date.now() + 5 * 3600000).toISOString().replace('T', ' ').slice(0, 19) + ' PKT';
 }
@@ -164,4 +216,14 @@ async function sendStrategyBotAlert(webhookUrl, type, data) {
     await sendDiscordAlert(webhookUrl, embed);
 }
 
-module.exports = { sendDiscordAlert, orderSummaryEmbed, positionClosedEmbed, autopilotMilestoneEmbed, priceAlertEmbed, sendStrategyBotAlert };
+module.exports = {
+    sendDiscordAlert,
+    orderSummaryEmbed,
+    positionClosedEmbed,
+    autopilotMilestoneEmbed,
+    priceAlertEmbed,
+    newRegistrationEmbed,
+    newContactEmbed,
+    newPaymentSubmissionEmbed,
+    sendStrategyBotAlert,
+};

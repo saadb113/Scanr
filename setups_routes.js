@@ -7,12 +7,57 @@ const {
     calcMACD,
     fetchCandles,
 } = require('./utils/indicators');
+const { SetupSignals } = require('./models');
 
-let scanInProgress = false;
-let lastSignals = [];
+const scanInProgressByUser = new Map();
+const lastSignalsByUser = new Map();
 const candleCache = new Map();
 const CANDLE_CACHE_TTL_MS = 60 * 1000;
 const SCAN_BATCH_SIZE = 20;
+
+function normalizeUserId(userId) {
+    return String(userId || 'default');
+}
+
+function setScanStatus(userId, inProgress) {
+    const uid = normalizeUserId(userId);
+    scanInProgressByUser.set(uid, !!inProgress);
+}
+
+function getScanStatus(userId) {
+    const uid = normalizeUserId(userId);
+    return !!scanInProgressByUser.get(uid);
+}
+
+async function saveLastSignals(userId, signals) {
+    const uid = normalizeUserId(userId);
+    const nextSignals = Array.isArray(signals) ? signals : [];
+    lastSignalsByUser.set(uid, nextSignals);
+    await SetupSignals.findOneAndUpdate(
+        { userId: uid },
+        { $set: { signals: nextSignals, lastScannedAt: new Date() } },
+        { upsert: true, setDefaultsOnInsert: true }
+    );
+}
+
+async function getLastSignals(userId) {
+    const uid = normalizeUserId(userId);
+    if (lastSignalsByUser.has(uid)) return lastSignalsByUser.get(uid) || [];
+    const doc = await SetupSignals.findOne({ userId: uid }).lean();
+    const signals = Array.isArray(doc?.signals) ? doc.signals : [];
+    lastSignalsByUser.set(uid, signals);
+    return signals;
+}
+
+async function clearLastSignals(userId) {
+    const uid = normalizeUserId(userId);
+    lastSignalsByUser.set(uid, []);
+    await SetupSignals.findOneAndUpdate(
+        { userId: uid },
+        { $set: { signals: [], lastScannedAt: null } },
+        { upsert: true, setDefaultsOnInsert: true }
+    );
+}
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -620,6 +665,7 @@ async function runFundingAndOIForAll(testCoins, io, userId, progressStart, progr
 }
 
 async function runApexScanner(io, userId, options = {}) {
+    const uid = normalizeUserId(userId);
     const coins = parseInt(options.coins, 10) || 50;
     const accountSize = parseFloat(options.accountSize) || 1000;
     const riskPercent = parseFloat(options.riskPercent) || 1;
@@ -627,23 +673,23 @@ async function runApexScanner(io, userId, options = {}) {
     const minScore = parseInt(options.minScore, 10) || 35;
     const scanStartedAt = Date.now();
 
-    if (scanInProgress) return lastSignals;
-    scanInProgress = true;
+    if (getScanStatus(uid)) return getLastSignals(uid);
+    setScanStatus(uid, true);
 
     const scanTimeout = setTimeout(() => {
-        scanInProgress = false;
-        io.to(userId).emit('apex:error', { error: 'Scan timeout: exceeded 3 minutes' });
+        setScanStatus(uid, false);
+        io.to(uid).emit('apex:error', { error: 'Scan timeout: exceeded 3 minutes' });
     }, 180000);
 
     try {
-        io.to(userId).emit('apex:progress', { step: 'Step 1/8: Fetching symbols...', progress: 5 });
+        io.to(uid).emit('apex:progress', { step: 'Step 1/8: Fetching symbols...', progress: 5 });
         const symbols = await getTopSymbols();
         if (!symbols.length) throw new Error('No symbols fetched');
 
-        io.to(userId).emit('apex:progress', { step: 'Step 2/8: Fetching 24h stats...', progress: 12 });
+        io.to(uid).emit('apex:progress', { step: 'Step 2/8: Fetching 24h stats...', progress: 12 });
         const allStats = await get24hrStats(symbols);
 
-        io.to(userId).emit('apex:progress', { step: 'Step 3/8: Running pre-filter...', progress: 20 });
+        io.to(uid).emit('apex:progress', { step: 'Step 3/8: Running pre-filter...', progress: 20 });
         const filtered = runAllFilters(allStats, {
             minVolumeUSDT: 50000000,
             minChangePercent: 2,
@@ -662,26 +708,26 @@ async function runApexScanner(io, userId, options = {}) {
             testCoins = testCoins.concat(fallback);
         }
         if (!testCoins.length) {
-            lastSignals = [];
-            io.to(userId).emit('apex:done', { signals: [], count: 0 });
-            scanInProgress = false;
+            await saveLastSignals(uid, []);
+            io.to(uid).emit('apex:done', { signals: [], count: 0 });
+            setScanStatus(uid, false);
             clearTimeout(scanTimeout);
             return [];
         }
 
-        io.to(userId).emit('apex:progress', { step: `Step 4/8: Indicators for ${testCoins.length} coins...`, progress: 28 });
-        const indicatorResults = await runIndicatorsForAll(testCoins, io, userId, 28, 27);
+        io.to(uid).emit('apex:progress', { step: `Step 4/8: Indicators for ${testCoins.length} coins...`, progress: 28 });
+        const indicatorResults = await runIndicatorsForAll(testCoins, io, uid, 28, 27);
 
-        io.to(userId).emit('apex:progress', { step: 'Step 5/8: Funding & OI...', progress: 60 });
-        const { fundingRates, openInterests } = await runFundingAndOIForAll(testCoins, io, userId, 60, 10);
+        io.to(uid).emit('apex:progress', { step: 'Step 5/8: Funding & OI...', progress: 60 });
+        const { fundingRates, openInterests } = await runFundingAndOIForAll(testCoins, io, uid, 60, 10);
 
-        io.to(userId).emit('apex:progress', { step: 'Step 6/8: Scoring coins...', progress: 72 });
+        io.to(uid).emit('apex:progress', { step: 'Step 6/8: Scoring coins...', progress: 72 });
         const scored = scoreAllCoins(indicatorResults, fundingRates, openInterests);
 
-        io.to(userId).emit('apex:progress', { step: 'Step 7/8: Determining direction...', progress: 82 });
+        io.to(uid).emit('apex:progress', { step: 'Step 7/8: Determining direction...', progress: 82 });
         const withDirection = runDirectionForAll(scored, indicatorResults, fundingRates);
 
-        io.to(userId).emit('apex:progress', { step: 'Step 8/8: Generating signals...', progress: 92 });
+        io.to(uid).emit('apex:progress', { step: 'Step 8/8: Generating signals...', progress: 92 });
         const signals = generateAllSignals(withDirection, indicatorResults, {
             accountSize,
             riskPercent,
@@ -699,17 +745,17 @@ async function runApexScanner(io, userId, options = {}) {
             }
         }
 
-        lastSignals = signals;
+        await saveLastSignals(uid, signals);
         const durationSec = Math.max(1, Math.round((Date.now() - scanStartedAt) / 1000));
-        io.to(userId).emit('apex:progress', { step: `Scan complete — found ${signals.length} signals in ${durationSec}s`, progress: 100 });
-        io.to(userId).emit('apex:done', { signals, count: signals.length });
-        scanInProgress = false;
+        io.to(uid).emit('apex:progress', { step: `Scan complete — found ${signals.length} signals in ${durationSec}s`, progress: 100 });
+        io.to(uid).emit('apex:done', { signals, count: signals.length });
+        setScanStatus(uid, false);
         clearTimeout(scanTimeout);
         return signals;
     } catch (err) {
-        scanInProgress = false;
+        setScanStatus(uid, false);
         clearTimeout(scanTimeout);
-        io.to(userId).emit('apex:error', { error: err.message });
+        io.to(uid).emit('apex:error', { error: err.message });
         throw err;
     }
 }
@@ -724,7 +770,8 @@ module.exports = {
     scoreAllCoins,
     runDirectionForAll,
     generateAllSignals,
-    getScanStatus: () => scanInProgress,
-    getLastSignals: () => lastSignals,
+    getScanStatus,
+    getLastSignals,
+    clearLastSignals,
 };
 

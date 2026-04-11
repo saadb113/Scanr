@@ -384,6 +384,22 @@
     }
     .ap-mode-btn.manual.active    { background: var(--byt-card); color: var(--byt-text); }
     .ap-mode-btn.autopilot.active { background: rgba(124,58,237,0.2); color: #a855f7; }
+    .ap-info-tip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      margin-left: 0.35rem;
+      border: 1px solid rgba(168,85,247,0.45);
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      color: #a855f7;
+      background: rgba(124,58,237,0.1);
+      cursor: help;
+    }
 
     /* ── Place button ── */
     .byt-place-btn {
@@ -546,6 +562,7 @@
 <body>
 <script src="/js/nav.js"></script>
 
+<div class="page-content">
 <div id="bybitTerminal" class="bybit-terminal">
 
   <!-- Global notification bar -->
@@ -781,40 +798,14 @@
           <input id="bytEntry" class="byt-input" type="number" placeholder="0.00" step="any">
         </div>
 
-        <!-- Quantity -->
+        <!-- Amount (USDT Cost) -->
         <div class="byt-field">
-          <label>Amount</label>
-          <div class="byt-qty-tabs">
-            <button class="byt-qty-mode active" data-mode="qty"    onclick="bytSetQtyMode('qty')">QTY</button>
-            <button class="byt-qty-mode"        data-mode="cost"   onclick="bytSetQtyMode('cost')">COST $</button>
-            <button class="byt-qty-mode"        data-mode="margin" onclick="bytSetQtyMode('margin')">MARGIN $</button>
-            <button class="byt-qty-mode"        data-mode="risk"   onclick="bytSetQtyMode('risk')">RISK %</button>
+          <label>Amount (USDT Cost)</label>
+          <div id="bytQtyRow_cost">
+            <input id="bytQtyCost" class="byt-input" type="number" placeholder="Enter amount in USDT" step="any" oninput="bytCalcFromCost()">
           </div>
-          <div id="bytQtyRow_qty">
-            <input id="bytQty" class="byt-input" type="number" placeholder="Contracts e.g. 0.5" step="any" oninput="bytUpdateSummary()">
-          </div>
-          <div id="bytQtyRow_cost" style="display:none">
-            <input id="bytQtyCost" class="byt-input" type="number" placeholder="Total order value in USDT" step="any" oninput="bytCalcFromCost()">
-          </div>
-          <div id="bytQtyRow_margin" style="display:none">
-            <input id="bytQtyMargin" class="byt-input" type="number" placeholder="Margin amount in USDT" step="any" oninput="bytCalcFromMargin()">
-          </div>
-          <div id="bytQtyRow_risk" style="display:none">
-            <div style="display:flex;align-items:center;gap:0.5rem">
-              <input type="range" id="bytQtyRiskSlider" min="0.1" max="10" step="0.1" value="1" style="flex:1;accent-color:#f0b90b" oninput="el('bytQtyRiskVal').textContent=parseFloat(this.value).toFixed(1)+'%';bytCalcFromRisk()">
-              <span id="bytQtyRiskVal" style="color:#f0b90b;font-weight:700;font-size:13px;min-width:38px;text-align:right;font-family:var(--byt-mono)">1.0%</span>
-            </div>
-            <div id="bytQtyRiskNote" style="font-size:11px;color:#4a5568;margin-top:0.2rem"></div>
-          </div>
+          <input id="bytQty" type="hidden" value="">
           <div id="bytQtyHint" style="font-size:11px;color:#4a5568;margin-top:0.25rem;min-height:13px;font-family:var(--byt-mono)"></div>
-        </div>
-
-        <!-- % quick-fill -->
-        <div class="byt-pct-row">
-          <button class="byt-pct-btn" onclick="bytFillPct(25)">25%</button>
-          <button class="byt-pct-btn" onclick="bytFillPct(50)">50%</button>
-          <button class="byt-pct-btn" onclick="bytFillPct(75)">75%</button>
-          <button class="byt-pct-btn" onclick="bytFillPct(100)">100%</button>
         </div>
 
         <!-- Leverage -->
@@ -886,10 +877,10 @@
         <div id="bytApModeWrap">
           <div class="ap-mode-toggle">
             <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')">✋ Manual</button>
-            <button class="ap-mode-btn autopilot"     id="apModeAutoBtn"   onclick="apSetMode('autopilot')">🤖 Autopilot</button>
+            <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')">🤖 Auto Mode <span class="ap-info-tip" title="Auto Mode places your order and automatically starts SL/TP milestone monitoring. It requires both SL and TP.">i</span></button>
           </div>
           <div id="apModeHint" style="display:none;font-size:11px;color:#a855f7;margin-top:0.35rem;padding:0.35rem 0.5rem;background:rgba(124,58,237,0.08);border-radius:4px;border:1px solid rgba(124,58,237,0.2);line-height:1.5">
-            🤖 Order will be placed and autopilot will automatically monitor SL/TP milestones. Requires both SL and TP.
+            🤖 Order will be placed and Auto Mode will automatically monitor SL/TP milestones. Requires both SL and TP.
           </div>
         </div>
 
@@ -1331,5 +1322,11 @@ Respond ONLY in this exact JSON (no markdown):
   })();
 </script>
 <script src="/js/session-check.js"></script>
+<script>
+  (async function checkPremiumAccess() {
+    await window.enforcePremiumAccess(typeof window.initPage === 'function' ? window.initPage : null);
+  })();
+</script>
+</div><!-- /page-content -->
 </body>
 </html>

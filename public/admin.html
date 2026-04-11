@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Monty — Admin Panel</title>
+  <title>SCANR — Admin Panel</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -142,7 +142,7 @@
 
 <!-- Header -->
 <div class="hdr">
-  <div class="hdr-logo">Monty<span>.</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin</span></div>
+  <div class="hdr-logo">SCANR<span>.</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin</span></div>
   <div class="hdr-right">
     <a class="hdr-link" href="/dashboard">← Back to App</a>
     <button class="logout-btn" onclick="doLogout()">Sign Out</button>
@@ -154,7 +154,6 @@
   <button class="tab active" onclick="switchTab('licenses',this)">🗝️ Licenses</button>
   <button class="tab" onclick="switchTab('users',this)">👥 Users</button>
   <button class="tab" onclick="switchTab('revenue',this)">💰 Revenue</button>
-  <button class="tab" onclick="switchTab('referrals',this)">🤝 Referrals</button>
   <button class="tab" onclick="switchTab('payments',this)">💳 Payments</button>
   <button class="tab" onclick="switchTab('settings',this)">⚙️ Settings</button>
   <button class="tab" onclick="switchTab('contacts',this)">📬 Contacts <span id="contactsBadge" style="display:none;background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px"></span></button>
@@ -196,12 +195,12 @@
         <table>
           <thead>
             <tr>
-              <th>Name</th><th>Email</th><th>License Key</th>
+              <th>Name</th><th>Email</th><th>Tier</th><th>License Key</th>
               <th>License Status</th><th>Last Login</th><th>Last IP</th>
               <th>Security</th><th>Joined</th><th>Actions</th>
             </tr>
           </thead>
-          <tbody id="userTbody"><tr class="empty-row"><td colspan="9">Loading...</td></tr></tbody>
+          <tbody id="userTbody"><tr class="empty-row"><td colspan="10">Loading...</td></tr></tbody>
         </table>
       </div>
       <div id="userTbody_pg" class="pg-bar"></div>
@@ -223,34 +222,6 @@
         </table>
       </div>
       <div id="monthTbody_pg" class="pg-bar"></div>
-    </div>
-  </div>
-
-  <!-- ── TAB: REFERRALS ── -->
-  <div class="page" id="page-referrals">
-    <div style="font-size:15px;font-weight:700;margin-bottom:20px">Referral System</div>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Pending Payouts</div>
-        <div class="stat-value" id="pendingPayoutTotal">$0.00</div>
-      </div>
-    </div>
-    <div class="card" style="padding:0;margin-bottom:20px">
-      <div style="padding:20px;border-bottom:1px solid var(--border)">
-        <div style="font-weight:700">Commission Rate: <span id="commPctDisplay">20</span>%</div>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Referrer</th><th>Referred Email</th><th>Date</th>
-              <th>Commission</th><th>Status</th><th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="refTbody"><tr class="empty-row"><td colspan="6">Loading...</td></tr></tbody>
-        </table>
-      </div>
-      <div id="refTbody_pg" class="pg-bar"></div>
     </div>
   </div>
 
@@ -334,20 +305,6 @@
         <button class="save-btn" type="button" onclick="savePricing()">Save Pricing</button>
         <div id="pricingPreview" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.7;"></div>
         <div class="form-msg" id="pricingMsg"></div>
-      </div>
-
-      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
-        <div style="font-size:13px;font-weight:700;margin-bottom:16px">Referral System</div>
-        <div class="form-field">
-          <label>Referral Commission Rate (%)</label>
-          <input type="number" id="settingCommissionPct" placeholder="20" min="1" max="100"/>
-          <div style="font-size:12px;color:var(--muted);margin-top:6px">Percentage earned by referrers on each license sale.</div>
-        </div>
-        <div class="form-field">
-          <label>Referral Link Base URL</label>
-          <input type="text" id="settingReferralBaseUrl" placeholder="scanr.me"/>
-          <div style="font-size:12px;color:var(--muted);margin-top:6px">Domain used in referral links (e.g., scanr.me, app.example.com)</div>
-        </div>
       </div>
 
       <div class="form-field">
@@ -552,7 +509,6 @@ function switchTab(name, el) {
   if (name === 'licenses') loadLicenses();
   if (name === 'users')    loadUsers();
   if (name === 'revenue')  loadRevenue();
-  if (name === 'referrals') loadReferrals();
   if (name === 'payments') loadPayments();
   if (name === 'settings') loadSettings();
   if (name === 'contacts') loadContacts();
@@ -713,32 +669,39 @@ let _users = [];
 
 async function loadUsers() {
   const tbody = document.getElementById('userTbody');
-  tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Loading...</td></tr>';
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Loading...</td></tr>';
   try {
     _users = await api('GET', '/api/admin/users');
     renderUsers(_users);
   } catch (e) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="8" style="color:var(--danger)">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="10" style="color:var(--danger)">${e.message}</td></tr>`;
   }
 }
 
 function renderUsers(users) {
   pgSetup('userTbody', users, function(slice) {
     const tbody = document.getElementById('userTbody');
-    if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No users yet</td></tr>'; return; }
+    if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No users yet</td></tr>'; return; }
     tbody.innerHTML = slice.map(u => {
     const isAdmin = u.role === 'admin';
     const suspBadge = u.suspiciousActivity ? ' <span class="badge badge-warn" title="Suspicious activity detected">⚠️</span>' : '';
+    
+    // Tier display and management
+    const tierBadgeClass = u.accountTier === 'premium' ? 'badge-active' : 'badge-inactive';
+    const tierText = u.accountTier === 'premium' ? '⭐ Premium' : 'Free';
+    
     let acts = '';
     if (!isAdmin) {
       if (u.licenseStatus === 'active')    acts += `<button class="act-btn suspend"    onclick="suspendUser('${u._id}')">Suspend</button>`;
       if (u.licenseStatus === 'suspended') acts += `<button class="act-btn reactivate" onclick="reactivateUser('${u._id}')">Reactivate</button>`;
+      acts += `<button class="act-btn" style="background:#052e1633;color:var(--success);border-color:#166534" onclick="upgradeTierModal('${u._id}', '${u.email}', '${u.accountTier}')">Change Tier</button>`;
       acts += `<button class="act-btn delete" onclick="deleteUser('${u._id}')">Delete</button>`;
     }
     acts += `<button class="act-btn info" onclick="viewUserDetail('${u._id}')">Security</button>`;
     return `<tr>
       <td>${u.firstName || ''} ${u.lastName || ''}${isAdmin ? ' <span class="badge badge-active" style="font-size:10px">Admin</span>' : ''}${suspBadge}</td>
       <td>${u.email || ''}</td>
+      <td><span class="badge ${tierBadgeClass}">${tierText}</span></td>
       <td style="font-family:monospace;font-size:12px">${u.licenseKey || '—'}</td>
       <td>${badge(u.licenseStatus || 'inactive')}</td>
       <td>${fmtDt(u.lastLogin)}</td>
@@ -772,6 +735,55 @@ async function deleteUser(id) {
   if (!confirm('Permanently delete this user account?')) return;
   try { await api('DELETE', `/api/admin/users/${id}`); loadUsers(); }
   catch (e) { alert(e.message); }
+}
+
+// ── Change User Tier ───────────────────────────────────────────
+let _tierModalUserId = null;
+let _tierModalEmail = null;
+
+function upgradeTierModal(id, email, currentTier) {
+  _tierModalUserId = id;
+  _tierModalEmail = email;
+  const modal = document.getElementById('tierModal') || createTierModal();
+  document.getElementById('tierModalEmail').textContent = email;
+  document.getElementById('tierModalCurrent').textContent = currentTier === 'premium' ? '⭐ Premium' : 'Free';
+  document.getElementById('tierModalCurrent').style.color = currentTier === 'premium' ? '#2ecc71' : '#7a8199';
+  modal.style.display = 'flex';
+}
+
+function createTierModal() {
+  const md = document.createElement('div');
+  md.id = 'tierModal';
+  md.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;padding:24px';
+  md.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px;width:100%;max-width:460px">
+      <h3 style="font-size:17px;font-weight:800;margin-bottom:10px">Change Account Tier</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Email: <strong id="tierModalEmail"></strong></p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Current Tier: <strong id="tierModalCurrent" style="color:#2ecc71">Premium</strong></p>
+      
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Set to:</label>
+        <div style="display:flex;gap:10px">
+          <button onclick="setUserTier('free')" style="flex:1;background:#1a1f2e;border:1.5px solid var(--border);color:var(--text);border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.borderColor='var(--muted)'" onmouseout="this.borderColor='var(--border)'">Free</button>
+          <button onclick="setUserTier('premium')" style="flex:1;background:#052e1633;border:1.5px solid #166534;color:var(--success);border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">⭐ Premium</button>
+        </div>
+      </div>
+      
+      <button onclick="document.getElementById('tierModal').style.display='none'" style="width:100%;background:transparent;border:1.5px solid var(--border);color:var(--muted);border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">Cancel</button>
+    </div>`;
+  document.body.appendChild(md);
+  return md;
+}
+
+async function setUserTier(tier) {
+  if (!_tierModalUserId) return;
+  try {
+    await api('POST', `/api/admin/users/${_tierModalUserId}/tier`, { accountTier: tier });
+    document.getElementById('tierModal').style.display = 'none';
+    loadUsers();
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 // ── Transfer License ───────────────────────────────────────────
@@ -920,8 +932,6 @@ async function loadSettings() {
     const d = await api('GET', '/api/admin/settings');
     if (d.emailAdmin)  document.getElementById('settingAdminEmail').value      = d.emailAdmin;
     if (d.appName)   document.getElementById('settingAppName').value  = d.appName;
-    if (d.commissionPct)   document.getElementById('settingCommissionPct').value  = d.commissionPct;
-    if (d.referralBaseUrl) document.getElementById('settingReferralBaseUrl').value = d.referralBaseUrl;
     if (d.walletTRC20) document.getElementById('settingWalletTRC20').value = d.walletTRC20;
     if (d.walletERC20) document.getElementById('settingWalletERC20').value = d.walletERC20;
     if (d.walletBEP20) document.getElementById('settingWalletBEP20').value = d.walletBEP20;
@@ -937,8 +947,6 @@ async function loadSettings() {
 async function saveSettings() {
   const emailAdmin = document.getElementById('settingAdminEmail').value.trim() || 'support@scanr.me';
   const appName  = document.getElementById('settingAppName').value.trim();
-  const commissionPct = parseFloat(document.getElementById('settingCommissionPct').value) || 20;
-  const referralBaseUrl = document.getElementById('settingReferralBaseUrl').value.trim() || 'scanr.me';
   const walletTRC20 = document.getElementById('settingWalletTRC20').value.trim();
   const walletERC20 = document.getElementById('settingWalletERC20').value.trim();
   const walletBEP20 = document.getElementById('settingWalletBEP20').value.trim();
@@ -947,14 +955,12 @@ async function saveSettings() {
   const msg      = document.getElementById('settingMsg');
   try {
     await api('POST', '/api/admin/settings', {
-      emailAdmin, appName, commissionPct, referralBaseUrl,
+      emailAdmin, appName,
       walletTRC20, walletERC20, walletBEP20,
       pricePlanStandard, pricePlanPKR
     });
     msg.textContent = 'Settings saved!'; msg.className = 'form-msg ok';
     setTimeout(() => msg.textContent = '', 3000);
-    // Reload referrals to show updated commission %
-    loadReferrals();
   } catch (e) { msg.textContent = e.message; msg.className = 'form-msg err'; }
 }
 
@@ -1018,52 +1024,6 @@ async function savePricing() {
     msg.textContent = e.message;
     msg.className = 'form-msg err';
   }
-}
-
-// ── REFERRALS ──────────────────────────────────────────────────
-async function loadReferrals() {
-  const tbody = document.getElementById('refTbody');
-  tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Loading…</td></tr>';
-  try {
-    const data = await api('GET', '/api/admin/referrals');
-    document.getElementById('commPctDisplay').textContent = '20'; // Default shown
-    document.getElementById('pendingPayoutTotal').textContent = '$' + (data.totalPendingPayout || 0).toFixed(2);
-
-    if (!data.referrals || data.referrals.length === 0) {
-      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">No referrals yet</td></tr>';
-      return;
-    }
-
-    let html = '';
-    data.referrals.forEach(r => {
-      const date = new Date(r.createdAt).toLocaleDateString();
-      const refName = r.referrerId?.firstName ? `${r.referrerId.firstName} ${r.referrerId.lastName || ''}` : 'Unknown';
-      const statusClass = r.status === 'converted' ? 'badge-warn' : r.status === 'paid' ? 'badge-ok' : 'badge-info';
-      const actionBtn = r.status === 'converted' ?
-        `<button class="sm-act-btn" onclick="markReferralAsPaid('${r._id}')">Mark Paid</button>` :
-        `<span style="color:var(--muted);font-size:12px">${r.status}</span>`;
-      html += `<tr>
-        <td>${refName}</td>
-        <td>${r.referredEmail}</td>
-        <td>${date}</td>
-        <td>$${(r.commissionAmount || 0).toFixed(2)}</td>
-        <td><span class="badge ${statusClass}">${r.status}</span></td>
-        <td>${actionBtn}</td>
-      </tr>`;
-    });
-    tbody.innerHTML = html;
-  } catch (e) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Error: ${e.message}</td></tr>`;
-  }
-}
-
-async function markReferralAsPaid(referralId) {
-  if (!confirm('Mark this referral commission as paid?')) return;
-  try {
-    await api('POST', `/api/admin/referral/mark-paid/${referralId}`, {});
-    alert('Referral marked as paid and notification sent!');
-    loadReferrals();
-  } catch (e) { alert('Error: ' + e.message); }
 }
 
 // ── PAYMENTS ──────────────────────────────────────────────────
@@ -1344,9 +1304,10 @@ document.querySelectorAll('.modal-bg').forEach(bg => {
 // Dynamic app name
 fetch('/api/public/app-name').then(r => r.ok ? r.json() : null).then(data => {
   const name = data?.appName; if (!name) return;
-  document.title = document.title.replace(/Monty/g, name);
+  document.title = document.title.replace(/SCANR/g, name);
   const logo = document.querySelector('.hdr-logo');
   if (logo) logo.innerHTML = name + '<span>.</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin</span>';
 }).catch(() => {});
 </script>
 <script src="/js/session-check.js"></script>
+

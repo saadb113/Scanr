@@ -747,7 +747,7 @@
         <button type="button" class="copy-btn" onclick="pasteKey()">Paste</button>
       </div>
     </div>
-    <button class="submit-btn" onclick="activateLicense()">Activate Account</button>
+    <button class="submit-btn" id="activateAccountBtn" onclick="activateLicense()">Activate Account</button>
     <div id="activationMessage"></div>
   </div>
 </div>
@@ -1131,7 +1131,7 @@
 
   function resetForm() {
     currentPayment = null;
-    document.getElementById('paymentForm').style.display = 'block';
+    document.getElementById('proofTab').style.display = 'block';
     document.getElementById('statusSection').style.display = 'none';
     document.getElementById('proofForm').reset();
     document.getElementById('filePreview').style.display = 'none';
@@ -1178,6 +1178,8 @@
       const data = await res.json();
 
       if (res.ok) {
+        document.getElementById('activateAccountBtn').style.display = 'none';
+        document.querySelector('#activationModal .form-group').style.display = 'none';
         document.getElementById('activationMessage').innerHTML = `
           <div class="message-box success">🎉 Account Activated!</div>
           <button class="submit-btn" style="margin-top: 12px;" onclick="window.location.href='/dashboard'">Go to Dashboard</button>

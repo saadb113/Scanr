@@ -8,7 +8,6 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #050711; font-family: 'Space Grotesk', sans-serif; padding: 24px; }
-    .referral-banner { background: rgba(0,200,150,0.1); border: 1px solid #29ffb8; border-radius: 9px; padding: 0.9rem 1.2rem; margin-bottom: 1.5rem; color: #29ffb8; font-size: 0.875rem; text-align: center; font-weight: 500; }
     .auth-card { background: #0c1017; border: 1px solid #1a2030; border-radius: 16px; padding: 2.2rem 2rem; width: 100%; max-width: 420px; }
     .auth-logo { text-align: center; margin-bottom: 1.8rem; }
     .auth-logo-text { font-size: 2.2rem; font-weight: 800; color: #29ffb8; letter-spacing: -1px; }
@@ -34,7 +33,6 @@
 </head>
 <body>
   <div class="auth-card">
-    <div id="refBanner" class="referral-banner" style="display: none;">You were referred by a Scanr user — welcome!</div>
     <div class="auth-logo"><div class="auth-logo-text">Scanr</div></div>
     <div class="auth-title">Create your account</div>
     <div class="auth-sub">Get started — it only takes a minute</div>
@@ -76,18 +74,10 @@
 
   <script src="/js/fingerprint.js"></script>
   <script>
-    // Check for referral code and plan in URL
+    // Read optional plan/redirect parameters in URL
     const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
     const planParam = urlParams.get('plan');
     const redirectParam = urlParams.get('redirect');
-
-    if (refCode) {
-      localStorage.setItem('scanr_ref_code', refCode);
-      document.getElementById('refBanner').style.display = 'block';
-    } else if (localStorage.getItem('scanr_ref_code')) {
-      document.getElementById('refBanner').style.display = 'block';
-    }
 
     // Redirect already-logged-in users
     fetch('/api/auth/session-check').then(r => r.ok ? r.json() : null).then(d => {
@@ -132,20 +122,18 @@
       msg.textContent = '';
       try {
         const deviceFingerprint = (typeof window.getDeviceFingerprint === 'function') ? window.getDeviceFingerprint() : '';
-        const pendingReferralCode = localStorage.getItem('scanr_ref_code');
         const r = await fetch('/api/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ firstName, lastName, email, password, deviceFingerprint, pendingReferralCode }),
+          body: JSON.stringify({ firstName, lastName, email, password, deviceFingerprint }),
         });
         const d = await r.json();
         if (!r.ok) { msg.style.color = '#f56565'; msg.textContent = d.error || 'Registration failed.'; return; }
         msg.style.color = '#29ffb8'; msg.textContent = 'Account created! Redirecting...';
-        localStorage.removeItem('scanr_ref_code');
 
         // Determine redirect destination
-        let redirectUrl = '/payment';
+        let redirectUrl = '/dashboard';  // Free users go to dashboard
         if (planParam && redirectParam === 'payment') {
-          redirectUrl = `/payment?plan=${planParam}`;
+          redirectUrl = `/payment?plan=${planParam}`;  // Unless coming from a plan-specific link
         }
 
         setTimeout(() => { window.location.href = redirectUrl; }, 900);

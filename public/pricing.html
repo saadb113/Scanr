@@ -817,7 +817,7 @@
     </nav>
     <div class="lp-header-btns">
       <a href="/login" class="lp-btn-outline">Sign In</a>
-      <a href="/register?plan=lifetime&redirect=payment" class="lp-btn-filled">Get Started</a>
+      <a href="/register?plan=free" class="lp-btn-filled">Get Started</a>
     </div>
     <button class="lp-mobile-menu" id="lpMobileMenu">&#9776;</button>
   </div>
@@ -830,35 +830,61 @@
   <p>One payment. Lifetime access to every feature and every future update &mdash; no subscriptions, ever.</p>
 </section>
 
-<!-- PRICING CARD -->
+<!-- PRICING CARDS -->
 <div class="pricing-wrap">
-  <div class="pricing-card fade-in">
-    <div class="pc-badge">Lifetime Access</div>
-    <div class="pc-discount-badge" id="pcDiscountBadge"></div>
-    <div class="pc-original" id="pcOriginalPrice">$69</div>
-    <div class="pc-price-row">
-      <span class="pc-currency">$</span>
-      <span class="pc-amount" data-price="lifetime">49</span>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; width: 100%; max-width: 900px; margin: 0 auto;">
+    <!-- FREE TIER -->
+    <div class="pricing-card fade-in" style="position: relative; opacity: 0.85;">
+      <div class="pc-badge" style="background: rgba(100, 120, 160, 0.2); color: var(--text-secondary);">Free</div>
+      <div style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin: 1rem 0 0.5rem;">$0</div>
+      <p class="pc-period">forever</p>
+      <hr class="pc-divider"/>
+      <ul class="pc-features" style="opacity: 0.8;">
+        <li><span class="pc-check">✓</span>Coin scanner (up to 50 coins)</li>
+        <li><span class="pc-check">✓</span>Price alerts &amp; Discord alerts</li>
+        <li><span class="pc-check">✓</span>Challenge tracker (view only)</li>
+        <li><span class="pc-check">✓</span>1 free AI model (GLM)</li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Bybit integration (Spot &amp; Futures)</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Strategy builder &amp; bot</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Premium AI models (Kimi, Claude)</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Trade journal &amp; PnL calendar</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Email support</span></li>
+      </ul>
+      <button class="lp-wa-btn" onclick="window.location.href='/register?plan=free'" style="opacity: 0.7;">
+        Get Started Free
+      </button>
     </div>
-    <div class="pc-sale-label" id="pcSaleLabel"></div>
-    <p class="pc-period">one time payment</p>
-    <hr class="pc-divider"/>
-    <ul class="pc-features">
-      <li><span class="pc-check">&#10003;</span>All current features</li>
-      <li><span class="pc-check">&#10003;</span>All future updates</li>
-      <li><span class="pc-check">&#10003;</span>Bybit integration (Spot &amp; Futures)</li>
-      <li><span class="pc-check">&#10003;</span>No-code strategy builder</li>
-      <li><span class="pc-check">&#10003;</span>Live strategy bot</li>
-      <li><span class="pc-check">&#10003;</span>Discord alerts + price alerts</li>
-      <li><span class="pc-check">&#10003;</span>3 AI models (GLM free, Kimi, Claude)</li>
-      <li><span class="pc-check">&#10003;</span>Prop firm challenge tracker</li>
-      <li><span class="pc-check">&#10003;</span>Trade journal + PnL calendar</li>
-      <li><span class="pc-check">&#10003;</span>Single license key</li>
-      <li><span class="pc-check">&#10003;</span>Email support</li>
-    </ul>
-    <button class="lp-wa-btn" id="buyNowBtn" onclick="redirectToPayment();">
-      Buy Now
-    </button>
+
+    <!-- PREMIUM TIER (Highlighted) -->
+    <div class="pricing-card fade-in" style="position: relative; border: 2px solid var(--accent); box-shadow: 0 0 32px rgba(0, 229, 160, 0.15);">
+      <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--accent), #00d18f); color: #0a0f16; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">★ POPULAR</div>
+      <div class="pc-badge">Lifetime Access</div>
+      <div class="pc-discount-badge" id="pcDiscountBadge"></div>
+      <div class="pc-original" id="pcOriginalPrice">$69</div>
+      <div class="pc-price-row">
+        <span class="pc-currency">$</span>
+        <span class="pc-amount" data-price="lifetime">49</span>
+      </div>
+      <div class="pc-sale-label" id="pcSaleLabel"></div>
+      <p class="pc-period">one time payment</p>
+      <hr class="pc-divider"/>
+      <ul class="pc-features">
+        <li><span class="pc-check">✓</span>All premium features</li>
+        <li><span class="pc-check">✓</span>All future updates</li>
+        <li><span class="pc-check">✓</span>Bybit integration (Spot &amp; Futures)</li>
+        <li><span class="pc-check">✓</span>No-code strategy builder</li>
+        <li><span class="pc-check">✓</span>Live strategy bot</li>
+        <li><span class="pc-check">✓</span>Discord alerts + price alerts</li>
+        <li><span class="pc-check">✓</span>3 AI models (GLM, Kimi, Claude)</li>
+        <li><span class="pc-check">✓</span>Prop firm challenge tracker</li>
+        <li><span class="pc-check">✓</span>Trade journal + PnL calendar</li>
+        <li><span class="pc-check">✓</span>Single license key</li>
+        <li><span class="pc-check">✓</span>Priority email support</li>
+      </ul>
+      <button class="lp-wa-btn" id="buyNowBtn" onclick="redirectToPayment();" style="background: linear-gradient(135deg, var(--accent), #00d18f); font-weight: 900;">
+        🚀 Upgrade to Premium
+      </button>
+    </div>
   </div>
 
   <div class="pricing-below fade-in">
@@ -1148,16 +1174,20 @@
     fetch('/api/auth/me')
       .then(r => {
         if (r.ok) {
-          // User is logged in, go to payment
-          window.location.href = '/payment?plan=lifetime';
+          // User is logged in, show upgrade modal
+          if (typeof window.showUpgradeModal === 'function') {
+            window.showUpgradeModal();
+          } else {
+            window.location.href = '/payment?plan=lifetime';
+          }
         } else {
-          // User not logged in, go to register
-          window.location.href = '/register?plan=lifetime&redirect=payment';
+          // User not logged in, go to free registration
+          window.location.href = '/register?plan=free';
         }
       })
       .catch(() => {
-        // Error checking auth, assume not logged in
-        window.location.href = '/register?plan=lifetime&redirect=payment';
+        // Error checking auth, go to free registration
+        window.location.href = '/register?plan=free';
       });
   }
 

@@ -414,7 +414,7 @@ function cdSetDir(d) { cdDir = d || cdDir; }
 function cdSetCategory(cat) { cdCategory = cat || cdCategory; }
 function cdSymChanged() {}
 // ── TV save/load adapter (localStorage) ───────────────────────
-const TV_CHARTS_KEY = 'monty_tv_charts_v1';
+const TV_CHARTS_KEY = 'SCANR_tv_charts_v1';
 const tvSaveLoadAdapter = {
     getAllCharts: function(cb) {
         try { const d = JSON.parse(localStorage.getItem(TV_CHARTS_KEY)||'[]');
@@ -1315,3 +1315,4 @@ function cdRenderAIResult(r, currentPrice, tfLabel) {
 <script src="/js/session-check.js"></script>
 </body>
 </html>
+

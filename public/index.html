@@ -12,8 +12,6 @@
 <script src="/js/nav.js"></script>
 <header>
     <div class="header-row">
-        <div class="title-main"><span>RSI</span> + <em>MACD</em> Scanner</div>
-
         <!-- Coin Search -->
         <div class="search-wrap">
             <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -23,22 +21,21 @@
 
         <div class="ctrl-box">
             <label>TF</label>
-            <select id="timeframe">
-                <option value="1m" selected>1m</option><option value="3m">3m</option>
-                <option value="5m">5m</option><option value="15m">15m</option>
-                <option value="30m">30m</option><option value="1h">1h</option>
-                <option value="2h">2h</option><option value="4h">4h</option>
-                <option value="8h">8h</option><option value="1d">1d</option>
-                <option value="3d">3d</option><option value="1w">1w</option>
-            </select>
+          <select id="timeframe" style="display:none">
+            <option value="1m" selected>1m</option><option value="3m">3m</option>
+            <option value="5m">5m</option><option value="15m">15m</option>
+            <option value="30m">30m</option><option value="1h">1h</option>
+            <option value="2h">2h</option><option value="4h">4h</option>
+            <option value="1d">1D</option><option value="1w">1W</option>
+          </select>
+          <div class="tf-picker" id="tfPicker">
+            <div class="tf-pills" id="tfPills"></div>
+            <button class="tf-plus-btn" id="tfPlusBtn" type="button" title="Add/Remove timeframes">+▼</button>
+            <div class="tf-dropdown" id="tfDropdown"></div>
+            <div class="tf-limit-tooltip" id="tfLimitTooltip" style="display:none"></div>
+          </div>
         </div>
 
-        <button class="icon-btn" id="settingsBtn" title="Settings">
-            <svg width="18" height="18" fill="none" stroke="#29ffb8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09c0 .66.39 1.26 1 1.51a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 8c.13.21.22.45.22.7V9a2 2 0 0 1 0 4v.09c0 .25-.09.49-.22.7z"/>
-            </svg>
-        </button>
 
         <div class="legend">
             <div class="legend-item"><div class="leg-line" style="background:#29ffb8"></div>RSI</div>

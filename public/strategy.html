@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Strategy Builder — Monty</title>
+  <title>Strategy Builder — SCANR</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
   <style>
@@ -982,6 +982,7 @@
   <script src="/js/nav.js"></script>
   <script src="/js/session-check.js"></script>
 
+  <div class="page-content">
   <div class="strat-page">
 
     <!-- Top bar -->
@@ -1577,5 +1578,12 @@
     obs.observe(lib, { childList: true });
   })();
   </script>
+  <script>
+    (async function checkPremiumAccess() {
+      await window.enforcePremiumAccess(typeof window.initPage === 'function' ? window.initPage : null);
+    })();
+  </script>
+  </div><!-- /page-content -->
 </body>
 </html>
+

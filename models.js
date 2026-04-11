@@ -178,14 +178,12 @@ const UserSchema = new mongoose.Schema({
     loginHistory:        { type: [{ ip: String, userAgent: String, timestamp: Date, fingerprint: String, fingerprintMatch: Boolean }], default: [] },
     blockedAttempts:     { type: [{ timestamp: Date, ip: String, fingerprint: String }], default: [] },
     suspiciousActivity:  { type: Boolean, default: false },
-    // Referral system
-    referralCode:        { type: String },
-    referralCodeGeneratedAt: { type: Date, default: null },
-    referreredByUserId:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-    pendingReferralCode: { type: String, default: null },
+    // Premium tier system
+    accountTier:         { type: String, enum: ['free', 'premium'], default: 'free' },
+    premiumActivatedAt:  { type: Date, default: null },
+    premiumPlan:         { type: String, enum: ['lifetime', 'monthly', 'yearly', null], default: null },
 }, { timestamps: true });
 UserSchema.index({ email: 1 }, { unique: true });
-UserSchema.index({ referralCode: 1 }, { unique: true, sparse: true });
 
 // ── Auth: Licenses ──
 const LicenseSchema = new mongoose.Schema({
@@ -216,21 +214,6 @@ const AppSettingsSchema = new mongoose.Schema({
 }, { timestamps: true });
 AppSettingsSchema.index({ key: 1 }, { unique: true });
 
-// ── Referral System ──
-const ReferralSchema = new mongoose.Schema({
-    referrerId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    referredUserId:  { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
-    referredEmail:   { type: String, required: true },
-    status:          { type: String, enum: ['pending', 'converted', 'paid'], default: 'pending' },
-    commissionPct:   { type: Number, default: 20 },
-    commissionAmount: { type: Number, default: 0 },
-    saleAmount:      { type: Number, default: 0 },
-    convertedAt:     { type: Date, default: null },
-    paidAt:          { type: Date, default: null },
-}, { timestamps: true });
-ReferralSchema.index({ referrerId: 1, status: 1 });
-ReferralSchema.index({ referredEmail: 1 });
-
 // ── Payment System (USDT direct payment) ───────────────────────
 const PaymentSchema = new mongoose.Schema({
     userId:          { type: String, required: true, index: true }, // Link to user account
@@ -253,6 +236,13 @@ const PaymentSchema = new mongoose.Schema({
 PaymentSchema.index({ status: 1, createdAt: -1 });
 PaymentSchema.index({ buyerEmail: 1 });
 PaymentSchema.index({ userId: 1 });
+
+// ── Per-user cached setup scanner signals ───────────────────────
+const SetupSignalsSchema = new mongoose.Schema({
+    userId:       { type: String, required: true, unique: true, index: true },
+    signals:      { type: [mongoose.Schema.Types.Mixed], default: [] },
+    lastScannedAt:{ type: Date, default: null },
+}, { timestamps: true });
 
 // ── Public contact form submissions ───────────────────────────
 const ContactSchema = new mongoose.Schema({
@@ -318,8 +308,8 @@ module.exports = {
     User:             mongoose.model('User',             UserSchema),
     License:          mongoose.model('License',          LicenseSchema),
     AppSettings:      mongoose.model('AppSettings',      AppSettingsSchema),
-    Referral:         mongoose.model('Referral',         ReferralSchema),
     Payment:          mongoose.model('Payment',          PaymentSchema),
+    SetupSignals:     mongoose.model('SetupSignals',     SetupSignalsSchema),
     Contact:          mongoose.model('Contact',          ContactSchema),
     FundedChallenge:  mongoose.model('FundedChallenge',  FundedChallengeSchema),
     ChallengeTrade:   mongoose.model('ChallengeTrade',   ChallengeTradeSchema),

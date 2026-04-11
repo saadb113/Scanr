@@ -10,7 +10,7 @@ const { Server } = require('socket.io');
 const { connectDB } = require('./db');
 const mongoose = require('mongoose');
 const {
-    User, License, AppSettings, Referral, Payment,
+    User, License, AppSettings, Payment,
     Settings, Watchlist, FilterVis, PosSettings,
     Drawings, KimiSettings, KimiCache, BybitStore,
     FundedChallenge, ChallengeTrade, Contact,
@@ -20,7 +20,7 @@ const autopilot      = require('./autopilot');
 const strategyRoutes = require('./strategy_routes');
 const strategyBot    = require('./strategyBot');
 const setupsScanner  = require('./setups_routes');
-const { sendDiscordAlert, orderSummaryEmbed, priceAlertEmbed } = require('./discordNotifier');
+const { sendDiscordAlert, orderSummaryEmbed, priceAlertEmbed, newRegistrationEmbed, newContactEmbed, newPaymentSubmissionEmbed } = require('./discordNotifier');
 const { analyzeWithAI, testAIProvider }                        = require('./aiAnalysis');
 
 const app        = express();
@@ -32,7 +32,7 @@ const USER  = 'default';
 
 app.use(express.json({ limit: '4mb' }));
 const sessionMW = session({
-    secret:            process.env.SESSION_SECRET || 'monty-fallback-secret',
+    secret:            process.env.SESSION_SECRET || 'SCANR-fallback-secret',
     resave:            false,
     saveUninitialized: false,
     cookie:            { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true },
@@ -175,6 +175,30 @@ async function upsert(Model, update, uid) {
     );
 }
 
+async function getAdminDiscordWebhook() {
+    const envWebhook = process.env.ADMIN_DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '';
+    try {
+        const admins = await User.find({ role: 'admin' }).select('_id').lean();
+        if (!admins.length) return envWebhook;
+        const adminIds = admins.map(a => String(a._id));
+        const settingsDoc = await Settings.findOne({
+            userId: { $in: adminIds },
+            'discord.webhookUrl': { $exists: true, $ne: '' },
+        }).sort({ updatedAt: -1 }).lean();
+        return settingsDoc?.discord?.webhookUrl || envWebhook;
+    } catch {
+        return envWebhook;
+    }
+}
+
+async function notifyAdminDiscord(embed) {
+    try {
+        const webhook = await getAdminDiscordWebhook();
+        if (!webhook) return;
+        await sendDiscordAlert(webhook, embed);
+    } catch (_) {}
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  AUTH MIDDLEWARE
 // ═══════════════════════════════════════════════════════════════
@@ -226,10 +250,12 @@ async function requireActiveAuth(req, res, next) {
         }
         req.appUserId = req.session.userId;
         if (user.role === 'admin') return next();
+        // Check suspension status
         if (user.licenseStatus === 'suspended') {
             if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License suspended' });
             return res.redirect('/suspended');
         }
+        // Check license expiration only for premium users
         if (user.licenseStatus === 'active' && user.licenseExpiresAt && new Date() > new Date(user.licenseExpiresAt)) {
             await Promise.all([
                 User.findByIdAndUpdate(req.session.userId, { licenseStatus: 'suspended' }),
@@ -238,10 +264,8 @@ async function requireActiveAuth(req, res, next) {
             if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License expired' });
             return res.redirect('/suspended?reason=expired');
         }
-        if (user.licenseStatus !== 'active') {
-            if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License not active' });
-            return res.redirect('/license');
-        }
+        // With free tier system, all users (free and premium) can access the platform
+        // Only premium users should get premium features, which are protected by checkPremium middleware
         return next();
     } catch (e) { 
         console.error('[Auth] Error:', e.message);
@@ -258,13 +282,42 @@ function requireAdmin(req, res, next) {
     next();
 }
 
+// Requires logged-in + premium tier
+async function checkPremium(req, res, next) {
+    if (!req.session.userId) {
+        if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
+        return res.redirect('/login');
+    }
+    try {
+        const user = await User.findById(req.session.userId).select('accountTier').lean();
+        if (!user) {
+            if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
+            return res.redirect('/login');
+        }
+
+        // Keep session tier synchronized with DB tier.
+        req.session.accountTier = user.accountTier || 'free';
+        if (!req.session.user) req.session.user = {};
+        req.session.user.accountTier = req.session.accountTier;
+
+        if (user.accountTier !== 'premium') {
+            if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'premium_required', message: 'This feature requires Premium access' });
+            return res.redirect('/');
+        }
+
+        return next();
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  AUTH ROUTES  (no protection — public)
 // ═══════════════════════════════════════════════════════════════
 
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { firstName, lastName, email, password, pendingReferralCode } = req.body;
+        const { firstName, lastName, email, password } = req.body;
         if (!firstName || !lastName || !email || !password)
             return res.status(400).json({ error: 'All fields are required' });
         if (password.length < 6)
@@ -277,10 +330,25 @@ app.post('/api/auth/register', async (req, res) => {
             lastName:  lastName.trim(),
             email:     email.toLowerCase().trim(),
             password:  hash,
-            pendingReferralCode: pendingReferralCode || null,
         });
-        req.session.userId = user._id.toString();
-        req.session.role   = user.role;
+        req.session.userId         = user._id.toString();
+        req.session.role           = user.role;
+        req.session.accountTier    = user.accountTier;
+        req.session.user = {
+            id: user._id.toString(),
+            email: user.email,
+            firstName: user.firstName,
+            accountTier: user.accountTier || 'free',
+            licenseStatus: user.licenseStatus || 'inactive'
+        };
+        notifyAdminDiscord(newRegistrationEmbed({
+            userId: user._id.toString(),
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            accountTier: user.accountTier || 'free',
+        }));
+
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -325,9 +393,17 @@ app.post('/api/auth/login', async (req, res) => {
         if (user.role !== 'admin' && (uniqueIPs > 5 || uniqueFingerprints.size >= 3)) {
             await User.findByIdAndUpdate(user._id, { suspiciousActivity: true });
         }
-        req.session.userId       = user._id.toString();
-        req.session.role         = user.role;
-        req.session.sessionToken = sessionToken;
+        req.session.userId         = user._id.toString();
+        req.session.role           = user.role;
+        req.session.accountTier    = updatedUser.accountTier;
+        req.session.sessionToken   = sessionToken;
+        req.session.user = {
+            id: user._id.toString(),
+            email: user.email,
+            firstName: user.firstName,
+            accountTier: updatedUser.accountTier || 'free',
+            licenseStatus: user.licenseStatus || 'inactive'
+        };
         res.json({ ok: true, licenseStatus: user.licenseStatus, role: user.role });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -361,15 +437,52 @@ app.get('/api/auth/session-check', async (req, res) => {
     const userId = req.session && req.session.userId;
     if (!userId) return res.status(401).json({ reason: 'no_session' });
     try {
-        const user = await User.findById(userId).select('activeSessionToken role').lean();
+        const user = await User.findById(userId).select('activeSessionToken role accountTier email firstName licenseStatus').lean();
         if (!user) return res.status(401).json({ reason: 'user_not_found' });
         if (user.role !== 'admin' && req.session.sessionToken && user.activeSessionToken) {
             if (user.activeSessionToken !== req.session.sessionToken) {
                 return res.status(401).json({ reason: 'session_replaced' });
             }
         }
-        res.json({ valid: true });
+
+        req.session.accountTier = user.accountTier || 'free';
+        req.session.user = {
+            id: userId,
+            email: user.email,
+            firstName: user.firstName,
+            accountTier: req.session.accountTier,
+            licenseStatus: user.licenseStatus || 'inactive'
+        };
+
+        res.json({
+            valid: true,
+            accountTier: req.session.accountTier,
+            user: req.session.user
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/auth/refresh-session', requireAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.session.userId)
+            .select('email firstName accountTier licenseStatus role')
+            .lean();
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        req.session.role = user.role;
+        req.session.accountTier = user.accountTier || 'free';
+        req.session.user = {
+            id: req.session.userId,
+            email: user.email,
+            firstName: user.firstName,
+            accountTier: req.session.accountTier,
+            licenseStatus: user.licenseStatus || 'inactive'
+        };
+
+        res.json({ ok: true, user: req.session.user });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -393,21 +506,6 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
         const user = await User.findById(req.session.userId);
         if (!user) return res.status(400).json({ error: 'User not found' });
 
-        // Generate referral code if not exists
-        if (!user.referralCode) {
-            const { randomBytes } = require('crypto');
-            let referralCode;
-            let isUnique = false;
-            while (!isUnique) {
-                const randomPart = randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
-                referralCode = `REF-${randomPart}`;
-                const existing = await User.findOne({ referralCode });
-                if (!existing) isUnique = true;
-            }
-            user.referralCode = referralCode;
-            user.referralCodeGeneratedAt = new Date();
-        }
-
         // Activate license
         await License.findByIdAndUpdate(license._id, {
             status:              'active',
@@ -424,59 +522,18 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
             licenseActivatedAt:  new Date(),
             licenseExpiresAt:    license.expiresAt || null,
             deviceFingerprint:   deviceFingerprint || '',
+            accountTier:         'premium',
+            premiumActivatedAt:  new Date(),
+            premiumPlan:         'lifetime',
         });
         req.session.licenseStatus = 'active';
-
-        // Check for pending referral code and trigger conversion
-        if (user.pendingReferralCode) {
-            // Find referrer by referral code
-            const referrer = await User.findOne({ referralCode: user.pendingReferralCode });
-            if (referrer && referrer.licenseStatus === 'active') {
-                // Get commission % from admin settings
-                let commissionPct = 20;
-                const commSettingDoc = await AppSettings.findOne({ key: 'commissionPct' });
-                if (commSettingDoc) {
-                    commissionPct = parseFloat(commSettingDoc.value) || 20;
-                }
-
-                // Calculate commission
-                const commissionAmount = ((commissionPct / 100) * license.price).toFixed(2);
-
-                // Create referral record
-                const referral = await Referral.create({
-                    referrerId: referrer._id,
-                    referredUserId: user._id,
-                    referredEmail: user.email,
-                    status: 'converted',
-                    commissionPct: commissionPct,
-                    commissionAmount: parseFloat(commissionAmount),
-                    saleAmount: license.price,
-                    convertedAt: new Date(),
-                });
-
-                // Update user with referrer
-                await User.findByIdAndUpdate(user._id, {
-                    referreredByUserId: referrer._id,
-                    pendingReferralCode: null,
-                });
-
-                // Send email to referrer
-                const notifier = require('./notifier');
-                try {
-                    notifier.notifyReferralConverted(
-                        referrer._id.toString(),
-                        referrer.email,
-                        referrer.firstName,
-                        commissionAmount
-                    );
-                } catch (emailErr) {
-                    console.warn('Failed to send referral email:', emailErr);
-                }
-            } else {
-                // Clear invalid pending referral code
-                await User.findByIdAndUpdate(user._id, { pendingReferralCode: null });
-            }
-        }
+        req.session.accountTier = 'premium';
+        if (!req.session.user) req.session.user = {};
+        req.session.user.accountTier = 'premium';
+        req.session.user.licenseStatus = 'active';
+        req.session.user.id = req.session.userId;
+        req.session.user.email = user.email;
+        req.session.user.firstName = user.firstName;
 
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -484,105 +541,8 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
 
 app.get('/api/license/status', requireAuth, async (req, res) => {
     try {
-        const user = await User.findById(req.session.userId).select('licenseStatus licenseKey').lean();
-        res.json({ status: user?.licenseStatus || 'inactive', key: user?.licenseKey });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ═══════════════════════════════════════════════════════════════
-//  REFERRAL ROUTES
-// ═══════════════════════════════════════════════════════════════
-
-// GET referral dashboard stats
-app.get('/api/referral/my-dashboard', requireAuth, async (req, res) => {
-    try {
-        let user = await User.findById(req.session.userId);
-        if (!user || user.licenseStatus !== 'active') {
-            return res.status(403).json({ error: 'Only active license holders can access referral dashboard' });
-        }
-
-        // Generate referral code lazily for users activated before this feature
-        if (!user.referralCode) {
-            const { randomBytes } = require('crypto');
-            let referralCode, isUnique = false;
-            while (!isUnique) {
-                const part = randomBytes(4).toString('hex').toUpperCase().slice(0, 6);
-                referralCode = `REF-${part}`;
-                if (!await User.findOne({ referralCode })) isUnique = true;
-            }
-            user.referralCode = referralCode;
-            user.referralCodeGeneratedAt = new Date();
-            await user.save();
-        }
-
-        const uid = new mongoose.Types.ObjectId(req.session.userId);
-
-        const totalReferrals = await Referral.countDocuments({ referrerId: uid });
-        const converted      = await Referral.countDocuments({ referrerId: uid, status: { $in: ['converted', 'paid'] } });
-
-        const totalEarnedDoc = await Referral.aggregate([
-            { $match: { referrerId: uid, status: { $in: ['converted', 'paid'] } } },
-            { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
-        ]);
-        const pendingDoc = await Referral.aggregate([
-            { $match: { referrerId: uid, status: 'converted' } },
-            { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
-        ]);
-
-        let commissionPct = 20;
-        const commSetting = await AppSettings.findOne({ key: 'commissionPct' });
-        if (commSetting) commissionPct = parseFloat(commSetting.value) || 20;
-
-        let baseUrl = 'scanr.me';
-        const urlSetting = await AppSettings.findOne({ key: 'referralBaseUrl' });
-        if (urlSetting && urlSetting.value) baseUrl = urlSetting.value;
-
-        res.json({
-            referralCode: user.referralCode,
-            baseUrl,
-            totalReferrals,
-            converted,
-            totalEarned:   parseFloat((totalEarnedDoc[0]?.total || 0).toFixed(2)),
-            pendingPayout: parseFloat((pendingDoc[0]?.total    || 0).toFixed(2)),
-            commissionPct
-        });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// GET referral history (paginated)
-app.get('/api/referral/history', requireAuth, async (req, res) => {
-    try {
-        const user = await User.findById(req.session.userId).lean();
-        if (!user || user.licenseStatus !== 'active') {
-            return res.status(403).json({ error: 'Only active license holders can access referral history' });
-        }
-
-        const page  = parseInt(req.query.page)  || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const skip  = (page - 1) * limit;
-        const uid   = new mongoose.Types.ObjectId(req.session.userId);
-
-        const referrals = await Referral.find({ referrerId: uid })
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean();
-
-        // Mask emails
-        const masked = referrals.map(r => ({
-            ...r,
-            referredEmail: r.referredEmail ? r.referredEmail.replace(/(.{1})(.*)(@.*)/, '$1***$3') : 'unknown'
-        }));
-
-        const total = await Referral.countDocuments({ referrerId: uid });
-
-        res.json({
-            referrals: masked,
-            total,
-            page,
-            limit,
-            pages: Math.ceil(total / limit)
-        });
+        const user = await User.findById(req.session.userId).select('licenseStatus licenseKey accountTier').lean();
+        res.json({ status: user?.licenseStatus || 'inactive', key: user?.licenseKey, accountTier: user?.accountTier || 'free' });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -729,6 +689,28 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Change user account tier (admin endpoint)
+app.post('/api/admin/users/:id/tier', requireAdmin, async (req, res) => {
+    try {
+        const { accountTier } = req.body;
+        if (!['free', 'premium'].includes(accountTier)) {
+            return res.status(400).json({ error: 'Invalid tier' });
+        }
+        
+        const user = await User.findByIdAndUpdate(
+            req.params.id,
+            {
+                accountTier,
+                premiumActivatedAt: accountTier === 'premium' ? new Date() : null,
+                premiumPlan: accountTier === 'premium' ? 'lifetime' : null
+            },
+            { new: true }
+        );
+        
+        res.json({ ok: true, accountTier: user.accountTier });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/admin/users/:id/detail', requireAdmin, async (req, res) => {
     try {
         const user = await User.findById(req.params.id).select('-password').lean();
@@ -782,7 +764,7 @@ app.get('/api/admin/settings', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/settings', requireAdmin, async (req, res) => {
     try {
-        const { emailAdmin, appName, commissionPct, referralBaseUrl,
+    const { emailAdmin, appName,
                 walletTRC20, walletERC20, walletBEP20, pricePlanStandard, pricePlanPKR,
                 pricing_lifetime_original, pricing_lifetime_discounted,
                 pricing_discount_label } = req.body;
@@ -792,16 +774,6 @@ app.post('/api/admin/settings', requireAdmin, async (req, res) => {
 
         // App name
         await AppSettings.findOneAndUpdate({ key: 'appName'  }, { key: 'appName',  value: appName  || '' }, { upsert: true });
-
-        // Commission rate
-        if (commissionPct !== undefined) {
-            await AppSettings.findOneAndUpdate({ key: 'commissionPct' }, { key: 'commissionPct', value: String(commissionPct) }, { upsert: true });
-        }
-
-        // Referral base URL
-        if (referralBaseUrl !== undefined) {
-            await AppSettings.findOneAndUpdate({ key: 'referralBaseUrl' }, { key: 'referralBaseUrl', value: referralBaseUrl || 'scanr.me' }, { upsert: true });
-        }
 
         // Wallet addresses
         if (walletTRC20 !== undefined) {
@@ -846,56 +818,6 @@ app.post('/api/admin/settings', requireAdmin, async (req, res) => {
         }
 
         res.json({ ok: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Admin: Get all referrals with stats
-app.get('/api/admin/referrals', requireAdmin, async (req, res) => {
-    try {
-        const referrals = await Referral.find()
-            .populate('referrerId', 'firstName lastName email')
-            .sort({ createdAt: -1 })
-            .lean();
-
-        const totalPending = await Referral.aggregate([
-            { $match: { status: 'converted' } },
-            { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
-        ]);
-
-        res.json({
-            referrals,
-            totalPendingPayout: totalPending[0]?.total || 0
-        });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Admin: Mark referral as paid
-app.post('/api/admin/referral/mark-paid/:referralId', requireAdmin, async (req, res) => {
-    try {
-        const referral = await Referral.findByIdAndUpdate(req.params.referralId, {
-            status: 'paid',
-            paidAt: new Date()
-        }, { new: true });
-
-        if (!referral) return res.status(404).json({ error: 'Referral not found' });
-
-        // Send email to referrer
-        const referrer = await User.findById(referral.referrerId);
-        if (referrer) {
-            const notifier = require('./notifier');
-            try {
-                notifier.notifyReferralPaid(
-                    referrer._id.toString(),
-                    referrer.email,
-                    referrer.firstName,
-                    referral.commissionAmount
-                );
-            } catch (emailErr) {
-                console.warn('Failed to send payment notification:', emailErr);
-            }
-        }
-
-        res.json({ ok: true, referral });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -968,6 +890,20 @@ app.post('/api/payment/submit', requireAuth, upload.single('screenshot'), async 
             message: message || '',
             status: 'pending'
         });
+
+        notifyAdminDiscord(newPaymentSubmissionEmbed({
+            paymentId: payment._id.toString(),
+            userId: payment.userId,
+            buyerName: payment.buyerName,
+            buyerEmail: payment.buyerEmail,
+            buyerPhone: payment.buyerPhone,
+            planType: payment.planType,
+            amount: payment.amount,
+            network: payment.network,
+            txId: payment.txId,
+            screenshotPath: payment.screenshotPath,
+            createdAt: payment.createdAt,
+        }));
 
         // Send email notification to admin
         const notifier = require('./notifier');
@@ -1117,6 +1053,13 @@ app.post('/api/admin/payment/verify/:paymentId', requireAdmin, async (req, res) 
             notes: `Payment: ${payment.network} txId: ${payment.txId}`,
             userId: payment.userId,
             expiresAt
+        });
+
+        // Upgrade user immediately after payment verification.
+        await User.findByIdAndUpdate(payment.userId, {
+            accountTier: 'premium',
+            premiumActivatedAt: new Date(),
+            premiumPlan: ['monthly', 'yearly'].includes(payment.planType) ? payment.planType : 'lifetime'
         });
 
         // Update payment
@@ -1293,7 +1236,14 @@ app.post('/api/public/contact', async (req, res) => {
     try {
         const { name, email, phone, message } = req.body;
         if (!name || !email || !message) return res.status(400).json({ error: 'Name, email and message are required.' });
-        await Contact.create({ name, email, phone: phone || '', message });
+        const contact = await Contact.create({ name, email, phone: phone || '', message });
+        notifyAdminDiscord(newContactEmbed({
+            name: contact.name,
+            email: contact.email,
+            phone: contact.phone,
+            message: contact.message,
+            createdAt: contact.createdAt,
+        }));
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1321,17 +1271,35 @@ app.delete('/api/admin/contacts/:id', requireAdmin, async (req, res) => {
 });
 
 // ── Apex Scanner (Setups) - MUST BE BEFORE requireActiveAuth MIDDLEWARE ──────────────────────────────────────
-app.get('/api/setups/status', (req, res) => {
+app.get('/api/setups/status', checkPremium, (req, res) => {
     console.log('[Setups Status] GET /api/setups/status');
-    res.json({ scanning: setupsScanner.getScanStatus() });
+    const uid = req.appUserId || req.session.userId;
+    res.json({ scanning: setupsScanner.getScanStatus(uid) });
 });
 
-app.get('/api/setups/signals', (req, res) => {
+app.get('/api/setups/signals', checkPremium, async (req, res) => {
     console.log('[Setups Signals] GET /api/setups/signals');
-    res.json({ signals: setupsScanner.getLastSignals() });
+    try {
+        const uid = req.appUserId || req.session.userId;
+        const signals = await setupsScanner.getLastSignals(uid);
+        res.json({ signals });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
-app.post('/api/setups/run', (req, res, next) => {
+app.delete('/api/setups/signals', checkPremium, async (req, res) => {
+    console.log('[Setups Signals] DELETE /api/setups/signals');
+    try {
+        const uid = req.appUserId || req.session.userId;
+        await setupsScanner.clearLastSignals(uid);
+        res.json({ ok: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/setups/run', checkPremium, (req, res, next) => {
     // Manually call the async middleware wrapper
     requireActiveAuth(req, res, () => {
         try {
@@ -1343,7 +1311,7 @@ app.post('/api/setups/run', (req, res, next) => {
                 return res.status(401).json({ error: 'Not authenticated' });
             }
             
-            if (setupsScanner.getScanStatus()) {
+            if (setupsScanner.getScanStatus(req.appUserId)) {
                 console.log('[Setups Endpoint] Scan already in progress');
                 return res.status(400).json({ error: 'Scan already running' });
             }
@@ -1385,7 +1353,7 @@ app.post('/test-scan', (req, res) => {
 app.use('/api/', (req, res, next) => {
     requireActiveAuth(req, res, next);
 });
-app.use('/api/strategy', strategyRoutes);
+app.use('/api/strategy', checkPremium, strategyRoutes);
 
 // ─────────────────────────────────────────────────────────────
 //  API ROUTES  (all protected by requireActiveAuth above)
@@ -1645,8 +1613,21 @@ app.post('/api/bybit/proxy', async (req, res) => {
         const env = doc?.activeEnv || 'mainnet';
         const cred = doc?.[env];
         if (!cred?.apiKey || !cred?.apiSecret) return res.status(400).json({ retCode: -1, retMsg: 'No API credentials saved.' });
+        
         const { path, body } = req.body;
         if (!path) return res.status(400).json({ retCode: -1, retMsg: 'Missing path.' });
+        
+        // Check if this is a write operation (order placement, position change, etc.)
+        const isWriteOp = /order|position|cancel|amend|switchLeverage|setRiskLimit|setMarginMode/i.test(path);
+        
+        // Free users can only read, not write
+        if (isWriteOp) {
+            const user = await User.findById(req.appUserId).select('accountTier').lean();
+            if (user?.accountTier === 'free') {
+                return res.status(403).json({ retCode: -1, retMsg: 'Trading is a premium feature. Upgrade to Premium to place orders.' });
+            }
+        }
+        
         const crypto = require('crypto');
         const base = env === 'testnet' ? 'https://api-demo.bybit.com' : 'https://api.bybit.com';
         const ts = Date.now().toString();
@@ -1673,7 +1654,7 @@ app.post('/api/bybit/proxy', async (req, res) => {
 });
 
 // ── PnL Calendar ───────────────────────────────────────────────
-app.get('/api/pnl-calendar', async (req, res) => {
+app.get('/api/pnl-calendar', checkPremium, async (req, res) => {
     try {
         res.json({ ok: true, data: {} });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
@@ -2002,14 +1983,15 @@ app.post('/api/autopilot/stop', async (req, res) => {
 
 // ── Scan Setups ────────────────────────────────────────────────
 const setupsScanRunning = new Set();
-app.post('/api/scan/setups', async (req, res) => {
+app.post('/api/scan/setups', checkPremium, async (req, res) => {
     const uid = req.appUserId;
     if (setupsScanRunning.has(uid)) return res.json({ ok: false, error: 'Scan already in progress' });
     try {
+        const user = await User.findById(uid).select('accountTier').lean();
         const { runHardFilterScan } = require('./coinScanner');
         setupsScanRunning.add(uid);
         res.json({ ok: true });
-        runHardFilterScan({}, (event, data) => {
+        runHardFilterScan({ accountTier: user?.accountTier || 'free' }, (event, data) => {
             io.to(uid).emit(event, data);
         }).catch(e => {
             io.to(uid).emit('setups:done', { error: e.message, candidates: [] });
@@ -2169,9 +2151,11 @@ app.get('/privacy',     (req, res) => res.sendFile(PUB('privacy.html')));
 app.get('/refund',      (req, res) => res.sendFile(PUB('refund.html')));
 
 // Requires login but not active license
-app.get('/license',   requireAuth, (req, res) => res.redirect('/payment'));
+app.get('/license',   requireAuth, (req, res) => res.sendFile(PUB('license.html')));
 app.get('/suspended', requireAuth, (req, res) => res.sendFile(PUB('suspended.html')));
 app.get('/payment',   requireAuth, (req, res) => res.sendFile(PUB('payment.html')));
+app.get('/payments',  requireAuth, (req, res) => res.redirect('/payment'));
+app.get('/referral',  requireAuth, (req, res) => res.redirect('/dashboard'));
 
 // Admin only
 app.get('/admin', requireAdmin, (req, res) => res.sendFile(PUB('admin.html')));
@@ -2184,7 +2168,6 @@ app.get('/dashboard',  requireActiveAuth, (req, res) => res.sendFile(DASHBOARD))
 app.get('/scanner',    requireActiveAuth, (req, res) => res.sendFile(PUB('index.html')));
 app.get('/settings',   requireActiveAuth, (req, res) => res.sendFile(SETTINGS));
 app.get('/terminal',   requireActiveAuth, (req, res) => res.sendFile(TERMINAL));
-app.get('/referral',   requireAuth,       (req, res) => res.sendFile(PUB('referral.html')));
 app.get('/setups',     requireActiveAuth, (req, res) => res.sendFile(PUB('setups.html')));
 app.get('/coin-detail',requireActiveAuth, (req, res) => res.sendFile(PUB('pages/coin-detail.html')));
 app.get('/calendar',   requireActiveAuth, (req, res) => res.sendFile(PUB('calendar.html')));
@@ -2278,6 +2261,31 @@ connectDB()
         } catch (e) {
             console.warn('[Startup cleanup] Agent collections cleanup skipped:', e.message);
         }
+        // ── Migrate existing premium license users to new tier system ──
+        try {
+            const migrationKey = '__premium_tier_migration_done__';
+            const migrated = await AppSettings.findOne({ key: migrationKey }).lean();
+            if (!migrated) {
+                const result = await User.updateMany(
+                    { licenseStatus: 'active' },
+                    { 
+                        $set: { 
+                            accountTier: 'premium',
+                            premiumActivatedAt: new Date(),
+                            premiumPlan: 'lifetime'
+                        } 
+                    }
+                );
+                console.log(`[Startup migration] Upgraded ${result.modifiedCount} users with active licenses to premium tier`);
+                await AppSettings.updateOne(
+                    { key: migrationKey },
+                    { $set: { value: new Date().toISOString() } },
+                    { upsert: true }
+                );
+            }
+        } catch (e) {
+            console.warn('[Startup migration] Premium tier migration skipped:', e.message);
+        }
         httpServer.listen(PORT, () => {
             console.log(`\n╔═══════════════════════════════════════════════════╗`);
             console.log(`║  🚀 RSI + MACD Scanner running at http://localhost:${PORT}  ║`);
@@ -2292,3 +2300,4 @@ connectDB()
         console.error('Failed to connect to MongoDB:', err.message);
         process.exit(1);
     });
+

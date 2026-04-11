@@ -20,19 +20,21 @@
   headerEl.innerHTML = `
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <div class="sh-left">
-      <a class="sh-logo" href="/">Monty<span>.</span></a>
+      <a class="sh-logo" href="/">SCANR<span>.</span></a>
       <span class="sh-clock" id="shClock"></span>
     </div>
     <nav class="sh-nav" id="shNav">
       <a class="sh-link" href="/dashboard">Dashboard</a>
       <a class="sh-link" href="/scanner">Scanner</a>
+      <a class="sh-link" href="/challenge">Challenge</a>
+      <a class="sh-link" href="/terminal">Trade</a>
       <a class="sh-link" href="/setups">Setups</a>
       <a class="sh-link" href="/strategy">Strategy</a>
-      <a class="sh-link" href="/terminal">Trade</a>
-      <a class="sh-link" href="/challenge">Challenge</a>
     
       <a class="sh-link sh-admin-link" href="/admin" id="shAdminLink" style="display:none">Admin</a>
       
+      <!-- Upgrade button for free users (hidden by default until tier loads) -->
+      <button class="sh-upgrade-btn" id="shUpgradeBtn" style="display:none" onclick="window.showUpgradeModal()">⚡ Upgrade to Premium</button>
       
       <div class="sh-pfp-wrap" style="margin-left: 5px;" id="shPfpWrap">
         <span class="sh-pfp" id="shPfp" title="Profile">👤</span>
@@ -97,7 +99,7 @@
   });
 
   // ── Theme toggle ───────────────────────────────────────────
-  const THEME_KEY = 'monty-theme';
+  const THEME_KEY = 'SCANR-theme';
   const root      = document.documentElement;
   const themeBtn  = document.getElementById('shThemeBtn');
 
@@ -143,7 +145,7 @@
       const logo = document.querySelector('.sh-logo');
       if (logo) logo.innerHTML = name + '<span>.</span>';
       if (document.title) {
-        document.title = document.title.replace(/Monty/g, name);
+        document.title = document.title.replace(/SCANR/g, name);
       }
     })
     .catch(() => {});
@@ -206,5 +208,33 @@
     }
   });
 
+  // ── Upgrade button visibility (show only for free users) ───
+  const upgradeBtn = document.getElementById('shUpgradeBtn');
+
+  function applyUpgradeButtonVisibility(tier) {
+    if (!upgradeBtn) return;
+    upgradeBtn.style.display = tier === 'premium' ? 'none' : '';
+  }
+
+  // Keep button hidden until we know the user's current tier.
+  if (upgradeBtn) upgradeBtn.style.display = 'none';
+
+  // Initial tier read from session-check API (works even before session-check.js finishes).
+  fetch('/api/auth/session-check', { credentials: 'include' })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const tier = (data.user && data.user.accountTier) || data.accountTier || 'free';
+      applyUpgradeButtonVisibility(tier);
+    })
+    .catch(() => {});
+
+  // Live updates from session-check.js after login/upgrade/session refresh.
+  window.addEventListener('scanr:tier-updated', (ev) => {
+    const tier = ev && ev.detail ? ev.detail.accountTier : null;
+    if (tier) applyUpgradeButtonVisibility(tier);
+  });
+
   // ── Sign out ───────────────────────────────────────────────────
 })();
+

@@ -86,12 +86,30 @@ function saveWatchlist() { apiPost('/api/watchlist', { symbols: watchlist }); }
 let activeSort = 'default';
 
 // Layout (grid | list)
-let layout = localStorage.getItem('monty_layout') || 'grid';
+let layout = localStorage.getItem('SCANR_layout') || 'grid';
 
 // TradingView
 let tvMode = false;
 let tvWidget = null;
 const TV_TF_MAP = {'1m':'1','3m':'3','5m':'5','15m':'15','30m':'30','1h':'60','2h':'120','4h':'240','8h':'480','1d':'D','3d':'3D','1w':'W'};
+
+const SCANNER_TIMEFRAMES_KEY = 'scanner_timeframes';
+const SCANNER_TF_OPTIONS = [
+    { value: '1m', label: '1m' },
+    { value: '3m', label: '3m' },
+    { value: '5m', label: '5m' },
+    { value: '15m', label: '15m' },
+    { value: '30m', label: '30m' },
+    { value: '1h', label: '1h' },
+    { value: '2h', label: '2h' },
+    { value: '4h', label: '4h' },
+    { value: '1d', label: '1D' },
+    { value: '1w', label: '1W' }
+];
+const FREE_TIMEFRAME_LIMIT = 3;
+let scannerIsPremium = false;
+let activeTimeframes = [];
+let activeScannerTimeframe = '1m';
 
 // Drag
 let dragSrc=null;
@@ -196,6 +214,12 @@ async function loadAppState() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadAppState();
+
+    if (_PAGE === 'scanner') {
+        await loadScannerTier();
+        initTimeframePicker();
+    }
+
     restoreControls();
     applyColorsToInputs();
 
@@ -327,12 +351,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     initBybit();
 
     if (_PAGE === 'settings') {
-        document.title = 'Settings — ' + (window._appName || 'Monty');
+        document.title = 'Settings — ' + (window._appName || 'SCANR');
         // Tab selection from sessionStorage is handled by the inline script in settings.html
     }
 
     if (_PAGE === 'terminal') {
-        document.title = 'Terminal — ' + (window._appName || 'Monty');
+        document.title = 'Terminal — ' + (window._appName || 'SCANR');
         const _prefill = (() => { try { return JSON.parse(sessionStorage.getItem('bybit_prefill')); } catch { return null; } })();
         sessionStorage.removeItem('bybit_prefill');
         bybitTerminalOpen(_prefill ? _prefill.sym : undefined);
@@ -359,13 +383,200 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function restoreControls() {
-    const tf = el('timeframe'); if (tf && saved.timeframe) tf.value = saved.timeframe;
+    const tf = el('timeframe');
+    if (tf && saved.timeframe && _PAGE !== 'scanner') tf.value = saved.timeframe;
     const ri = el('rsiLen');    if (ri && saved.rsiLen)    ri.value = saved.rsiLen;
     const fa = el('fastLen');   if (fa && saved.fastLen)   fa.value = saved.fastLen;
     const sl = el('slowLen');   if (sl && saved.slowLen)   sl.value = saved.slowLen;
     const sg = el('signalLen'); if (sg && saved.signalLen) sg.value = saved.signalLen;
     if (saved.cellSize) { const cs = el('cellSizeSlider'); if (cs) { cs.value = saved.cellSize; cellSize = saved.cellSize; } }
     if (saved.activeSort) { activeSort = saved.activeSort; }
+}
+
+async function loadScannerTier() {
+    try {
+        const res = await fetch('/api/auth/session-check', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const tier = (data && data.user && data.user.accountTier) || data.accountTier || 'free';
+        scannerIsPremium = tier === 'premium';
+    } catch (_) {}
+}
+
+function getTimeframeLabel(v) {
+    const found = SCANNER_TF_OPTIONS.find(x => x.value === v);
+    return found ? found.label : v;
+}
+
+function saveScannerTimeframes() {
+    try { localStorage.setItem(SCANNER_TIMEFRAMES_KEY, JSON.stringify(activeTimeframes)); } catch(_) {}
+}
+
+function loadScannerTimeframesFromStorage() {
+    let savedList = null;
+    try {
+        const raw = localStorage.getItem(SCANNER_TIMEFRAMES_KEY);
+        savedList = raw ? JSON.parse(raw) : null;
+    } catch(_) {}
+
+    const valid = Array.isArray(savedList)
+        ? savedList.filter(v => SCANNER_TF_OPTIONS.some(o => o.value === v))
+        : [];
+
+    if (valid.length) {
+        if (!scannerIsPremium) return valid.slice(0, FREE_TIMEFRAME_LIMIT);
+        return valid;
+    }
+
+    return scannerIsPremium ? ['1h', '4h'] : ['1m', '3m', '15m'];
+}
+
+function syncActiveTimeframeToSelect() {
+    const tfSel = el('timeframe');
+    if (!tfSel) return;
+    tfSel.value = activeScannerTimeframe;
+}
+
+function hideTfDropdownAndTooltip() {
+    const dd = el('tfDropdown');
+    const tip = el('tfLimitTooltip');
+    if (dd) dd.classList.remove('open');
+    if (tip) tip.style.display = 'none';
+}
+
+function showTfLimitTooltip() {
+    const tip = el('tfLimitTooltip');
+    if (!tip) return;
+    tip.innerHTML = `Free users can add up to 3 timeframes.<br>Upgrade to Premium for unlimited timeframes.<br><button class="tf-limit-upgrade" id="tfLimitUpgradeBtn">Upgrade ⚡</button>`;
+    tip.style.display = 'block';
+    const btn = el('tfLimitUpgradeBtn');
+    if (btn) {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof window.showUpgradeModal === 'function') window.showUpgradeModal();
+            else window.location.href = '/pricing';
+        });
+    }
+}
+
+function renderTfPills() {
+    const wrap = el('tfPills');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    activeTimeframes.forEach(tf => {
+        const pill = document.createElement('button');
+        pill.className = 'tf-pill' + (tf === activeScannerTimeframe ? ' active' : '');
+        pill.type = 'button';
+        pill.innerHTML = `<span>${getTimeframeLabel(tf)}</span><span class="tf-pill-remove" title="Remove" role="button" aria-label="Remove timeframe">×</span>`;
+        pill.addEventListener('click', () => {
+            if (activeScannerTimeframe !== tf) {
+                activeScannerTimeframe = tf;
+                syncActiveTimeframeToSelect();
+                renderTfPills();
+                lsSave();
+                refresh();
+            }
+        });
+        const rm = pill.querySelector('.tf-pill-remove');
+        rm.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (activeTimeframes.length <= 1) return;
+            activeTimeframes = activeTimeframes.filter(x => x !== tf);
+            if (activeScannerTimeframe === tf) {
+                activeScannerTimeframe = activeTimeframes[0];
+                syncActiveTimeframeToSelect();
+                lsSave();
+                refresh();
+            }
+            saveScannerTimeframes();
+            renderTfPills();
+            renderTfDropdown();
+        });
+        wrap.appendChild(pill);
+    });
+}
+
+function renderTfDropdown() {
+    const dd = el('tfDropdown');
+    if (!dd) return;
+    dd.innerHTML = '';
+    SCANNER_TF_OPTIONS.forEach(opt => {
+        const isActive = activeTimeframes.includes(opt.value);
+        const canAddMore = scannerIsPremium || activeTimeframes.length < FREE_TIMEFRAME_LIMIT;
+        const locked = !scannerIsPremium && !isActive && !canAddMore;
+
+        const row = document.createElement('div');
+        row.className = 'tf-option' + (isActive ? ' active' : '') + (locked ? ' locked' : '');
+        row.innerHTML = `
+            <span>${opt.label}</span>
+            <span class="tf-opt-right">
+                <span class="tf-opt-check">${isActive ? '✓' : ''}</span>
+                <span>${locked ? '🔒' : ''}</span>
+            </span>
+        `;
+
+        row.addEventListener('click', () => {
+            if (isActive) {
+                if (activeTimeframes.length <= 1) return;
+                activeTimeframes = activeTimeframes.filter(x => x !== opt.value);
+                if (activeScannerTimeframe === opt.value) {
+                    activeScannerTimeframe = activeTimeframes[0];
+                    syncActiveTimeframeToSelect();
+                    lsSave();
+                    refresh();
+                }
+                saveScannerTimeframes();
+                renderTfPills();
+                renderTfDropdown();
+                return;
+            }
+
+            if (!scannerIsPremium && activeTimeframes.length >= FREE_TIMEFRAME_LIMIT) {
+                showTfLimitTooltip();
+                return;
+            }
+
+            activeTimeframes.push(opt.value);
+            saveScannerTimeframes();
+            renderTfPills();
+            renderTfDropdown();
+        });
+
+        dd.appendChild(row);
+    });
+}
+
+function initTimeframePicker() {
+    const tfSel = el('timeframe');
+    if (!tfSel) return;
+
+    activeTimeframes = loadScannerTimeframesFromStorage();
+    activeScannerTimeframe = (saved.timeframe && activeTimeframes.includes(saved.timeframe))
+        ? saved.timeframe
+        : activeTimeframes[0];
+
+    syncActiveTimeframeToSelect();
+    saveScannerTimeframes();
+
+    renderTfPills();
+    renderTfDropdown();
+
+    const plusBtn = el('tfPlusBtn');
+    const dd = el('tfDropdown');
+    if (plusBtn && dd) {
+        plusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dd.classList.contains('open');
+            hideTfDropdownAndTooltip();
+            if (!isOpen) dd.classList.add('open');
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        const picker = el('tfPicker');
+        if (!picker) return;
+        if (!picker.contains(e.target)) hideTfDropdownAndTooltip();
+    });
 }
 
 function applyColorsToInputs() {
@@ -481,7 +692,7 @@ function toggleLayout() { setLayout(layout === 'grid' ? 'list' : 'grid'); }
 
 function setLayout(mode) {
     layout = mode;
-    localStorage.setItem('monty_layout', mode);
+    localStorage.setItem('SCANR_layout', mode);
     const lbl = el('layoutBtnLabel');
     if (lbl) lbl.textContent = mode === 'list' ? '☰ List' : '⊞ Grid';
     buildGrid();
@@ -738,7 +949,7 @@ async function fetchAndDraw(sym, tf, rl, fa, sl, sig) {
 }
 
 // ── Last Scanned Coins ────────────────────────────────────────
-const LAST_SCAN_KEY = 'monty-last-scan';
+const LAST_SCAN_KEY = 'SCANR-last-scan';
 
 function saveLastScan() {
     const bar = el('lastScanBar');
@@ -876,6 +1087,14 @@ function drawCell(canvas,data,sym) {
     }
 
     if (data.flags) drawSignalTags(ctx, data.flags, W, H);
+
+    if (_PAGE === 'scanner') {
+        const tfLabel = getTimeframeLabel(el('timeframe') ? el('timeframe').value : activeScannerTimeframe);
+        ctx.font = `bold ${Math.max(7, W * 0.055)}px Inter,sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#f0b90b';
+        ctx.fillText(tfLabel, 4, H - 6);
+    }
 }
 
 function drawSignalTags(ctx, f, W, H) {
@@ -2848,6 +3067,7 @@ async function bytPollPositionsBackground() {
 
 function initBybit() {
     bybitSyncClock();
+    bytSetQtyMode('cost');
 
     // Load saved credentials into forms + switch account UI (settings page only)
     if (el('bybitLiveKey')) {
@@ -3133,17 +3353,8 @@ function bytSetCategory(cat) {
         // Also reset autopilot mode to manual since spot doesn't support autopilot
         if (typeof apSetMode === 'function') apSetMode('manual');
     }
-    // Show only QTY+COST qty-modes in spot; show all 4 in futures
-    document.querySelectorAll('.byt-qty-mode').forEach(b => {
-        const mode = b.dataset.mode;
-        if (mode === 'margin' || mode === 'risk') {
-            b.style.display = cat === 'spot' ? 'none' : '';
-        }
-    });
-    // If current qty mode is margin/risk and switching to spot, reset to qty
-    if (cat === 'spot' && (bytQtyMode === 'margin' || bytQtyMode === 'risk')) {
-        bytSetQtyMode('qty');
-    }
+    // Keep amount handling in USDT cost mode.
+    bytSetQtyMode('cost');
     // Label swap
     const buyBtn = el('bytBuyBtn');
     const selBtn = el('bytSellBtn');
@@ -3153,7 +3364,9 @@ function bytSetCategory(cat) {
     const btnLabel = el('bytPlaceBtnLabel');
     if (btnLabel) btnLabel.textContent = cat === 'spot'
         ? (bytDirection === 'Buy' ? '▲ Place BUY Order' : '▼ Place SELL Order')
-        : (bytDirection === 'Buy' ? '▲ Place LONG Order' : '▼ Place SHORT Order');
+        : (apMode === 'autopilot'
+            ? (bytDirection === 'Buy' ? '🤖 Place LONG + Start Auto Mode' : '🤖 Place SHORT + Start Auto Mode')
+            : (bytDirection === 'Buy' ? '▲ Place LONG Order' : '▼ Place SHORT Order'));
     // Re-fetch symbol info for the new category
     if (bytSymSelected) bytFetchMaxLev(bytSymSelected);
     bytUpdateSummary();
@@ -3420,10 +3633,10 @@ function bytSetDir(dir) {
     const isSpot = bytCategory === 'spot';
     if (dir === 'Buy') {
         btn.classList.remove('short-mode');
-        el('bytPlaceBtnLabel').textContent = isSpot ? '▲ Place BUY Order' : (isAuto ? '🤖 Place LONG + Start Autopilot' : '▲ Place LONG Order');
+        el('bytPlaceBtnLabel').textContent = isSpot ? '▲ Place BUY Order' : (isAuto ? '🤖 Place LONG + Start Auto Mode' : '▲ Place LONG Order');
     } else {
         btn.classList.add('short-mode');
-        el('bytPlaceBtnLabel').textContent = isSpot ? '▼ Place SELL Order' : (isAuto ? '🤖 Place SHORT + Start Autopilot' : '▼ Place SHORT Order');
+        el('bytPlaceBtnLabel').textContent = isSpot ? '▼ Place SELL Order' : (isAuto ? '🤖 Place SHORT + Start Auto Mode' : '▼ Place SHORT Order');
     }
     if (bytSlMode === 'pnl') bytCalcSlFromPnl();
     if (bytTpMode === 'pnl') bytCalcTpFromPnl();
@@ -3438,29 +3651,13 @@ function bytOrderTypeChange() {
 }
 
 // ── Qty Mode ─────────────────────────────────────────────────
-let bytQtyMode = 'qty';
+let bytQtyMode = 'cost';
 
 function bytSetQtyMode(mode) {
-    bytQtyMode = mode;
-    // Update tab styles
-    document.querySelectorAll('.byt-qty-mode').forEach(b => {
-        const active = b.dataset.mode === mode;
-        b.style.background = active ? '#1a1f2e' : '#0f1319';
-        b.style.color = active ? '#f59e0b' : '#6b7897';
-    });
-    // Show/hide rows
-    ['qty','cost','margin','risk'].forEach(m => {
-        const row = el('bytQtyRow_' + m);
-        if (row) row.style.display = m === mode ? (m === 'risk' ? 'block' : '') : 'none';
-    });
-    // Prefill risk slider from saved settings
-    if (mode === 'risk') {
-        const posS = posGetSettings();
-        const risk = parseFloat(posS.riskPerTrade ?? posS.risk) || 1;
-        el('bytQtyRiskSlider').value = risk;
-        el('bytQtyRiskVal').textContent = risk.toFixed(1) + '%';
-        bytCalcFromRisk();
-    }
+    // Terminal amount input is USDT cost only.
+    bytQtyMode = 'cost';
+    const costRow = el('bytQtyRow_cost');
+    if (costRow) costRow.style.display = '';
     bytUpdateSummary();
 }
 
@@ -3627,7 +3824,7 @@ async function bytPlaceOrder() {
 
     if (!sym) return showMsg('bytOrderMsg', '✗ Enter a symbol', '#f56565');
     if (!qty || qty <= 0) {
-        const modeHints = { cost: 'Enter order cost in USDT', margin: 'Enter margin amount in USDT', risk: 'Enter entry & SL prices for risk calc', qty: 'Enter quantity' };
+        const modeHints = { cost: 'Enter amount in USDT cost', margin: 'Enter amount in USDT cost', risk: 'Enter amount in USDT cost', qty: 'Enter amount in USDT cost' };
         return showMsg('bytOrderMsg', '✗ ' + (modeHints[bytQtyMode] || 'Enter quantity'), '#f56565');
     }
     if (type === 'Limit' && (!entry || entry <= 0)) return showMsg('bytOrderMsg', '✗ Enter entry price', '#f56565');
@@ -4103,7 +4300,7 @@ function apSetMode(mode) {
         const isSpot = typeof bytCategory !== 'undefined' && bytCategory === 'spot';
         const dir = bytDirection === 'Buy' ? (isSpot ? 'BUY' : 'LONG') : (isSpot ? 'SELL' : 'SHORT');
         lbl.textContent = mode === 'autopilot'
-            ? `🤖 Place ${dir} + Start Autopilot`
+            ? `🤖 Place ${dir} + Start Auto Mode`
             : `${bytDirection === 'Buy' ? '▲' : '▼'} Place ${dir} Order`;
     }
 }
@@ -4481,4 +4678,5 @@ function apLog(msg, type = '') {
     log.scrollTop = log.scrollHeight;
     if (type === 'action' || type === 'warn') showToast(msg, type === 'warn');
 }
+
 

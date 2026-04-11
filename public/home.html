@@ -720,7 +720,7 @@
     </nav>
     <div class="lp-header-btns">
       <a href="/login" class="lp-btn-outline">Sign In</a>
-      <a href="/register?plan=lifetime&redirect=payment" class="lp-btn-filled">Get Started</a>
+      <a href="/register?plan=free" class="lp-btn-filled">Get Started</a>
     </div>
     <button class="lp-mobile-menu" id="lpMobileMenu">&#9776;</button>
   </div>
@@ -836,30 +836,53 @@
 <section class="lp-section lp-section-center">
   <div class="lp-section-inner">
     <span class="lp-label fade-in">Simple Pricing</span>
-    <h2 class="lp-h2 fade-in">One Plan. Full Access. Forever.</h2>
-    <p class="lp-sub fade-in">No subscriptions, no hidden fees. Pay once and trade for life.</p>
-    <div class="pricing-card fade-in">
-      <span class="pricing-chip">Lifetime Access</span><span class="pricing-discount-badge" id="homePricingDiscountBadge"></span>
-      <div class="pricing-original" id="homePricingOriginal">$69</div>
-      <div class="pricing-price"><sup>$</sup><span data-price="lifetime">49</span></div>
-      <div class="pricing-sale-label" id="homePricingSaleLabel"></div>
-      <div class="pricing-period">one time payment</div>
-      <ul class="pricing-list">
-         <li><span class="pc-check"></span>All current features</li>
-      <li><span class="pc-check"></span>All future updates</li>
-      <li><span class="pc-check"></span>Bybit integration (Spot &amp; Futures)</li>
-      <li><span class="pc-check"></span>No-code strategy builder</li>
-      <li><span class="pc-check"></span>Live strategy bot</li>
-      <li><span class="pc-check"></span>Discord alerts + price alerts</li>
-      <li><span class="pc-check"></span>3 AI models (GLM free, Kimi, Claude)</li>
-      <li><span class="pc-check"></span>Prop firm challenge tracker</li>
-      <li><span class="pc-check"></span>Trade journal + PnL calendar</li>
-      <li><span class="pc-check"></span>Single license key</li>
-      <li><span class="pc-check"></span>WhatsApp/Email support</li>
-   
-      </ul>
-      <p class="pricing-note">30-day happiness guarantee. Email us if you are not satisfied.</p>
-      <a href="/pricing"><button class="pricing-btn">Get Access Now &#8594;</button></a>
+    <h2 class="lp-h2 fade-in">Choose Your Plan</h2>
+    <p class="lp-sub fade-in">Start free, upgrade anytime. No hidden fees or subscriptions.</p>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; width: 100%; max-width: 900px; margin: 2rem auto 0;">
+      <!-- FREE TIER -->
+      <div class="pricing-card fade-in" style="position: relative; opacity: 0.85;">
+        <span class="pricing-chip" style="background: rgba(100, 120, 160, 0.2); color: var(--text-secondary);">Free</span>
+        <div class="pricing-price"><sup>$</sup><span>0</span></div>
+        <div class="pricing-period">forever</div>
+        <ul class="pricing-list" style="opacity: 0.8;">
+          <li><span class="pc-check"></span>Coin scanner (up to 50 coins)</li>
+          <li><span class="pc-check"></span>Price alerts &amp; Discord alerts</li>
+          <li><span class="pc-check"></span>Challenge tracker (view only)</li>
+          <li><span class="pc-check"></span>1 free AI model (GLM)</li>
+          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Bybit integration (Spot &amp; Futures)</li>
+          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Strategy builder &amp; bot</li>
+          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Premium AI models (Kimi, Claude)</li>
+          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Trade journal &amp; PnL calendar</li>
+          <li style="text-decoration: line-through;"><span style="opacity: 0.4;">✗</span>Email support</li>
+        </ul>
+        <p class="pricing-note">Get started today, no credit card required.</p>
+      <a href="/register?plan=free"><button class="pricing-btn" style="opacity: 0.7;">Sign Up Free &#8594;</button></a>
+      </div>
+
+      <!-- PREMIUM TIER (Highlighted) -->
+      <div class="pricing-card fade-in" style="position: relative; border: 2px solid var(--accent); box-shadow: 0 0 32px rgba(0, 229, 160, 0.15);">
+        <div style="position: absolute; top: -12px; right: 20px; background: var(--accent); color: #0a0e1a; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">★ MOST POPULAR</div>
+        <span class="pricing-chip">Lifetime Access</span><span class="pricing-discount-badge" id="homePricingDiscountBadge"></span>
+        <div class="pricing-original" id="homePricingOriginal">$69</div>
+        <div class="pricing-price"><sup>$</sup><span data-price="lifetime">49</span></div>
+        <div class="pricing-sale-label" id="homePricingSaleLabel"></div>
+        <div class="pricing-period">one time payment</div>
+        <ul class="pricing-list">
+          <li><span class="pc-check"></span>All premium features</li>
+          <li><span class="pc-check"></span>All future updates</li>
+          <li><span class="pc-check"></span>Bybit integration (Spot &amp; Futures)</li>
+          <li><span class="pc-check"></span>No-code strategy builder</li>
+          <li><span class="pc-check"></span>Live strategy bot</li>
+          <li><span class="pc-check"></span>Discord alerts + price alerts</li>
+          <li><span class="pc-check"></span>3 AI models (GLM, Kimi, Claude)</li>
+          <li><span class="pc-check"></span>Prop firm challenge tracker</li>
+          <li><span class="pc-check"></span>Trade journal + PnL calendar</li>
+          <li><span class="pc-check"></span>Single license key</li>
+          <li><span class="pc-check"></span>Priority email support</li>
+        </ul>
+        <p class="pricing-note">30-day happiness guarantee. Email us if you are not satisfied.</p>
+        <button class="pricing-btn" style="background: linear-gradient(135deg, var(--accent), #00d18f); font-weight: 900; cursor: pointer;" onclick="upgradeFromPricingCard()">🚀 Upgrade Now &#8594;</button>
+      </div>
     </div>
   </div>
 </section>
@@ -986,6 +1009,28 @@
 <script>
 const PRICING_CACHE_KEY='scanr_pricing';
 const PRICING_CACHE_TTL_MS=5*60*1000;
+
+// Upgrade handlers
+function upgradeFromPricingCard() {
+  fetch('/api/auth/me')
+    .then(r => {
+      if (r.ok) {
+        // User is logged in, show upgrade modal
+        if (typeof window.showUpgradeModal === 'function') {
+          window.showUpgradeModal();
+        } else {
+          window.location.href = '/payment?plan=lifetime';
+        }
+      } else {
+        // User not logged in, go to free registration
+        window.location.href = '/register?plan=free';
+      }
+    })
+    .catch(() => {
+      // Error checking auth, go to free registration
+      window.location.href = '/register?plan=free';
+    });
+}
 
 function readPricingCache(){
   try{

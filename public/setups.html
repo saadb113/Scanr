@@ -171,6 +171,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#fff;--bg-raised:#e8edf6;--bg-input:#edf1
 </head>
 <body>
 <script src="/js/nav.js"></script>
+<div class="page-content">
 <div class="wrap">
 
   <!-- Page Header -->
@@ -265,11 +266,35 @@ const resultsCount = document.getElementById('resultsCount');
 let allSignals = [];
 let currentFilters = { direction: 'all', confidence: 'all', grade: 'all', sort: 'score' };
 let sockReady = false;
-const SETUPS_RESULTS_KEY = 'setups_saved_results_v1';
-const SETUPS_AI_KEY = 'setups_saved_ai_v1';
-const SETUPS_PREFS_KEY = 'setups_saved_prefs_v1';
+const SETUPS_RESULTS_KEY_BASE = 'setups_saved_results_v1';
+const SETUPS_AI_KEY_BASE = 'setups_saved_ai_v1';
+const SETUPS_PREFS_KEY_BASE = 'setups_saved_prefs_v1';
+let SETUPS_RESULTS_KEY = SETUPS_RESULTS_KEY_BASE;
+let SETUPS_AI_KEY = SETUPS_AI_KEY_BASE;
+let SETUPS_PREFS_KEY = SETUPS_PREFS_KEY_BASE;
 const expandedRows = new Set();
 const aiCache = new Map();
+
+function applySetupsStorageScope(userId) {
+  const safeUserId = String(userId || 'anon').replace(/[^a-zA-Z0-9_-]/g, '_');
+  SETUPS_RESULTS_KEY = `${SETUPS_RESULTS_KEY_BASE}_${safeUserId}`;
+  SETUPS_AI_KEY = `${SETUPS_AI_KEY_BASE}_${safeUserId}`;
+  SETUPS_PREFS_KEY = `${SETUPS_PREFS_KEY_BASE}_${safeUserId}`;
+}
+
+async function initSetupsStorageScope() {
+  try {
+    const res = await fetch('/api/auth/me', { cache: 'no-store' });
+    if (!res.ok) {
+      applySetupsStorageScope('anon');
+      return;
+    }
+    const user = await res.json();
+    applySetupsStorageScope(user && (user._id || user.id) ? (user._id || user.id) : 'anon');
+  } catch {
+    applySetupsStorageScope('anon');
+  }
+}
 
 // Socket.io setup first
 let sock = null;
@@ -400,6 +425,7 @@ function saveSetupsPrefs() {
 
 function renderSignals() {
   let filtered = allSignals;
+  const hasAnySignals = Array.isArray(allSignals) && allSignals.length > 0;
   
   // Apply filters
   if (currentFilters.direction !== 'all') {
@@ -428,7 +454,16 @@ function renderSignals() {
   if (filtered.length === 0) {
     signalsGrid.innerHTML = '';
     emptyState.style.display = 'block';
-    filtersRow.style.display = 'none';
+    filtersRow.style.display = hasAnySignals ? 'flex' : 'none';
+    const emptyText = emptyState.querySelector('.empty-text');
+    const emptySub = emptyState.querySelector('.empty-sub');
+    if (hasAnySignals) {
+      if (emptyText) emptyText.textContent = 'No signals match current filters';
+      if (emptySub) emptySub.textContent = 'Try changing Direction, Confidence, or Grade filters';
+    } else {
+      if (emptyText) emptyText.textContent = 'No signals found';
+      if (emptySub) emptySub.textContent = 'Run a scan to find trading signals';
+    }
     return;
   }
   
@@ -459,22 +494,28 @@ function renderSignals() {
   `;
 }
 
-function clearSavedResults() {
+async function clearSavedResults() {
   allSignals = [];
   expandedRows.clear();
   aiCache.clear();
   localStorage.removeItem(SETUPS_RESULTS_KEY);
   localStorage.removeItem(SETUPS_AI_KEY);
+  try {
+    await fetch('/api/setups/signals', { method: 'DELETE' });
+  } catch (e) {
+    console.warn('[Setups] Failed to clear server signals:', e);
+  }
   renderSignals();
 }
 
 function filterBy(type, value) {
   currentFilters[type] = value;
-  // Update button states
-  document.querySelectorAll(`.filter-btn`).forEach(btn => {
+  // Update active buttons only in the clicked filter group.
+  const target = String(value).toUpperCase();
+  document.querySelectorAll(`.filter-btn[onclick*="filterBy('${type}'"]`).forEach(btn => {
     btn.classList.remove('active');
-    const btnValue = btn.textContent.trim();
-    if (btnValue === value || (value === 'all' && btnValue === 'All')) {
+    const btnValue = btn.textContent.trim().toUpperCase();
+    if (btnValue === target || (target === 'ALL' && btnValue === 'ALL')) {
       btn.classList.add('active');
     }
   });
@@ -569,8 +610,14 @@ function openTrade(symbol) {
   window.location.href = `/terminal?sym=${symbol}`;
 }
 
-// Load on page load
-(function() {
+let setupsPageInitialized = false;
+
+window.initPage = async function() {
+  if (setupsPageInitialized) return;
+  setupsPageInitialized = true;
+
+  await initSetupsStorageScope();
+
   try {
     const prefs = JSON.parse(localStorage.getItem(SETUPS_PREFS_KEY) || '{}');
     if (prefs && typeof prefs === 'object') {
@@ -582,6 +629,7 @@ function openTrade(symbol) {
     const savedAI = JSON.parse(localStorage.getItem(SETUPS_AI_KEY) || '{}');
     Object.keys(savedAI).forEach(sym => aiCache.set(sym, savedAI[sym]));
   } catch {}
+
   fetch('/api/setups/signals').then(r => r.json()).then(d => {
     if (d.signals && d.signals.length > 0) {
       allSignals = d.signals;
@@ -591,11 +639,16 @@ function openTrade(symbol) {
       renderSignals();
     }
   });
-})();
 
-document.getElementById('coinsToScan').addEventListener('input', saveSetupsPrefs);
-document.getElementById('minScore').addEventListener('input', saveSetupsPrefs);
+  document.getElementById('coinsToScan').addEventListener('input', saveSetupsPrefs);
+  document.getElementById('minScore').addEventListener('input', saveSetupsPrefs);
+};
 </script>
 <script src="/js/session-check.js"></script>
+<script>
+  (async function checkPremiumAccess() {
+    await window.enforcePremiumAccess(window.initPage);
+  })();
+</script>
 </body>
 </html>
