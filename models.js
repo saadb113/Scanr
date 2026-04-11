@@ -178,6 +178,10 @@ const UserSchema = new mongoose.Schema({
     loginHistory:        { type: [{ ip: String, userAgent: String, timestamp: Date, fingerprint: String, fingerprintMatch: Boolean }], default: [] },
     blockedAttempts:     { type: [{ timestamp: Date, ip: String, fingerprint: String }], default: [] },
     suspiciousActivity:  { type: Boolean, default: false },
+    // AI analysis daily usage tracking
+    aiAnalysisCount:     { type: Number, default: 0 },
+    aiAnalysisDate:      { type: String, default: null },
+    aiAnalysisTimezone:  { type: String, default: 'Asia/Karachi' },
     // Premium tier system
     accountTier:         { type: String, enum: ['free', 'premium'], default: 'free' },
     premiumActivatedAt:  { type: Date, default: null },

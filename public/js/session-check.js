@@ -40,14 +40,19 @@ function _ensurePremiumOverlayStyles() {
       flex-direction: column;
       gap: 14px;
       max-height: 90vh;
-    overflow: scroll;
+      overflow: scroll;
+      scrollbar-width: thin;
+      scrollbar-color: var(--accent-green, #00e5a0) transparent;
     }
 .premium-card::-webkit-scrollbar {
   width: 8px;
-  background : transparent;
+  background: transparent;
+  }
+  .premium-card::-webkit-scrollbar-track {
+  background: transparent;
   }
   .premium-card::-webkit-scrollbar-thumb {
-  background: var(--green);
+  background: var(--accent-green, #00e5a0);
   border-radius: 40px;
   }
     .premium-card-icon {
@@ -96,7 +101,7 @@ function _ensurePremiumOverlayStyles() {
     }
 
     .premium-price {
-      color: #f0b90b;
+      color: var(--accent-green, #00e5a0);
       font-size: 20px;
       font-weight: 800;
       text-align: center;
@@ -117,9 +122,9 @@ function _ensurePremiumOverlayStyles() {
       margin: -2px auto 0;
       padding: 0.2rem 0.55rem;
       border-radius: 999px;
-      border: 1px solid rgba(240, 185, 11, 0.35);
-      background: rgba(240, 185, 11, 0.14);
-      color: #f0b90b;
+      border: 1px solid rgba(0, 229, 160, 0.35);
+      background: rgba(0, 229, 160, 0.14);
+      color: var(--accent-green, #00e5a0);
       font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.3px;
@@ -133,8 +138,8 @@ function _ensurePremiumOverlayStyles() {
     }
 
     .premium-btn-primary {
-      background: #f0b90b;
-      color: #0b0e11;
+      background: linear-gradient(135deg, var(--accent-green, #00e5a0), #0ecb81);
+      color: #041017;
       border: none;
       border-radius: 8px;
       padding: 14px 32px;
@@ -338,6 +343,18 @@ window.showUpgradeModal = function() {
   `;
   
   modal.innerHTML = `
+    <style>
+      #upgrade-modal .upgrade-modal-card {
+        scrollbar-width: thin;
+        scrollbar-color: var(--accent-green, #00e5a0) transparent;
+      }
+      #upgrade-modal .upgrade-modal-card::-webkit-scrollbar { width: 8px; }
+      #upgrade-modal .upgrade-modal-card::-webkit-scrollbar-track { background: transparent; }
+      #upgrade-modal .upgrade-modal-card::-webkit-scrollbar-thumb {
+        background: var(--accent-green, #00e5a0);
+        border-radius: 20px;
+      }
+    </style>
     <div style="
       background: var(--bg-surface, #0d1117);
       border: 1px solid var(--border-mid, #243044);
@@ -352,7 +369,7 @@ window.showUpgradeModal = function() {
       flex-direction: column;
       gap: 1.5rem;
       animation: upgradeSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    " @keyframes upgradeSlideIn {
+    " class="upgrade-modal-card" @keyframes upgradeSlideIn {
       from { opacity: 0; transform: scale(0.95) translateY(-20px); }
       to { opacity: 1; transform: scale(1) translateY(0); }
     }>
@@ -425,15 +442,15 @@ window.showUpgradeModal = function() {
           text-align: center;
         ">
           <div style="font-size: 0.85rem; color: var(--text-muted, #5a6478); margin-bottom: 0.4rem;">Lifetime access</div>
-          <div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-amber, #f5a623);">$<span data-dynamic-lifetime-price>49.00</span></div>
+          <div style="font-size: 1.75rem; font-weight: 800; color: var(--accent-green, #00e5a0);">$<span data-dynamic-lifetime-price>49.00</span></div>
           <div data-dynamic-original-wrap style="display:none; margin-top: 0.3rem; font-size: 0.85rem; color: var(--text-muted, #5a6478);">Was $<span data-dynamic-original-price>69.00</span></div>
-          <div data-dynamic-discount-wrap style="display:none; margin-top: 0.45rem;"><span style="display:inline-flex; align-items:center; justify-content:center; background: rgba(245,166,35,0.16); color: var(--accent-amber, #f5a623); border: 1px solid rgba(245,166,35,0.35); border-radius: 999px; padding: 0.22rem 0.55rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.3px;" data-dynamic-discount-label>Limited Offer</span></div>
+          <div data-dynamic-discount-wrap style="display:none; margin-top: 0.45rem;"><span style="display:inline-flex; align-items:center; justify-content:center; background: rgba(0,229,160,0.16); color: var(--accent-green, #00e5a0); border: 1px solid rgba(0,229,160,0.35); border-radius: 999px; padding: 0.22rem 0.55rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.3px;" data-dynamic-discount-label>Limited Offer</span></div>
         </div>
         
         <div style="display: flex; flex-direction: column; gap: 0.6rem;">
           <button onclick="window.location.href='/payment'" style="
-            background: linear-gradient(135deg, var(--accent-amber, #f5a623), #fbbf24);
-            color: #0a0f16;
+            background: linear-gradient(135deg, var(--accent-green, #00e5a0), #0ecb81);
+            color: #041017;
             border: none;
             border-radius: 10px;
             padding: 0.85rem;

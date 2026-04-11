@@ -2593,6 +2593,58 @@ function kimiCacheClear(sym, tf) {
     apiDelete('/api/kimi-cache', { key: `${sym}:${tf}` });
 }
 
+let _aiUsage = null;
+function getClientTimezone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+    catch (_) { return 'UTC'; }
+}
+
+async function fetchAiUsage() {
+    try {
+        const res = await fetch('/api/analysis/usage', { cache: 'no-store' });
+        if (!res.ok) return null;
+        _aiUsage = await res.json();
+        renderAiUsageCounter();
+        return _aiUsage;
+    } catch (_) {
+        return null;
+    }
+}
+
+function renderAiUsageCounter() {
+    const elCounter = el('aiUsageCounter');
+    const btn = el('aiAnalyzeBtn');
+    if (!elCounter || !btn || !_aiUsage) return;
+    if (_aiUsage.isPremium) {
+        elCounter.style.display = 'block';
+        elCounter.style.color = '#0ecb81';
+        elCounter.textContent = 'AI ∞';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.title = 'Analyze with AI (Unlimited)';
+        return;
+    }
+    const used = Number(_aiUsage.used || 0);
+    const limit = Number(_aiUsage.limit || 3);
+    const reached = used >= limit;
+    let color = '#0ecb81';
+    if (used >= limit) color = '#f6465d';
+    else if (used >= limit - 1) color = '#f0b90b';
+    elCounter.style.display = 'block';
+    elCounter.style.color = color;
+    elCounter.textContent = reached ? `${limit}/${limit}` : `${used}/${limit}`;
+    btn.disabled = false;
+    btn.style.opacity = reached ? '0.6' : '1';
+    btn.style.cursor = reached ? 'not-allowed' : 'pointer';
+    btn.title = reached ? 'Daily limit reached (3/3) Resets at midnight your time' : 'Analyze with AI';
+}
+
+function showAiLimitModal() {
+    const md = document.getElementById('aiLimitModal');
+    if (md) md.style.display = 'flex';
+}
+
 function initKimiAI() {
     // Restore saved AI settings into fields (settings page only)
     if (!el('kimiApiKey')) return;
@@ -2667,8 +2719,16 @@ function initKimiAI() {
         }
     });
 
+    fetchAiUsage();
+
     // Analyze button
-    el('aiAnalyzeBtn').addEventListener('click', () => runKimiAnalysis());
+    el('aiAnalyzeBtn').addEventListener('click', () => {
+        if (_aiUsage && !_aiUsage.isPremium && Number(_aiUsage.used || 0) >= Number(_aiUsage.limit || 3)) {
+            showAiLimitModal();
+            return;
+        }
+        runKimiAnalysis();
+    });
 
     // Close AI panel — also clears cache for this coin
     el('aiClosePanel').addEventListener('click', () => {
@@ -2707,6 +2767,11 @@ async function runKimiAnalysis() {
     const panel = el('aiPanel');
     const content = el('aiContent');
     const btn = el('aiAnalyzeBtn');
+
+    if (_aiUsage && !_aiUsage.isPremium && Number(_aiUsage.used || 0) >= Number(_aiUsage.limit || 3)) {
+        showAiLimitModal();
+        return;
+    }
 
     panel.classList.add('open');
     btn.disabled = true;
@@ -2853,9 +2918,14 @@ Respond ONLY in this exact JSON format, no markdown, no extra text:
         const res = await fetch('/api/ai/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt }),
+            body: JSON.stringify({ prompt, timezone: getClientTimezone() }),
         });
         const data = await res.json();
+        if (res.status === 429 || data?.error === 'limit_reached') {
+            await fetchAiUsage();
+            showAiLimitModal();
+            throw new Error(data.message || 'Daily AI analysis limit reached');
+        }
         if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
 
         let parsed;
@@ -2869,6 +2939,12 @@ Respond ONLY in this exact JSON format, no markdown, no extra text:
         const analyzedAt = new Date().toLocaleString();
         kimiCacheSet(sym, tf, { result: parsed, price, analyzedAt });
         renderAIResult(parsed, sym, tf, price, analyzedAt);
+        if (_aiUsage && !_aiUsage.isPremium) {
+            _aiUsage.used = Number(_aiUsage.used || 0) + 1;
+            renderAiUsageCounter();
+        } else {
+            fetchAiUsage();
+        }
 
     } catch(err) {
         content.innerHTML = `<div class="ai-error">⚠ ${err.message}</div>`;

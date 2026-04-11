@@ -118,7 +118,7 @@
     }
     .byt-order-sidebar::-webkit-scrollbar { width: 4px; }
     .byt-order-sidebar::-webkit-scrollbar-track { background: transparent; }
-    .byt-order-sidebar::-webkit-scrollbar-thumb { background: var(--byt-border); border-radius: 2px; }
+    .byt-order-sidebar::-webkit-scrollbar-thumb { background: var(--accent-green, #00e5a0); border-radius: 2px; }
 
     .byt-order-body { padding: 0.8rem 0.85rem; flex: 1; }
 
@@ -523,7 +523,8 @@
     .ap-milestone-label { position: absolute; top: -18px; left: 2px; font-size: 9px; color: #4a5568; white-space: nowrap; }
     .ap-log { background: var(--byt-bg); border: 1px solid var(--byt-border); border-radius: 6px; padding: 0.5rem; max-height: 140px; overflow-y: auto; font-size: 11px; }
     .ap-log::-webkit-scrollbar { width: 3px; }
-    .ap-log::-webkit-scrollbar-thumb { background: var(--byt-border); }
+    .ap-log::-webkit-scrollbar-track { background: transparent; }
+    .ap-log::-webkit-scrollbar-thumb { background: var(--accent-green, #00e5a0); }
     .ap-log-row { display: flex; gap: 0.5rem; margin-bottom: 0.2rem; }
     .ap-log-row:last-child { margin-bottom: 0; }
     .ap-log-time { color: #4a5568; font-family: var(--byt-mono); }
@@ -1127,7 +1128,7 @@
     if (_bytAIUsage.isPremium) {
       usageEl.style.display = 'block';
       usageEl.style.color = '#0ecb81';
-      usageEl.textContent = 'AI Analysis: Unlimited';
+      usageEl.textContent = 'AI ∞';
       btn.disabled = false;
       btn.style.opacity = '1';
       btn.style.cursor = 'pointer';
@@ -1142,7 +1143,7 @@
     else if (used >= limit - 1) color = '#f0b90b';
     usageEl.style.display = 'block';
     usageEl.style.color = color;
-    usageEl.textContent = reached ? `AI Analysis: ${limit}/${limit} used — Limit reached` : `AI Analysis: ${used}/${limit} used today`;
+    usageEl.textContent = reached ? `AI ${limit}/${limit} • limit` : `AI ${used}/${limit}`;
     btn.disabled = false;
     btn.style.opacity = reached ? '0.6' : '1';
     btn.style.cursor = reached ? 'not-allowed' : 'pointer';

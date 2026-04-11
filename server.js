@@ -217,6 +217,76 @@ function _recordAttempt(ip) {
     _loginAttempts.set(ip, list);
 }
 
+function normalizeTimezone(tz) {
+    const fallback = 'UTC';
+    if (!tz || typeof tz !== 'string') return fallback;
+    try {
+        Intl.DateTimeFormat('en-US', { timeZone: tz }).format(new Date());
+        return tz;
+    } catch {
+        return fallback;
+    }
+}
+
+function getTodayInTimezone(tz) {
+    return new Date().toLocaleDateString('en-CA', { timeZone: normalizeTimezone(tz) });
+}
+
+function getNextMidnightIsoForTimezone(tz) {
+    const safeTz = normalizeTimezone(tz);
+    const now = new Date();
+    const tzNow = new Date(now.toLocaleString('en-US', { timeZone: safeTz }));
+    const tzNextMidnight = new Date(tzNow);
+    tzNextMidnight.setHours(24, 0, 0, 0);
+    const deltaMs = tzNextMidnight.getTime() - tzNow.getTime();
+    return new Date(now.getTime() + deltaMs).toISOString();
+}
+
+async function checkAiAnalysisLimit(req, res, next) {
+    try {
+        const user = await User.findById(req.appUserId).select('accountTier aiAnalysisCount aiAnalysisDate aiAnalysisTimezone').lean();
+        if (!user) return res.status(401).json({ error: 'Not authenticated' });
+
+        const requestedTz = req.body?.timezone;
+        const userTimezone = normalizeTimezone(requestedTz || user.aiAnalysisTimezone || 'UTC');
+        const today = getTodayInTimezone(userTimezone);
+        const resetNeeded = user.aiAnalysisDate !== today;
+        const isPremium = user.accountTier === 'premium';
+        const currentCount = resetNeeded ? 0 : (user.aiAnalysisCount || 0);
+
+        // Persist timezone and/or day rollover before limit check.
+        if (resetNeeded || user.aiAnalysisTimezone !== userTimezone) {
+            await User.findByIdAndUpdate(req.appUserId, {
+                aiAnalysisCount: currentCount,
+                aiAnalysisDate: today,
+                aiAnalysisTimezone: userTimezone,
+            });
+        }
+
+        req.aiLimit = {
+            isPremium,
+            timezone: userTimezone,
+            today,
+            used: currentCount,
+            limit: 3,
+        };
+
+        if (!isPremium && currentCount >= 3) {
+            return res.status(429).json({
+                error: 'limit_reached',
+                message: 'Daily AI analysis limit reached',
+                limit: 3,
+                used: 3,
+                resetsAt: 'midnight in your timezone',
+            });
+        }
+
+        return next();
+    } catch (e) {
+        return res.status(500).json({ error: e.message });
+    }
+}
+
 // Requires logged-in session only (no license check)
 function requireAuth(req, res, next) {
     if (!req.session.userId) {
@@ -640,6 +710,27 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     try {
         const users = await User.find().select('-password').sort({ createdAt: -1 }).lean();
         res.json(users);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/admin/users/:id/reset-ai-limit', requireAdmin, async (req, res) => {
+    try {
+        await User.findByIdAndUpdate(req.params.id, {
+            aiAnalysisCount: 0,
+            aiAnalysisDate: null,
+        });
+        res.json({ ok: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/admin/analysis/stats', requireAdmin, async (req, res) => {
+    try {
+        const todayUtc = getTodayInTimezone('UTC');
+        const agg = await User.aggregate([
+            { $match: { aiAnalysisDate: todayUtc } },
+            { $group: { _id: null, total: { $sum: '$aiAnalysisCount' } } }
+        ]);
+        res.json({ totalToday: agg[0]?.total || 0 });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2109,8 +2200,35 @@ app.post('/api/ai/test', requireActiveAuth, async (req, res) => {
     } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
+app.get('/api/analysis/usage', requireActiveAuth, async (req, res) => {
+    try {
+        const user = await User.findById(req.appUserId).select('accountTier aiAnalysisCount aiAnalysisDate aiAnalysisTimezone').lean();
+        if (!user) return res.status(401).json({ error: 'Not authenticated' });
+
+        const tz = normalizeTimezone(user.aiAnalysisTimezone || 'UTC');
+        const today = getTodayInTimezone(tz);
+        const resetNeeded = user.aiAnalysisDate !== today;
+        const used = resetNeeded ? 0 : (user.aiAnalysisCount || 0);
+
+        if (resetNeeded) {
+            await User.findByIdAndUpdate(req.appUserId, { aiAnalysisCount: 0, aiAnalysisDate: today, aiAnalysisTimezone: tz });
+        }
+
+        const isPremium = user.accountTier === 'premium';
+        res.json({
+            used: isPremium ? 0 : used,
+            limit: 3,
+            isPremium,
+            resetsAt: getNextMidnightIsoForTimezone(tz),
+            timezone: tz,
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Proxy AI analysis — frontend sends prompt, server calls selected provider
-app.post('/api/ai/analyze', requireActiveAuth, async (req, res) => {
+async function handleAiAnalyze(req, res) {
     try {
         const { prompt } = req.body;
         if (!prompt) return res.status(400).json({ ok: false, error: 'No prompt provided' });
@@ -2125,12 +2243,24 @@ app.post('/api/ai/analyze', requireActiveAuth, async (req, res) => {
             }
         }
         const raw = await analyzeWithAI(prompt, settings);
+
+        if (!req.aiLimit?.isPremium) {
+            await User.findByIdAndUpdate(req.appUserId, {
+                aiAnalysisCount: (req.aiLimit?.used || 0) + 1,
+                aiAnalysisDate: req.aiLimit?.today || getTodayInTimezone(req.aiLimit?.timezone || 'UTC'),
+                aiAnalysisTimezone: req.aiLimit?.timezone || 'UTC',
+            });
+        }
+
         res.json({ ok: true, result: raw });
     } catch(e) {
         const msg = e.message || 'AI analysis failed';
         res.json({ ok: false, error: msg });
     }
-});
+}
+
+app.post('/api/ai/analyze', requireActiveAuth, checkAiAnalysisLimit, handleAiAnalyze);
+app.post('/api/analysis/analyze', requireActiveAuth, checkAiAnalysisLimit, handleAiAnalyze);
 
 // ═══════════════════════════════════════════════════════════════
 //  SPA PAGE ROUTES

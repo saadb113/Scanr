@@ -128,12 +128,12 @@
             </div>
             <div class="tb-sep"></div>
             <div style="display:flex;align-items:center;gap:6px">
-                <span class="tb-label">Size</span>
+                
                 <input type="range" id="toolSize" min="1" max="20" value="3" style="width:60px;accent-color:#29ffb8">
                 <span id="toolSizeVal" style="font-size: 12px;color:#29ffb8;min-width:14px">3</span>
             </div>
             <div style="display:flex;align-items:center;gap:6px">
-                <span class="tb-label">Color</span>
+                
                 <input type="color" id="drawColor" value="#29ffb8" style="width:26px;height:26px;border-radius:4px;border:1px solid #252d3d;cursor:pointer">
             </div>
             <div class="tb-actions">
@@ -148,6 +148,12 @@
                 <button class="ai-analyze-btn" id="aiAnalyzeBtn" title="Analyze with Kimi AI">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
                     Analyze with AI
+                    <div id="aiUsageCounter" style="color:#fff; font-size:11px;display:none"></div>
+                    <style>
+                      #aiUsageCounter{
+                        color : #fff !important
+                      }
+                    </style>
                 </button>
             </div>
         </div>
@@ -180,6 +186,21 @@
         </div>
         </div><!-- /modal-charts-wrap -->
     </div>
+</div>
+
+<div id="aiLimitModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3200;align-items:center;justify-content:center;padding:16px">
+  <div style="width:min(420px,95vw);background:#121826;border:1px solid #2b3242;border-radius:12px;padding:18px 16px;color:#dde4f0">
+    <div style="font-size:18px;font-weight:800;margin-bottom:10px">🤖 Daily Limit Reached</div>
+    <div style="font-size:13px;color:#9aa3b5;line-height:1.65;margin-bottom:14px">
+      Free users get 3 AI analyses per day.<br><br>
+      Your limit resets at midnight (your timezone).<br><br>
+      Upgrade to Premium for unlimited AI analysis 🚀
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:8px">
+      <button onclick="window.location.href='/pricing'" style="padding:11px 12px;background:#00e5a0;color:#041017;border:none;border-radius:8px;font-weight:800;cursor:pointer">⚡ Upgrade to Premium</button>
+      <button onclick="document.getElementById('aiLimitModal').style.display='none'" style="padding:10px 12px;background:#1b2433;color:#c9d1e2;border:1px solid #2f3a4d;border-radius:8px;font-weight:700;cursor:pointer">Maybe Later</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════
