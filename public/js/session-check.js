@@ -52,7 +52,9 @@ function _ensurePremiumOverlayStyles() {
 
     .premium-card-title {
       font-size: 20px;
-      font-weight: 800 !important;
+      font-family: 'Arial', 'Helvetica Neue', Helvetica, sans-serif;
+      font-weight: 900 !important;
+      letter-spacing: -0.2px;
       color: #ffffff;
       text-align: center;
       margin: 0;
