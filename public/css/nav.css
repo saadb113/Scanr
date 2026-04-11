@@ -32,7 +32,7 @@
 
 /* Upgrade button */
 .sh-upgrade-btn {
-  background: linear-gradient(135deg, #f5a623, #fbbf24);
+  background: linear-gradient(135deg, var(--accent-green, #00e5a0), #0ecb81);
   color: #0a0f16;
   border: none;
   border-radius: 20px;
@@ -52,7 +52,7 @@
 .sh-upgrade-btn:hover {
   opacity: 0.9;
   transform: scale(1.02);
-  box-shadow: 0 0 12px rgba(245, 166, 35, 0.25);
+  box-shadow: 0 0 12px rgba(0, 229, 160, 0.28);
 }
 
 .sh-upgrade-btn:active {

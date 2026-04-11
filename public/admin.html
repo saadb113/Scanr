@@ -188,6 +188,7 @@
   <div class="page" id="page-users">
     <div class="top-bar">
       <div style="font-size:15px;font-weight:700">Registered Users</div>
+      <div id="usersAiTodayStat" style="font-size:12px;color:var(--muted);margin-left:auto;margin-right:10px">AI Today: —</div>
       <input class="search-inp" id="userSearch" placeholder="Search by name or email…" oninput="filterUsers()"/>
     </div>
     <div class="card" style="padding:0">
@@ -196,11 +197,11 @@
           <thead>
             <tr>
               <th>Name</th><th>Email</th><th>Tier</th><th>License Key</th>
-              <th>License Status</th><th>Last Login</th><th>Last IP</th>
+              <th>License Status</th><th>AI Today</th><th>Last Login</th><th>Last IP</th>
               <th>Security</th><th>Joined</th><th>Actions</th>
             </tr>
           </thead>
-          <tbody id="userTbody"><tr class="empty-row"><td colspan="10">Loading...</td></tr></tbody>
+          <tbody id="userTbody"><tr class="empty-row"><td colspan="11">Loading...</td></tr></tbody>
         </table>
       </div>
       <div id="userTbody_pg" class="pg-bar"></div>
@@ -569,11 +570,11 @@ function _doRenderLicenses(slice) {
     }
     const isExpired = l.expiresAt && now > new Date(l.expiresAt);
     let acts = '';
-    if (l.status === 'active')    acts += `<button class="act-btn suspend"    onclick="suspendLicense('${l._id}')">Suspend</button>`;
-    if (l.status === 'suspended') acts += `<button class="act-btn reactivate" onclick="reactivateLicense('${l._id}')">Reactivate</button>`;
-    acts += `<button class="act-btn delete" onclick="deleteLicense('${l._id}','${l.licenseKey}','${l.status}')">Delete</button>`;
+    if (l.status === 'active')    acts += `<button class="act-btn suspend" title="Suspend" aria-label="Suspend" onclick="suspendLicense('${l._id}')">⛔</button>`;
+    if (l.status === 'suspended') acts += `<button class="act-btn reactivate" title="Reactivate" aria-label="Reactivate" onclick="reactivateLicense('${l._id}')">✅</button>`;
+    acts += `<button class="act-btn delete" title="Delete" aria-label="Delete" onclick="deleteLicense('${l._id}','${l.licenseKey}','${l.status}')">🗑️</button>`;
     if ((l.status === 'active' || l.status === 'suspended') && curT < maxT)
-      acts += `<button class="act-btn transfer" onclick="transferLicense('${l._id}')">Transfer</button>`;
+      acts += `<button class="act-btn transfer" title="Transfer" aria-label="Transfer" onclick="transferLicense('${l._id}')">🔁</button>`;
     return `<tr style="${isExpired ? 'opacity:0.5' : ''}">
       <td style="font-family:monospace;font-size:12px;color:var(--success)">${l.licenseKey}</td>
       <td>${l.buyerName || '—'}</td>
@@ -669,19 +670,24 @@ let _users = [];
 
 async function loadUsers() {
   const tbody = document.getElementById('userTbody');
-  tbody.innerHTML = '<tr class="empty-row"><td colspan="10">Loading...</td></tr>';
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="11">Loading...</td></tr>';
   try {
     _users = await api('GET', '/api/admin/users');
+    try {
+      const stats = await api('GET', '/api/admin/analysis/stats');
+      const st = document.getElementById('usersAiTodayStat');
+      if (st) st.textContent = `AI Today: ${stats.totalToday || 0}`;
+    } catch (_) {}
     renderUsers(_users);
   } catch (e) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="10" style="color:var(--danger)">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11" style="color:var(--danger)">${e.message}</td></tr>`;
   }
 }
 
 function renderUsers(users) {
   pgSetup('userTbody', users, function(slice) {
     const tbody = document.getElementById('userTbody');
-    if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="10">No users yet</td></tr>'; return; }
+    if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="11">No users yet</td></tr>'; return; }
     tbody.innerHTML = slice.map(u => {
     const isAdmin = u.role === 'admin';
     const suspBadge = u.suspiciousActivity ? ' <span class="badge badge-warn" title="Suspicious activity detected">⚠️</span>' : '';
@@ -689,21 +695,25 @@ function renderUsers(users) {
     // Tier display and management
     const tierBadgeClass = u.accountTier === 'premium' ? 'badge-active' : 'badge-inactive';
     const tierText = u.accountTier === 'premium' ? '⭐ Premium' : 'Free';
+    const aiUsed = Number(u.aiAnalysisCount || 0);
+    const aiDisplay = u.accountTier === 'premium' ? 'Unlimited' : `${aiUsed}/3`;
     
     let acts = '';
     if (!isAdmin) {
-      if (u.licenseStatus === 'active')    acts += `<button class="act-btn suspend"    onclick="suspendUser('${u._id}')">Suspend</button>`;
-      if (u.licenseStatus === 'suspended') acts += `<button class="act-btn reactivate" onclick="reactivateUser('${u._id}')">Reactivate</button>`;
-      acts += `<button class="act-btn" style="background:#052e1633;color:var(--success);border-color:#166534" onclick="upgradeTierModal('${u._id}', '${u.email}', '${u.accountTier}')">Change Tier</button>`;
-      acts += `<button class="act-btn delete" onclick="deleteUser('${u._id}')">Delete</button>`;
+      if (u.licenseStatus === 'active')    acts += `<button class="act-btn suspend" title="Suspend" aria-label="Suspend" onclick="suspendUser('${u._id}')">⛔</button>`;
+      if (u.licenseStatus === 'suspended') acts += `<button class="act-btn reactivate" title="Reactivate" aria-label="Reactivate" onclick="reactivateUser('${u._id}')">✅</button>`;
+      acts += `<button class="act-btn" style="background:#052e1633;color:var(--success);border-color:#166534" title="Change Tier" aria-label="Change Tier" onclick="upgradeTierModal('${u._id}', '${u.email}', '${u.accountTier}')">⭐</button>`;
+      acts += `<button class="act-btn" style="background:#2a1f0a;color:#f0b90b;border-color:#7c5a12" title="Reset AI Limit" aria-label="Reset AI Limit" onclick="resetAiLimit('${u._id}')">♻️</button>`;
+      acts += `<button class="act-btn delete" title="Delete" aria-label="Delete" onclick="deleteUser('${u._id}')">🗑️</button>`;
     }
-    acts += `<button class="act-btn info" onclick="viewUserDetail('${u._id}')">Security</button>`;
+    acts += `<button class="act-btn info" title="Security" aria-label="Security" onclick="viewUserDetail('${u._id}')">🛡️</button>`;
     return `<tr>
       <td>${u.firstName || ''} ${u.lastName || ''}${isAdmin ? ' <span class="badge badge-active" style="font-size:10px">Admin</span>' : ''}${suspBadge}</td>
       <td>${u.email || ''}</td>
       <td><span class="badge ${tierBadgeClass}">${tierText}</span></td>
       <td style="font-family:monospace;font-size:12px">${u.licenseKey || '—'}</td>
       <td>${badge(u.licenseStatus || 'inactive')}</td>
+      <td style="font-size:12px;color:${u.accountTier === 'premium' ? 'var(--success)' : 'var(--muted)'}">${aiDisplay}</td>
       <td>${fmtDt(u.lastLogin)}</td>
       <td style="font-size:12px;color:var(--muted)">${u.lastIp || '—'}</td>
       <td>${u.suspiciousActivity ? '<span class="badge badge-warn">⚠️ Flagged</span>' : '<span style="color:var(--muted);font-size:12px">OK</span>'}</td>
@@ -734,6 +744,12 @@ async function reactivateUser(id) {
 async function deleteUser(id) {
   if (!confirm('Permanently delete this user account?')) return;
   try { await api('DELETE', `/api/admin/users/${id}`); loadUsers(); }
+  catch (e) { alert(e.message); }
+}
+
+async function resetAiLimit(id) {
+  if (!confirm('Reset AI daily usage for this user?')) return;
+  try { await api('POST', `/api/admin/users/${id}/reset-ai-limit`, {}); loadUsers(); }
   catch (e) { alert(e.message); }
 }
 
@@ -1052,7 +1068,7 @@ async function loadPayments() {
         `<a href="${p.screenshotPath}" target="_blank" style="font-size:11px;color:var(--accent)">View</a>` : '—';
       const planDisplay = (p.planType || 'lifetime').charAt(0).toUpperCase() + (p.planType || 'lifetime').slice(1);
       const actions = p.status === 'pending' ?
-        `<button class="sm-act-btn" onclick="toggleVerifyPanel('${p._id}')">Verify & Send Key</button> <button class="sm-act-btn" style="background:#ef4444" onclick="toggleRejectPanel('${p._id}')">Reject</button>` :
+        `<button class="sm-act-btn" title="Verify & Send Key" aria-label="Verify & Send Key" onclick="toggleVerifyPanel('${p._id}')">✅</button> <button class="sm-act-btn" title="Reject" aria-label="Reject" style="background:#ef4444" onclick="toggleRejectPanel('${p._id}')">❌</button>` :
         `<span style="color:var(--muted);font-size:12px">${p.status}</span>`;
 
       html += `<tr id="payment-row-${p._id}">
@@ -1257,8 +1273,8 @@ async function loadContacts() {
         <td style="white-space:nowrap">${fmtDt(c.createdAt)}</td>
         <td>${c.read ? '<span class="badge badge-active">Read</span>' : '<span class="badge badge-warn">Unread</span>'}</td>
         <td class="acts">
-          ${!c.read ? `<button class="act-btn info" onclick="markContactRead('${c._id}',this)">Mark Read</button>` : ''}
-          <button class="act-btn delete" onclick="deleteContact('${c._id}',this)">Delete</button>
+          ${!c.read ? `<button class="act-btn info" title="Mark Read" aria-label="Mark Read" onclick="markContactRead('${c._id}',this)">✅</button>` : ''}
+          <button class="act-btn delete" title="Delete" aria-label="Delete" onclick="deleteContact('${c._id}',this)">🗑️</button>
         </td>
       </tr>`).join('');
     });

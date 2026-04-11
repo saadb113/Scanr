@@ -431,7 +431,7 @@
       cursor: pointer;
       outline: none;
     }
-    .byt-ai-tf-sel:focus { border-color: rgba(168,85,247,0.5); }
+    .byt-ai-tf-sel:focus { border-color: rgba(0,229,160,0.55); }
 
     /* ── Bottom section ── */
     .byt-bottom-section {
@@ -909,6 +909,7 @@
           <button id="bytAIBtn" onclick="bytRunAI()" style="width:100%;padding:0.5rem;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.35);border-radius:4px;color:#a855f7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">
             🤖 Analyze with AI
           </button>
+          <div id="bytAIUsage" style="margin-top:6px;font-size:11px;font-weight:700;color:#848e9c;text-align:center;display:none"></div>
           <div id="bytAIInfo" style="font-size:11px;color:#4a5568;margin-top:0.3rem;text-align:center">— select a coin first</div>
           <div id="bytAIPanel" style="display:none;margin-top:0.55rem;background:#0b0e11;border:1px solid #2b2f3e;border-radius:6px;padding:0.6rem"></div>
         </div>
@@ -953,6 +954,21 @@
     <input type="hidden" id="bytModOrdSym">
     <button onclick="bytSubmitModifyOrder()" style="background:#1d4ed8;color:#fff;border:none;border-radius:4px;padding:0.6rem;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Update Order</button>
     <div id="bytModOrdMsg" style="display:none;font-size:12px;font-weight:600;text-align:center;padding:0.4rem;border-radius:4px"></div>
+  </div>
+</div>
+
+<div id="bytAiLimitModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3300;align-items:center;justify-content:center;padding:16px">
+  <div style="width:min(420px,95vw);background:#121826;border:1px solid #2b3242;border-radius:12px;padding:18px 16px;color:#dde4f0">
+    <div style="font-size:18px;font-weight:800;margin-bottom:10px">🤖 Daily Limit Reached</div>
+    <div style="font-size:13px;color:#9aa3b5;line-height:1.65;margin-bottom:14px">
+      Free users get 3 AI analyses per day.<br><br>
+      Your limit resets at midnight (your timezone).<br><br>
+      Upgrade to Premium for unlimited AI analysis 🚀
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:8px">
+      <button onclick="window.location.href='/pricing'" style="padding:11px 12px;background:#00e5a0;color:#041017;border:none;border-radius:8px;font-weight:800;cursor:pointer">⚡ Upgrade to Premium</button>
+      <button onclick="document.getElementById('bytAiLimitModal').style.display='none'" style="padding:10px 12px;background:#1b2433;color:#c9d1e2;border:1px solid #2f3a4d;border-radius:8px;font-weight:700;cursor:pointer">Maybe Later</button>
+    </div>
   </div>
 </div>
 
@@ -1074,10 +1090,64 @@
         }
       });
     }
+
+    bytFetchAIUsage();
   });
 
   // ── AI Analysis ──────────────────────────────────────────────
   let _bytAITf = '60';
+  let _bytAIUsage = null;
+
+  function bytClientTimezone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+    catch (_) { return 'UTC'; }
+  }
+
+  function bytShowAiLimitModal() {
+    const md = document.getElementById('bytAiLimitModal');
+    if (md) md.style.display = 'flex';
+  }
+
+  async function bytFetchAIUsage() {
+    try {
+      const res = await fetch('/api/analysis/usage', { cache: 'no-store' });
+      if (!res.ok) return null;
+      _bytAIUsage = await res.json();
+      bytRenderAIUsage();
+      return _bytAIUsage;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function bytRenderAIUsage() {
+    const usageEl = document.getElementById('bytAIUsage');
+    const btn = document.getElementById('bytAIBtn');
+    if (!usageEl || !btn || !_bytAIUsage) return;
+    if (_bytAIUsage.isPremium) {
+      usageEl.style.display = 'block';
+      usageEl.style.color = '#0ecb81';
+      usageEl.textContent = 'AI Analysis: Unlimited';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.title = 'Analyze with AI (Unlimited)';
+      return;
+    }
+    const used = Number(_bytAIUsage.used || 0);
+    const limit = Number(_bytAIUsage.limit || 3);
+    const reached = used >= limit;
+    let color = '#0ecb81';
+    if (reached) color = '#f6465d';
+    else if (used >= limit - 1) color = '#f0b90b';
+    usageEl.style.display = 'block';
+    usageEl.style.color = color;
+    usageEl.textContent = reached ? `AI Analysis: ${limit}/${limit} used — Limit reached` : `AI Analysis: ${used}/${limit} used today`;
+    btn.disabled = false;
+    btn.style.opacity = reached ? '0.6' : '1';
+    btn.style.cursor = reached ? 'not-allowed' : 'pointer';
+    btn.title = reached ? 'Daily limit reached (3/3) Resets at midnight your time' : 'Analyze with AI';
+  }
 
   function bytSetAITf(tf) {
     _bytAITf = tf;
@@ -1100,6 +1170,11 @@
     const btn   = document.getElementById('bytAIBtn');
     const panel = document.getElementById('bytAIPanel');
     const info  = document.getElementById('bytAIInfo');
+
+    if (_bytAIUsage && !_bytAIUsage.isPremium && Number(_bytAIUsage.used || 0) >= Number(_bytAIUsage.limit || 3)) {
+      bytShowAiLimitModal();
+      return;
+    }
 
     btn.disabled = true; btn.textContent = '⏳ Analyzing…';
     if (info) info.textContent = `${fullSym.replace('USDT','')} · ${tfLabel}`;
@@ -1167,9 +1242,14 @@ Respond ONLY in this exact JSON (no markdown):
       const aiRes = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, timezone: bytClientTimezone() }),
       });
       const aiData = await aiRes.json();
+      if (aiRes.status === 429 || aiData?.error === 'limit_reached') {
+        await bytFetchAIUsage();
+        bytShowAiLimitModal();
+        throw new Error(aiData.message || 'Daily AI analysis limit reached');
+      }
       if (!aiRes.ok) throw new Error(aiData.error || `Server error ${aiRes.status}`);
       const raw = aiData.result || '';
       let r;
@@ -1192,6 +1272,12 @@ Respond ONLY in this exact JSON (no markdown):
         </div>
         <div style="font-size:11px;color:#848e9c;line-height:1.55;margin-bottom:0.4rem;max-height:80px;overflow-y:auto">${(r.reasoning||'').replace(/\n/g,'<br>')}</div>
         ${dir!=='NEUTRAL'&&r.entry&&r.sl?`<button onclick="bytApplyAI(${+r.entry||0},${+r.sl||0},${+r.tp||0},'${dir}')" style="width:100%;padding:0.3rem;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#a855f7;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">⚡ Apply to Order Form</button>`:''}`;
+      if (_bytAIUsage && !_bytAIUsage.isPremium) {
+        _bytAIUsage.used = Number(_bytAIUsage.used || 0) + 1;
+        bytRenderAIUsage();
+      } else {
+        bytFetchAIUsage();
+      }
     } catch(err) {
       panel.innerHTML = `<div style="color:#f6465d;font-size:12px;padding:0.5rem">✗ ${err.message}</div>`;
     } finally {
