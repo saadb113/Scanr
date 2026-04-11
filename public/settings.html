@@ -91,7 +91,7 @@
         <div class="sp-card">
           <div class="sp-card-title">RSI Colors</div>
           <div class="color-grid">
-            <div class="s-row"><label>RSI Line</label><input type="color" id="sRsiColor" value="#29ffb8"></div>
+            <div class="s-row"><label>RSI Line</label><input type="color" id="sRsiColor" value="#a600ff"></div>
             <div class="s-row"><label>Overbought (70)</label><input type="color" id="sRsiOBColor" value="#f56565"></div>
             <div class="s-row"><label>Oversold (30)</label><input type="color" id="sRsiOSColor" value="#48bb78"></div>
           </div>
@@ -114,7 +114,7 @@
             <label>Chart Type</label>
             <select id="sPriceType" class="s-input-full">
               <option value="line">Line Chart</option>
-              <option value="candle">Candlestick</option>
+              <option value="candle" selected>Candlestick</option>
             </select>
           </div>
           <div class="s-row">
@@ -132,20 +132,6 @@
           <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#e5e9f2"></span>Show Price Chart</span><label class="toggle-switch"><input type="checkbox" id="sShowPrice" checked><span class="slider"></span></label></div>
           <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#29ffb8"></span>Show RSI</span><label class="toggle-switch"><input type="checkbox" id="sShowRSI" checked><span class="slider"></span></label></div>
           <div class="filter-toggle-row"><span class="filter-toggle-label"><span class="fdot" style="background:#63b3ed"></span>Show MACD</span><label class="toggle-switch"><input type="checkbox" id="sShowMACD" checked><span class="slider"></span></label></div>
-        </div>
-
-        <div class="sp-card">
-          <div class="sp-card-title">Accent Color</div>
-          <div class="s-row" style="align-items:center">
-            <label>Accent Color</label>
-            <div style="display:flex;gap:0.5rem;align-items:center">
-              <input type="color" id="sAccentColor" value="#00e5a0" oninput="onAccentColorChange(this.value)" style="width:2.4rem;height:2rem;border:none;background:none;cursor:pointer;padding:0">
-              <input type="text"  id="sAccentColorHex" value="#00e5a0" maxlength="7" oninput="onAccentHexChange(this.value)" style="width:6rem;background:var(--bg-input,#090c12);border:1px solid var(--border,#1a2030);border-radius:6px;padding:0.35rem 0.5rem;color:var(--text-primary,#e5e9f2);font-family:monospace;font-size:13px;outline:none">
-            </div>
-          </div>
-          <div style="display:flex;gap:0.5rem;margin-top:0.7rem">
-            <span style="font-size:12px;color:var(--text-muted,#6b7897)">Changes are previewed instantly and saved when you click Appearance Save.</span>
-          </div>
         </div>
 
         <div class="sp-card">
@@ -628,36 +614,6 @@ document.querySelectorAll('.sp-tab[data-tab="integrations"]').forEach(el => {
     el.addEventListener('click', loadIntegrationStatuses);
 });
 
-
-function onAccentColorChange(val) {
-    const hex = document.getElementById('sAccentColorHex');
-    if (hex) hex.value = val;
-    window._accentColor = val;
-    if (typeof window.applyAccentColor === 'function') window.applyAccentColor(val);
-}
-function onAccentHexChange(val) {
-    if (/^#[0-9a-fA-F]{6}$/.test(val)) {
-        const picker = document.getElementById('sAccentColor');
-        if (picker) picker.value = val;
-        window._accentColor = val;
-        if (typeof window.applyAccentColor === 'function') window.applyAccentColor(val);
-    }
-}
-async function saveAccentColor() {
-    const val = window._accentColor || '#00e5a0';
-    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accentColor: val }) });
-    const msg = document.getElementById('accentSavedMsg');
-    if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 2500); }
-}
-function resetAccentColor() {
-    const def = '#00e5a0';
-    window._accentColor = def;
-    const picker = document.getElementById('sAccentColor');
-    const hex    = document.getElementById('sAccentColorHex');
-    if (picker) picker.value = def;
-    if (hex) hex.value = def;
-    if (typeof window.applyAccentColor === 'function') window.applyAccentColor(def);
-}
 
 async function saveClockTimezone() {
     const tz = document.getElementById('sClockTimezone')?.value || 'America/New_York';

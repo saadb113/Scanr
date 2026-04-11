@@ -16,9 +16,9 @@ document.documentElement.setAttribute('data-page', _PAGE);
 const DEFS = {
     timeframe: '1m', rsiLen: 14, fastLen: 12, slowLen: 26, signalLen: 9, cellSize: 160,
     symbols: null,
-    colors: { rsi:'#29ffb8', rsiOB:'#f56565', rsiOS:'#48bb78', macd:'#63b3ed', signal:'#f6ad55', bull:'#48bb78', bear:'#f56565', lw: 2, price:'#e5e9f2' },
+    colors: { rsi:'#a600ff', rsiOB:'#f56565', rsiOS:'#48bb78', macd:'#63b3ed', signal:'#f6ad55', bull:'#48bb78', bear:'#f56565', lw: 2, price:'#e5e9f2' },
     visibility: { price: true, rsi: true, macd: true },
-    priceType: 'line'
+    priceType: 'candle'
 };
 
 // ─── API helpers ────────────────────────────────────────────
@@ -169,13 +169,15 @@ async function loadAppState() {
     if (s.colors)     Object.assign(colors, s.colors);
     if (s.visibility) Object.assign(visibility, s.visibility);
     if (s.priceType)  priceType  = s.priceType;
+    if (!s.colors || !s.colors.rsi) colors.rsi = '#a600ff';
+    if (!s.priceType) priceType = 'candle';
     if (s.activeSort) activeSort = s.activeSort;
     // Restore symbols on every page so coins tab shows correct state
     if (s.symbols && s.symbols.length) symbols = [...s.symbols];
     // Apply accent color to all CSS vars immediately
-    window._accentColor = s.accentColor || '#00e5a0';
-    if (typeof window.applyAccentColor === 'function') window.applyAccentColor(window._accentColor);
-    else document.documentElement.style.setProperty('--accent-green', window._accentColor);
+    window._accentColor = '#00e5a0';
+    if (typeof window.applyAccentColor === 'function') window.applyAccentColor('#00e5a0');
+    else document.documentElement.style.setProperty('--accent-green', '#00e5a0');
 
     // Watchlist — returns [] directly
     const wl = await apiGet('/api/watchlist');
@@ -594,9 +596,7 @@ function applyColorsToInputs() {
     el('sShowRSI').checked   = visibility.rsi;
     el('sShowMACD').checked  = visibility.macd;
     el('sPriceType').value   = priceType;
-    const _ac = window._accentColor || '#00e5a0';
-    const _acp = el('sAccentColor');    if (_acp) _acp.value = _ac;
-    const _ach = el('sAccentColorHex'); if (_ach) _ach.value = _ac;
+    window._accentColor = '#00e5a0';
 }
 
 function onColorChange() {
@@ -626,7 +626,7 @@ async function saveAppearanceSettings() {
         colors: { ...colors },
         visibility: { ...visibility },
         priceType,
-        accentColor: window._accentColor || '#00e5a0',
+        accentColor: '#00e5a0',
         clockTimezone: el('sClockTimezone')?.value || 'America/New_York'
     };
 

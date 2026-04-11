@@ -177,7 +177,7 @@
 
   // ── Accent color — applied to all CSS vars on every page ──────
   window.applyAccentColor = function(color) {
-    const c = color || '#00e5a0';
+    const c = '#00e5a0';
     document.documentElement.style.setProperty('--accent-green', c);
     document.documentElement.style.setProperty('--green', c);
     document.documentElement.style.setProperty('--accent', c);
@@ -187,7 +187,7 @@
   fetch('/api/settings')
     .then(r => r.ok ? r.json() : null)
     .then(s => {
-      if (s && s.accentColor) window.applyAccentColor(s.accentColor);
+      window.applyAccentColor('#00e5a0');
       __clockTimezone = s?.clockTimezone || 'America/New_York';
       updateClock();
     })
