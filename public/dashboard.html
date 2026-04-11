@@ -85,6 +85,9 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
   border:none;background:none;border-bottom:2px solid transparent;font-family:inherit;
   transition:color .15s;white-space:nowrap;
 }
+.db-tab-btn i{
+  color:var(--text-muted);
+}
 .mainTabs{
   display: grid;
   width: 100%;
@@ -95,6 +98,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
       padding: 0.55rem 1rem;
 }
 .db-tab-btn.active{color:var(--green);border-bottom-color:var(--green)}
+.db-tab-btn.active i{color:var(--green)}
 .db-tab-pane{display:none;padding:0.75rem 1rem}
 .db-tab-pane.active{display:block}
 .db-tab-empty{color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0;text-align:center}
@@ -214,7 +218,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
       <span class="sb-action-icon"><i class="fa-solid fa-trophy" style="color: rgb(255, 255, 255);"></i></span>Prop Firm Challenge
     </a>
     <a class="sb-action-btn" href="/setups">
-      <span class="sb-action-icon"><i class="fa-solid fa-magnifying-glass" style="color: rgb(255, 255, 255);"></i></span>Scan Setups
+      <span class="sb-action-icon"><i class="fa-solid fa-magnifying-glass" ></i></span>Scan Setups
     </a>
     <a class="sb-action-btn sh-settings-btn" href="/settings" title="Settings"><i class="fa-solid fa-gear" style="color: rgb(255, 255, 255);"></i> Settings</a>
 
@@ -252,9 +256,9 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
     <!-- Tabbed section -->
     <div class="db-tabs-card">
       <div class="db-tab-bar">
-        <button class="db-tab-btn active" data-tab="spot" onclick="dbSwitchTab('spot')">💰 Spot Assets</button>
-        <button class="db-tab-btn" data-tab="futures" onclick="dbSwitchTab('futures')">📊 Futures Positions</button>
-        <button class="db-tab-btn" data-tab="orders" onclick="dbSwitchTab('orders')">📋 Orders</button>
+        <button class="db-tab-btn active" data-tab="spot" onclick="dbSwitchTab('spot')"><i class="fa-solid fa-sack-dollar" ></i> Spot Assets</button>
+        <button class="db-tab-btn" data-tab="futures" onclick="dbSwitchTab('futures')"><i class="fa-solid fa-chart-area" ></i> Futures Positions</button>
+        <button class="db-tab-btn" data-tab="orders" onclick="dbSwitchTab('orders')"><i class="fa-solid fa-clipboard" ></i> Orders</button>
       </div>
 
       <div id="db-tab-spot" class="db-tab-pane active">
@@ -384,17 +388,78 @@ function dbSortSpotRows(rows) {
   return sorted;
 }
 
+const _dbSpotRuleCache = Object.create(null);
+
+function dbStepDecimals(step) {
+  const s = String(step || '');
+  if (!s || !s.includes('.')) return 0;
+  return s.split('.')[1].replace(/0+$/, '').length;
+}
+
+function dbTrimZeros(numStr) {
+  return String(numStr).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+}
+
+function dbRoundDownToStep(qty, step) {
+  const q = Number(qty);
+  const s = Number(step);
+  if (!Number.isFinite(q) || q <= 0) return 0;
+  if (!Number.isFinite(s) || s <= 0) return q;
+  const units = Math.floor((q + 1e-12) / s);
+  const rounded = units * s;
+  const dec = dbStepDecimals(step);
+  return Number(rounded.toFixed(Math.min(dec + 2, 16)));
+}
+
+async function dbGetSpotQtyRule(symbol) {
+  if (_dbSpotRuleCache[symbol]) return _dbSpotRuleCache[symbol];
+  try {
+    const res = await fetch(`/api/proxy/binance?path=/fapi/v1/exchangeInfo&symbol=${symbol}`);
+    const data = await res.json();
+    const info = data?.symbols?.[0];
+    const lot = (info?.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
+    const rule = {
+      stepSize: Number(lot.stepSize || 0.000001),
+      minQty: Number(lot.minQty || 0),
+      stepStr: String(lot.stepSize || '0.000001'),
+    };
+    _dbSpotRuleCache[symbol] = rule;
+    return rule;
+  } catch (_) {
+    const fallback = { stepSize: 0.000001, minQty: 0, stepStr: '0.000001' };
+    _dbSpotRuleCache[symbol] = fallback;
+    return fallback;
+  }
+}
+
+function dbFormatQty(qty, stepStr) {
+  const dec = Math.max(0, dbStepDecimals(stepStr));
+  const fixed = Number(qty).toFixed(Math.min(dec, 12));
+  return dbTrimZeros(fixed);
+}
+
 async function dbSpotSell(coin, qty) {
   if (!coin || !qty || qty <= 0) return;
-  if (!confirm(`Sell ${qty.toFixed(6)} ${coin} at market?`)) return;
   try {
     const symbol = `${coin}USDT`;
+    const rule = await dbGetSpotQtyRule(symbol);
+    const normalizedQty = dbRoundDownToStep(qty, rule.stepSize);
+    if (!normalizedQty || normalizedQty <= 0) {
+      throw new Error('Available quantity is below tradable precision for this symbol');
+    }
+    if (rule.minQty > 0 && normalizedQty < rule.minQty) {
+      throw new Error(`Minimum sell quantity is ${dbFormatQty(rule.minQty, rule.stepStr)}`);
+    }
+
+    const qtyStr = dbFormatQty(normalizedQty, rule.stepStr);
+    if (!confirm(`Sell ${qtyStr} ${coin} at market?`)) return;
+
     const r = await fetch('/api/bybit/proxy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         path: '/v5/order/create',
-        body: { category: 'spot', symbol, side: 'Sell', orderType: 'Market', qty: qty.toString() },
+        body: { category: 'spot', symbol, side: 'Sell', orderType: 'Market', qty: qtyStr },
       }),
     });
     const j = await r.json();
@@ -471,14 +536,14 @@ async function dbLoadTab(tab) {
         <th>Action</th>
       </tr></thead><tbody>
         ${sortedCoins.map(c => {
-          const bal = c._wallet, usd = c._usd, sellQty = c._sellQty;
-          const canSell = c.coin !== 'USDT' && sellQty > 0;
+          const bal = c._wallet, usd = c._usd;
+          const canTrade = c.coin !== 'USDT';
           return `<tr>
             <td style="font-weight:700;color:var(--text-primary)">${c.coin}</td>
             <td class="mono">${bal.toFixed(6)}</td>
             <td class="mono" style="color:var(--blue)">$${usd.toFixed(2)}</td>
-            <td>${canSell
-              ? `<button class="db-row-action-btn danger" onclick="dbSpotSell('${c.coin}', ${sellQty})">Sell</button>`
+            <td>${canTrade
+              ? `<button class="db-row-action-btn" onclick="window.location.href='/terminal?symbol=${encodeURIComponent(c.coin + 'USDT')}'">Trade</button>`
               : `<button class="db-row-action-btn" disabled>—</button>`}</td>
           </tr>`;
         }).join('')}
