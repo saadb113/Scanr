@@ -3,11 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    document.documentElement.classList.add('scanr-loading');
+  </script>
   <title>Settings — SCANR</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
+    #scanrInitialLoader {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #080b11;
+      transition: opacity 0.24s ease;
+    }
+    #scanrInitialLoader .loader-dot {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 3px solid rgba(0, 229, 160, 0.25);
+      border-top-color: #00e5a0;
+      animation: scanrLoaderSpin 0.75s linear infinite;
+    }
+    @keyframes scanrLoaderSpin { to { transform: rotate(360deg); } }
+
+    html.scanr-loading body > :not(#scanrInitialLoader) {
+      visibility: hidden;
+    }
+    html.scanr-loaded body > :not(#scanrInitialLoader) {
+      visibility: visible;
+    }
+    html.scanr-loaded #scanrInitialLoader {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     /* Make the settings panel a full inline page instead of a fixed overlay */
     .settings-panel {
       position: static !important;
@@ -47,6 +81,7 @@
   </style>
 </head>
 <body>
+<div id="scanrInitialLoader" aria-hidden="true"><div class="loader-dot"></div></div>
 <script src="/js/nav.js"></script>
 
 <div id="settingsPanel" class="settings-panel">
@@ -817,6 +852,25 @@ async function saveClockTimezone() {
   </div>
 </div>
 
+<script>
+  (function initSettingsPageLoader() {
+    function hideLoader() {
+      document.documentElement.classList.remove('scanr-loading');
+      document.documentElement.classList.add('scanr-loaded');
+      const loader = document.getElementById('scanrInitialLoader');
+      if (loader) setTimeout(() => loader.remove(), 280);
+    }
+
+    if (document.readyState === 'complete') {
+      requestAnimationFrame(() => requestAnimationFrame(hideLoader));
+      return;
+    }
+
+    window.addEventListener('load', () => {
+      requestAnimationFrame(() => requestAnimationFrame(hideLoader));
+    }, { once: true });
+  })();
+</script>
 <script src="/js/session-check.js"></script>
 </body>
 </html>
