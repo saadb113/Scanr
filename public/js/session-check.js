@@ -8,9 +8,9 @@ function _ensurePremiumOverlayStyles() {
   style.id = 'premium-overlay-runtime-styles';
   style.textContent = `
     .page-content.locked {
-      filter: blur(4px);
-      pointer-events: none;
-      user-select: none;
+      filter: none;
+      pointer-events: auto;
+      user-select: auto;
     }
 
     .premium-overlay {
@@ -19,13 +19,27 @@ function _ensurePremiumOverlayStyles() {
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.85);
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: rgba(7, 12, 20, 0.28);
+      display: block;
       z-index: 9999;
-      backdrop-filter: blur(4px);
+      backdrop-filter: none;
       padding: 16px;
+      cursor: pointer;
+    }
+
+    .premium-overlay-hint {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      background: rgba(8, 12, 18, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #d7dbe6;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      pointer-events: none;
     }
 
     .premium-card {
@@ -245,45 +259,106 @@ window.isPremium = function() {
   return window.userAccountTier === 'premium';
 };
 
-function _getPremiumOverlayContent() {
-  const path = (window.location.pathname || '').toLowerCase();
+function _getPremiumPageKey() {
+  const bodyPage = (document.body && document.body.dataset && document.body.dataset.premiumPage) || '';
+  if (bodyPage) return String(bodyPage).toLowerCase();
 
-  if (path.includes('/terminal')) {
+  const path = (window.location.pathname || '').toLowerCase();
+  if (path === '/terminal' || path === '/terminal.html' || path.includes('/terminal/')) return 'terminal';
+  if (path === '/setups' || path === '/setups.html' || path.includes('/setups/')) return 'setups';
+  if (path === '/strategy' || path === '/strategy.html' || path.includes('/strategy/')) return 'strategy';
+
+  return '';
+}
+
+function _getPremiumOverlayContent(options) {
+  const forceAllBenefits = !!(options && options.forceAllBenefits);
+  if (forceAllBenefits) {
     return {
-      icon: '📈',
-      title: 'Unlock Premium Terminal',
-      subtitle: 'Trade faster with live execution tools and premium AI support built for active traders.',
-      summary: 'Execute trades faster with real-time order tools, cleaner risk controls, and full account visibility in one place. Unlimited AI analysis helps you validate entries and exits quickly when markets move.'
+      icon: '🔒',
+      title: 'Upgrade to Premium',
+      subtitle: 'Unlock all premium tools across Scanr.',
+      summary: 'Get full access to Trading Terminal, Apex Setups Scanner,AI Analysis, and Strategy Builder in one premium plan.',
+      benefits: [
+        'Trading Terminal: Place live trades on Bybit/Binance',
+        'Apex Setup Scanner: Advanced setup detection',
+        'Strategy Builder: Drag and drop strategy automation',
+        'AI Analysis: Unlimited chart analysis, entry signals with AI'
+      ]
     };
   }
 
-  if (path.includes('/setups')) {
+  const pageKey = _getPremiumPageKey();
+
+  if (pageKey === 'terminal') {
+    return {
+      icon: '📈',
+      title: 'Unlock Premium Terminal',
+      subtitle: 'Trade faster with live execution tools built for active traders.',
+      summary: 'Get full access to live order execution, position controls, and risk management directly inside the terminal.',
+      benefits: [
+        'Live order execution on Bybit/Binance',
+        'Real-time positions and risk controls',
+        'Unlimited AI trade analysis in the terminal flow'
+      ]
+    };
+  }
+
+  if (pageKey === 'setups') {
     return {
       icon: '🎯',
       title: 'Unlock Premium Setups Scanner',
-      subtitle: 'Scan the market for high-quality setups and save hours of manual chart work.',
-     };
+      subtitle: 'Scan the market for high-quality setups with less manual work.',
+      summary: 'Use the setups engine to quickly surface stronger opportunities with cleaner filtering and faster discovery.',
+      benefits: [
+        'Advanced setup scanning with stronger signal filtering',
+        'Faster discovery of high-probability trade candidates',
+        'Less manual chart screening per session'
+      ]
+    };
   }
 
-  if (path.includes('/strategy')) {
+  if (pageKey === 'strategy') {
     return {
       icon: '🧠',
       title: 'Unlock Premium Strategy Builder',
-      subtitle: 'Build, automate, and run strategies with pro-level controls.',
-     };
+      subtitle: 'Build and automate strategies with pro-level controls.',
+      summary: 'Design rule-based systems, tune logic faster, and run strategy automation from one workflow.',
+      benefits: [
+        'Drag-and-drop strategy logic with advanced conditions',
+        'Automation-ready execution workflow',
+        'More control over strategy tuning and deployment'
+      ]
+    };
   }
 
   return {
     icon: '🔒',
     title: 'Premium Feature',
     subtitle: 'Unlock the full power of Scanr with Premium access',
-    };
+    benefits: [
+      'Trading Terminal — Place live trades on Bybit/Binance',
+      'Strategy Builder — Drag and drop strategy automation',
+      'Apex Setup Scanner — Advanced setup detection'
+    ]
+  };
+}
+
+function _getHeaderHeight() {
+  const header = document.getElementById('siteHeader');
+  if (!header) return 0;
+  const rect = header.getBoundingClientRect();
+  return Math.max(0, Math.round(rect.height || 0));
 }
 
 // Function to show premium overlay
 window.showPremiumOverlay = function() {
   _ensurePremiumOverlayStyles();
-  const premiumContent = _getPremiumOverlayContent();
+  const content = _getPremiumOverlayContent();
+
+  // If an old modal is open from prior navigation, close it for the locked-page-first flow.
+  const openModal = document.getElementById('upgrade-modal');
+  if (openModal) openModal.remove();
 
   // Remove any existing overlay
   const existing = document.getElementById('premium-overlay');
@@ -292,27 +367,15 @@ window.showPremiumOverlay = function() {
   const overlay = document.createElement('div');
   overlay.id = 'premium-overlay';
   overlay.className = 'premium-overlay';
-  overlay.innerHTML = `
-    <div class="premium-card">
-      <div class="premium-card-icon">${premiumContent.icon}</div>
-      <h2 class="premium-card-title" style="font-weight:800">${premiumContent.title}</h2>
-      <p class="premium-card-subtitle">${premiumContent.subtitle}</p>
-      
-     
 
-      <div class="premium-price">$<span data-dynamic-lifetime-price>49.00</span> Lifetime Access</div>
-      <div class="premium-price-original" data-dynamic-original-wrap style="display:none;">Was $<span data-dynamic-original-price>69.00</span></div>
-      <div class="premium-discount-badge" data-dynamic-discount-wrap style="display:none;"><span data-dynamic-discount-label>Limited Offer</span></div>
-      
-      <div class="premium-actions">
-        <button class="premium-btn-primary" onclick="window.location.href='/payment'">
-          🚀 Upgrade to Premium
-        </button>
-        <button class="premium-btn-secondary" id="maybeLaterBtn">
-          Maybe Later
-        </button>
-      </div>
-    </div>
+  const headerHeight = _getHeaderHeight();
+  if (headerHeight > 0) {
+    overlay.style.top = `${headerHeight}px`;
+    overlay.style.height = `calc(100% - ${headerHeight}px)`;
+  }
+
+  overlay.innerHTML = `
+    <div class="premium-overlay-hint">Click to unlock: ${content.title}</div>
   `;
   
   document.body.appendChild(overlay);
@@ -321,23 +384,13 @@ window.showPremiumOverlay = function() {
     pageContent.classList.add('locked');
   }
 
-  // Free users should never view premium page content.
-  const maybeLaterBtn = document.getElementById('maybeLaterBtn');
-  if (maybeLaterBtn) {
-    maybeLaterBtn.addEventListener('click', () => {
-      window.location.href = '/dashboard';
-    });
-  }
-
-  // Disable outside click to close; redirect to dashboard instead.
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      window.location.href = '/dashboard';
+  // Keep page visible, but require user interaction to open upgrade modal.
+  overlay.addEventListener('click', (ev) => {
+    // Only open from a genuine user click on the locked overlay.
+    if (!ev || ev.isTrusted !== true) return;
+    if (typeof window.showUpgradeModal === 'function') {
+      window.showUpgradeModal();
     }
-  });
-
-  _getDynamicLifetimePrice().then((pricing) => {
-    _applyPremiumPrice(overlay, pricing);
   });
 };
 
@@ -354,7 +407,19 @@ window.hidePremiumOverlay = function() {
 };
 
 // Upgrade Modal
-window.showUpgradeModal = function() {
+window.showUpgradeModal = function(options) {
+  const premiumContent = _getPremiumOverlayContent(options);
+  const premiumTitle = premiumContent.title || 'Upgrade to Premium';
+  const premiumSubtitle = premiumContent.subtitle || 'Unlock the full power of Scanr with Premium access';
+  const premiumSummary = premiumContent.summary || '';
+  const premiumBenefits = Array.isArray(premiumContent.benefits) ? premiumContent.benefits : [];
+  const premiumBenefitsHtml = premiumBenefits.map((benefit) => `
+          <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
+            <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
+            ${benefit}
+          </div>
+  `).join('');
+
   // Remove any existing modal
   const existing = document.getElementById('upgrade-modal');
   if (existing) existing.remove();
@@ -413,7 +478,7 @@ window.showUpgradeModal = function() {
           color: var(--text-primary, #dde4f0);
           margin: 0;
           letter-spacing: -0.5px;
-        "><i class="fa-solid fa-rocket" ></i> Upgrade to Premium</h2>
+        "><i class="fa-solid fa-rocket" ></i> ${premiumTitle}</h2>
         <button onclick="document.getElementById('upgrade-modal').remove()" style="
           background: none;
           border: none;
@@ -426,12 +491,9 @@ window.showUpgradeModal = function() {
         " onmouseover="this.style.color='var(--text-primary, #dde4f0)'" onmouseout="this.style.color='var(--text-secondary, #9aa3b5)'">&times;</button>
       </div>
       
-      <p style="
-        font-size: 0.95rem;
-        color: var(--text-secondary, #9aa3b5);
-        margin: 0;
-        line-height: 1.6;
-      ">Unlock the full power of Scanr with Premium access</p>
+
+
+      
       
       <div 
         id="upgrade-section"
@@ -449,23 +511,7 @@ window.showUpgradeModal = function() {
           border-radius: 10px;
           padding: 1rem;
         ">
-          <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
-            <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
-            Trading Terminal — Place live trades on Bybit/Binance
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
-            <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
-            Strategy Builder — Drag & drop strategy automation
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
-            <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
-          Automation Bot — Automate your strategy with a bot
-            </div>
-          
-            <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
-            <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
-            Apex Setup Scanner — Advanced setup detection
-          </div>
+          ${premiumBenefitsHtml}
         </div>
         
         <div style="
@@ -515,20 +561,7 @@ window.showUpgradeModal = function() {
           " onmouseover="this.style.background='var(--bg-raised, #121820)'; this.style.borderColor='var(--border-hi, #2e3d55)'; this.style.color='var(--text-primary, #dde4f0)'" onmouseout="this.style.background='transparent'; this.style.borderColor='var(--border-mid, #243044)'; this.style.color='var(--text-secondary, #9aa3b5)'">
             🔑 Already have a key? Activate
           </button>
-          <button onclick="document.getElementById('upgrade-modal').remove()" style="
-            background: transparent;
-            color: var(--text-secondary, #9aa3b5);
-            border: 1px solid var(--border-mid, #243044);
-            border-radius: 10px;
-            padding: 0.75rem;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.15s;
-          " onmouseover="this.style.background='var(--bg-raised, #121820)'; this.style.borderColor='var(--border-hi, #2e3d55)'; this.style.color='var(--text-primary, #dde4f0)'" onmouseout="this.style.background='transparent'; this.style.borderColor='var(--border-mid, #243044)'; this.style.color='var(--text-secondary, #9aa3b5)'">
-            ✕ Close
-          </button>
+          
         </div>
       </div>
     </div>
@@ -571,7 +604,7 @@ window.showLicenseKeyInput = function() {
         id="license-key-input" 
         type="text" 
         placeholder="XXXX-XXXX-XXXX-XXXX" 
-        maxlength="23"
+        maxlength="24"
         style="
           background: var(--bg-raised, #121820);
           border: 1px solid var(--border-mid, #243044);

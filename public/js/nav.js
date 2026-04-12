@@ -42,7 +42,7 @@
       <a class="sh-link sh-admin-link" href="/admin" id="shAdminLink" style="display:none">Admin</a>
       
       <!-- Upgrade button for free users (hidden by default until tier loads) -->
-      <button class="sh-upgrade-btn" id="shUpgradeBtn" style="display:none" onclick="window.showUpgradeModal()"><i class="fa-solid fa-rocket" ></i> Upgrade to Premium</button>
+      <button class="sh-upgrade-btn" id="shUpgradeBtn" style="display:none" onclick="window.showUpgradeModal({ forceAllBenefits: true })"><i class="fa-solid fa-rocket" ></i> Upgrade to Premium</button>
       
       <div class="sh-pfp-wrap" style="margin-left: 5px;" id="shPfpWrap">
         <span class="sh-pfp" id="shPfp" title="Profile">👤</span>
