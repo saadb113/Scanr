@@ -110,6 +110,11 @@ const FREE_TIMEFRAME_LIMIT = 3;
 let scannerIsPremium = false;
 let activeTimeframes = [];
 let activeScannerTimeframe = '1m';
+let scannerStorageUserId = 'anon';
+
+function getScannerTimeframesStorageKey() {
+    return `${SCANNER_TIMEFRAMES_KEY}:${scannerStorageUserId}`;
+}
 
 // Drag
 let dragSrc=null;
@@ -399,6 +404,8 @@ async function loadScannerTier() {
         const res = await fetch('/api/auth/session-check', { credentials: 'include' });
         if (!res.ok) return;
         const data = await res.json();
+        const sessionUserId = (data && data.user && data.user.id) ? String(data.user.id) : 'anon';
+        scannerStorageUserId = sessionUserId || 'anon';
         const tier = (data && data.user && data.user.accountTier) || data.accountTier || 'free';
         scannerIsPremium = tier === 'premium';
     } catch (_) {}
@@ -410,13 +417,13 @@ function getTimeframeLabel(v) {
 }
 
 function saveScannerTimeframes() {
-    try { localStorage.setItem(SCANNER_TIMEFRAMES_KEY, JSON.stringify(activeTimeframes)); } catch(_) {}
+    try { localStorage.setItem(getScannerTimeframesStorageKey(), JSON.stringify(activeTimeframes)); } catch(_) {}
 }
 
 function loadScannerTimeframesFromStorage() {
     let savedList = null;
     try {
-        const raw = localStorage.getItem(SCANNER_TIMEFRAMES_KEY);
+        const raw = localStorage.getItem(getScannerTimeframesStorageKey());
         savedList = raw ? JSON.parse(raw) : null;
     } catch(_) {}
 

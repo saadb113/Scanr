@@ -455,13 +455,14 @@ window.showUpgradeModal = function() {
           </div>
           <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
             <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
-            AI Analysis — AI-powered chart analysis and signals
-          </div>
-          <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
-            <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
             Strategy Builder — Drag & drop strategy automation
           </div>
           <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
+            <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
+          Automation Bot — Automate your strategy with a bot
+            </div>
+          
+            <div style="display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; color: var(--text-secondary, #9aa3b5);">
             <span style="color: var(--accent-green, #00e5a0); font-weight: 800; font-size: 1.1rem;">✓</span>
             Apex Setup Scanner — Advanced setup detection
           </div>
