@@ -13,6 +13,14 @@
     document.head.appendChild(link);
   }
 
+  if (!document.querySelector('link[rel="icon"]')) {
+    const favicon = document.createElement('link');
+    favicon.rel = 'icon';
+    favicon.type = 'image/svg+xml';
+    favicon.href = '/favicon.svg';
+    document.head.appendChild(favicon);
+  }
+
   // ── Build header HTML ──────────────────────────────────────
   const headerEl = document.createElement('header');
   headerEl.className = 'site-header';
