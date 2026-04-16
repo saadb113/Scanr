@@ -37,9 +37,13 @@ function hmacSHA256(secret, message) {
 
 async function syncClock() {
     try {
-        const res  = await fetch('https://fapi.binance.com/fapi/v1/time');
+        const res  = await fetch('https://api.bybit.com/v5/market/time');
         const data = await res.json();
-        const serverTs = parseInt(data.serverTime);
+        const serverTs = parseInt(
+            data.result?.timeNano
+                ? data.result.timeNano / 1_000_000
+                : (data.result?.timeSecond || 0) * 1000
+        );
         return serverTs ? serverTs - Date.now() : 0;
     } catch { return 0; }
 }
@@ -265,24 +269,29 @@ async function checkPositionClosed(userId, eng) {
 // ── WebSocket ─────────────────────────────────────────────────
 
 function connectWs(userId, eng) {
-    const streamSym = (eng.position.sym || '').toLowerCase();
-    const wsUrl = `wss://fstream.binance.com/ws/${streamSym}@kline_1m`;
+    const wsUrl = eng.creds.env === 'testnet'
+        ? 'wss://stream-testnet.bybit.com/v5/public/linear'
+        : 'wss://stream.bybit.com/v5/public/linear';
 
     const ws  = new WebSocket(wsUrl);
     eng.ws    = ws;
+    const sym = eng.position.sym;
 
     ws.on('open', () => {
         apLog(userId, 'WebSocket connected', 'ok').catch(() => {});
+        ws.send(JSON.stringify({ op: 'subscribe', args: [`tickers.${sym}`] }));
         eng._hb = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) ws.ping();
+            if (ws.readyState === WebSocket.OPEN) ws.send('{"op":"ping"}');
         }, 20000);
     });
 
     ws.on('message', (raw) => {
         try {
             const data = JSON.parse(raw.toString());
-            if (data?.e === 'kline' && data?.k) {
-                const px = parseFloat(data.k.c);
+            if (data.topic?.startsWith('tickers.') && data.data) {
+                const mp  = parseFloat(data.data.markPrice);
+                const lp  = parseFloat(data.data.lastPrice);
+                const px  = mp > 0 ? mp : lp > 0 ? lp : 0;
                 if (!px) return;
                 // Sanity check: max 20% from entry
                 if (eng.position?.entry && Math.abs(px - eng.position.entry) / eng.position.entry > 0.20) return;

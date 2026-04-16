@@ -30,6 +30,7 @@ const SettingsSchema = new mongoose.Schema({
             autopilotMilestone:  { type: Boolean, default: true },
             tpSlHit:             { type: Boolean, default: true },
             strategyBotAlerts:   { type: Boolean, default: true },
+            aiAgentAlerts:       { type: Boolean, default: true },
         },
     },
     ai: {
@@ -168,6 +169,84 @@ const BotTradeSchema = new mongoose.Schema({
     closedAt:      { type: Date, default: null },
 }, { timestamps: true });
 
+// ── Agent settings (user config) ──
+const AgentSettingsSchema = new mongoose.Schema({
+    userId:                { type: String, default: 'default' },
+    startTime:             { type: String, default: '08:00' },
+    endTime:               { type: String, default: '18:00' },
+    maxTrades:             { type: Number, default: 3 },
+    scanInterval:          { type: Number, default: 30 },
+    cooldownMinutes:       { type: Number, default: 15 },
+    minScore:              { type: Number, default: 75 },
+    basePositionSize:      { type: Number, default: 0 },
+    maxLossPerTradePct:    { type: Number, default: 1 },
+    dailyDrawdownPct:      { type: Number, default: 5 },
+    maxConsecutiveLosses:  { type: Number, default: 3 },
+    minVolume:             { type: Number, default: 30 },
+    atrMin:                { type: Number, default: 0 },
+    atrMax:                { type: Number, default: 9999999 },
+    timeframe:             { type: String, default: '5m' },
+    customCoins:           { type: String, default: '' },
+    demoMode:              { type: Boolean, default: false },
+    whatsappRecipient:     String,
+    emailRecipient:        String,
+    notifyOnTradePlaced:   { type: Boolean, default: true },
+    notifyOnTradeClosed:   { type: Boolean, default: true },
+    notifyOnAgentShutdown: { type: Boolean, default: true },
+    notifyOnDailySummary:  { type: Boolean, default: true },
+}, { timestamps: true });
+AgentSettingsSchema.index({ userId: 1 }, { unique: true });
+
+// ── Agent day sessions ──
+const AgentSessionSchema = new mongoose.Schema({
+    userId:            { type: String, default: 'default' },
+    date:              String,
+    tradesTaken:       { type: Number, default: 0 },
+    wins:              { type: Number, default: 0 },
+    losses:            { type: Number, default: 0 },
+    totalPnl:          { type: Number, default: 0 },
+    startBalance:      Number,
+    endBalance:        Number,
+    maxTrades:         { type: Number, default: 3 },
+    consecutiveLosses: { type: Number, default: 0 },
+    startedAt:         String,
+    endedAt:           String,
+    endReason:         String,
+}, { timestamps: true });
+
+// ── Agent individual trades ──
+const AgentTradeSchema = new mongoose.Schema({
+    userId:        { type: String, default: 'default' },
+    sessionId:     String,
+    symbol:        String,
+    side:          String,
+    entryPrice:    Number,
+    closePrice:    Number,
+    sl:            Number,
+    tp:            Number,
+    pnl:           Number,
+    pnlPercent:    Number,
+    aiScore:       Number,
+    aiConfidence:  String,
+    aiReasoning:   String,
+    dcaCount:      { type: Number, default: 0 },
+    openedAt:      String,
+    closedAt:      String,
+}, { timestamps: true });
+
+// ── Agent runtime state (for resume on boot) ──
+const AgentStateSchema = new mongoose.Schema({
+    userId:       { type: String, default: 'default' },
+    running:      { type: Boolean, default: false },
+    status:       { type: String, default: 'idle' },
+    sessionId:    String,
+    date:         String,
+    tradesTaken:  { type: Number, default: 0 },
+    startBalance: { type: Number, default: 0 },
+    lastScanAt:   { type: String, default: '' },
+}, { timestamps: true });
+AgentStateSchema.index({ userId: 1 }, { unique: true });
+
 // ── Auth: Users ──
 const UserSchema = new mongoose.Schema({
     firstName:           { type: String, required: true },
@@ -190,16 +269,8 @@ const UserSchema = new mongoose.Schema({
     loginHistory:        { type: [{ ip: String, userAgent: String, timestamp: Date, fingerprint: String, fingerprintMatch: Boolean }], default: [] },
     blockedAttempts:     { type: [{ timestamp: Date, ip: String, fingerprint: String }], default: [] },
     suspiciousActivity:  { type: Boolean, default: false },
-    // AI analysis daily usage tracking
-    aiAnalysisCount:     { type: Number, default: 0 },
-    aiAnalysisDate:      { type: String, default: null },
-    aiAnalysisTimezone:  { type: String, default: 'Asia/Karachi' },
-    // Premium tier system
-    accountTier:         { type: String, enum: ['free', 'premium'], default: 'free' },
-    premiumActivatedAt:  { type: Date, default: null },
-    premiumPlan:         { type: String, enum: ['lifetime', 'monthly', 'yearly', null], default: null },
 }, { timestamps: true });
-UserSchema.index({ email: 1 }, { unique: true });
+
 
 // ── Auth: Licenses ──
 const LicenseSchema = new mongoose.Schema({
@@ -221,7 +292,7 @@ const LicenseSchema = new mongoose.Schema({
     maxTransfers:        { type: Number, default: 2 },
     transferHistory:     { type: [{ date: Date, adminId: mongoose.Schema.Types.ObjectId, oldFingerprint: String }], default: [] },
 }, { timestamps: true });
-LicenseSchema.index({ licenseKey: 1 }, { unique: true });
+
 
 // ── Auth: Admin app-level settings (key/value store) ──
 const AppSettingsSchema = new mongoose.Schema({
@@ -229,36 +300,6 @@ const AppSettingsSchema = new mongoose.Schema({
     value: { type: String, default: '' },
 }, { timestamps: true });
 AppSettingsSchema.index({ key: 1 }, { unique: true });
-
-// ── Payment System (USDT direct payment) ───────────────────────
-const PaymentSchema = new mongoose.Schema({
-    userId:          { type: String, required: true, index: true }, // Link to user account
-    buyerName:       { type: String, required: true },
-    buyerEmail:      { type: String, required: true, index: true },
-    buyerPhone:      { type: String, default: '' },
-    planType:        { type: String, enum: ['lifetime', 'monthly', 'yearly'], default: 'lifetime' },
-    amount:          { type: Number, required: true }, // USD amount
-    txId:            { type: String, required: true },
-    network:         { type: String, enum: ['TRC20', 'ERC20', 'BEP20'], required: true },
-    screenshotPath:  { type: String, default: '' },
-    message:         { type: String, default: '' },
-    status:          { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
-    adminNotes:      { type: String, default: '' },
-    rejectionReason: { type: String, default: '' },
-    licenseKeyIssued: { type: String, default: null },
-    verifiedAt:      { type: Date, default: null },
-    rejectedAt:      { type: Date, default: null },
-}, { timestamps: true });
-PaymentSchema.index({ status: 1, createdAt: -1 });
-PaymentSchema.index({ buyerEmail: 1 });
-PaymentSchema.index({ userId: 1 });
-
-// ── Per-user cached setup scanner signals ───────────────────────
-const SetupSignalsSchema = new mongoose.Schema({
-    userId:       { type: String, required: true, unique: true, index: true },
-    signals:      { type: [mongoose.Schema.Types.Mixed], default: [] },
-    lastScannedAt:{ type: Date, default: null },
-}, { timestamps: true });
 
 // ── Public contact form submissions ───────────────────────────
 const ContactSchema = new mongoose.Schema({
@@ -322,11 +363,13 @@ module.exports = {
     BybitStore:     mongoose.model('BybitStore',     BybitStoreSchema),
     BinanceStore:   mongoose.model('BinanceStore',   BinanceStoreSchema),
     AutopilotState: mongoose.model('AutopilotState', AutopilotStateSchema),
+    AgentSettings:  mongoose.model('AgentSettings', AgentSettingsSchema),
+    AgentSession:   mongoose.model('AgentSession',  AgentSessionSchema),
+    AgentTrade:     mongoose.model('AgentTrade',    AgentTradeSchema),
+    AgentState:     mongoose.model('AgentState',    AgentStateSchema),
     User:             mongoose.model('User',             UserSchema),
     License:          mongoose.model('License',          LicenseSchema),
     AppSettings:      mongoose.model('AppSettings',      AppSettingsSchema),
-    Payment:          mongoose.model('Payment',          PaymentSchema),
-    SetupSignals:     mongoose.model('SetupSignals',     SetupSignalsSchema),
     Contact:          mongoose.model('Contact',          ContactSchema),
     FundedChallenge:  mongoose.model('FundedChallenge',  FundedChallengeSchema),
     ChallengeTrade:   mongoose.model('ChallengeTrade',   ChallengeTradeSchema),

@@ -5,34 +5,35 @@ const http     = require('http');
 const path     = require('path');
 const session  = require('express-session');
 const bcrypt   = require('bcrypt');
-const multer   = require('multer');
 const { Server } = require('socket.io');
 const { connectDB } = require('./db');
-const mongoose = require('mongoose');
 const {
-    User, License, AppSettings, Payment,
+    User, License, AppSettings,
     Settings, Watchlist, FilterVis, PosSettings,
     Drawings, KimiSettings, KimiCache, BybitStore,
+    AgentSettings, AgentSession, AgentTrade, AgentState,
     FundedChallenge, ChallengeTrade, Contact,
     Strategy, BotTrade, PriceAlert,
 } = require('./models');
 const autopilot      = require('./autopilot');
+
+const dayAgent       = require('./dayAgent');
 const strategyRoutes = require('./strategy_routes');
 const strategyBot    = require('./strategyBot');
-const setupsScanner  = require('./setups_routes');
-const { sendDiscordAlert, orderSummaryEmbed, priceAlertEmbed, newRegistrationEmbed, newContactEmbed, newPaymentSubmissionEmbed } = require('./discordNotifier');
+const { sendDiscordAlert, orderSummaryEmbed, priceAlertEmbed } = require('./discordNotifier');
 const { analyzeWithAI, testAIProvider }                        = require('./aiAnalysis');
 
 const app        = express();
 const httpServer = http.createServer(app);
 const io         = new Server(httpServer, { cors: { origin: '*' } });
+dayAgent.setIO(io);
 strategyBot.setIO(io);
 const PORT  = process.env.PORT || 3000;
 const USER  = 'default';
 
 app.use(express.json({ limit: '4mb' }));
 const sessionMW = session({
-    secret:            process.env.SESSION_SECRET || 'SCANR-fallback-secret',
+    secret:            process.env.SESSION_SECRET || 'monty-fallback-secret',
     resave:            false,
     saveUninitialized: false,
     cookie:            { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true },
@@ -46,125 +47,9 @@ io.use((socket, next) => {
 });
 io.on('connection', socket => {
     const uid = socket.request.session?.userId;
-    if (uid) {
-        socket.join(uid);
-        console.log('[Socket.io] User', uid, 'connected');
-    } else {
-        console.log('[Socket.io] Connection without userId');
-    }
+    if (uid) socket.join(uid);
 });
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// ── Bybit public market proxy (CORS/geoblock mitigation) ─────────
-const bybitProxyHits = new Map();
-const bybitProxyCache = new Map();
-const BYBIT_PROXY_CACHE_TTL_MS = 3000;
-function bybitProxyAllow(ip) {
-    const now = Date.now();
-    const windowMs = 60 * 1000;
-    const maxHits = 500;
-    const hits = (bybitProxyHits.get(ip) || []).filter(ts => now - ts < windowMs);
-    if (hits.length >= maxHits) {
-        bybitProxyHits.set(ip, hits);
-        return false;
-    }
-    hits.push(now);
-    bybitProxyHits.set(ip, hits);
-    return true;
-}
-function bybitProxyBypassRateLimit(req) {
-    const ip = req.ip || req.socket?.remoteAddress || '';
-    const host = (req.hostname || '').toLowerCase();
-    return host === 'localhost' || ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
-}
-function bybitProxyCacheKey(endpoint, params = {}) {
-    if (params.symbol || params.interval || params.limit) {
-        return `${endpoint}|${params.symbol || ''}|${params.interval || ''}|${params.limit || ''}`;
-    }
-    return endpoint + '|' + new URLSearchParams(Object.entries(params).sort(([a], [b]) => a.localeCompare(b))).toString();
-}
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-app.get('/api/proxy/bybit', requireActiveAuth, async (req, res) => {
-    try {
-        const { endpoint, ...params } = req.query || {};
-        if (!endpoint || typeof endpoint !== 'string') {
-            return res.status(400).json({ ok: false, error: 'Missing endpoint' });
-        }
-        if (!endpoint.startsWith('market/') || endpoint.includes('..') || endpoint.includes('://')) {
-            return res.status(400).json({ ok: false, error: 'Invalid endpoint' });
-        }
-        const cacheKey = bybitProxyCacheKey(endpoint, params);
-        const now = Date.now();
-        const cached = bybitProxyCache.get(cacheKey);
-        if (cached && now - cached.ts < BYBIT_PROXY_CACHE_TTL_MS) return res.status(cached.status).json(cached.body);
-
-        const ip = req.ip || req.socket?.remoteAddress || 'unknown';
-        if (!bybitProxyBypassRateLimit(req) && !bybitProxyAllow(ip)) {
-            if (cached) return res.status(cached.status).json(cached.body);
-            await sleep(1000);
-            if (!bybitProxyAllow(ip)) {
-                return res.status(503).json({ ok: false, error: 'Proxy temporarily busy, please retry' });
-            }
-        }
-
-        const url = new URL(`https://api.bybit.com/v5/${endpoint}`);
-        Object.entries(params).forEach(([k, v]) => {
-            if (v != null) url.searchParams.set(k, String(v));
-        });
-        const doFetch = async () => {
-            const response = await fetch(url.toString());
-            let data;
-            try { data = await response.json(); }
-            catch { data = { ok: false, error: 'Invalid upstream response' }; }
-            return { response, data };
-        };
-
-        let { response, data } = await doFetch();
-        const upstreamRateLimited = !response.ok && response.status === 429;
-        const upstreamRetRateLimited = data && (data.retCode === 10006 || /rate.?limit/i.test(String(data.retMsg || data.error || '')));
-        if (upstreamRateLimited || upstreamRetRateLimited) {
-            await sleep(1000);
-            ({ response, data } = await doFetch());
-        }
-
-        if (!response.ok || (data && data.retCode && data.retCode !== 0)) {
-            if (cached) return res.status(cached.status).json(cached.body);
-            return res.status(response.ok ? 502 : response.status).json({ ok: false, error: 'Upstream market data unavailable' });
-        }
-
-        bybitProxyCache.set(cacheKey, { ts: now, status: 200, body: data });
-        return res.json(data);
-    } catch (e) {
-        return res.status(500).json({ ok: false, error: e.message });
-    }
-});
-
-// ── Binance public market proxy ───────────────────────────────────
-app.get('/api/proxy/binance', requireActiveAuth, async (req, res) => {
-    try {
-        const { path: apiPath, ...params } = req.query || {};
-        if (!apiPath || typeof apiPath !== 'string') {
-            return res.status(400).json({ ok: false, error: 'Missing path' });
-        }
-        if (!apiPath.startsWith('/') || apiPath.includes('..') || apiPath.includes('://')) {
-            return res.status(400).json({ ok: false, error: 'Invalid path' });
-        }
-        const base = apiPath.startsWith('/fapi/') ? 'https://fapi.binance.com' : 'https://api.binance.com';
-        const url = new URL(base + apiPath);
-        Object.entries(params).forEach(([k, v]) => {
-            if (v != null) url.searchParams.set(k, String(v));
-        });
-        const r = await fetch(url.toString());
-        const d = await r.json();
-        if (!r.ok) return res.status(r.status).json(d);
-        return res.json(d);
-    } catch (e) {
-        return res.status(500).json({ ok: false, error: e.message });
-    }
-});
 
 // ── helper: upsert single-user doc ────────────────────────────────────────
 async function upsert(Model, update, uid) {
@@ -173,30 +58,6 @@ async function upsert(Model, update, uid) {
         { $set: update },
         { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
-}
-
-async function getAdminDiscordWebhook() {
-    const envWebhook = process.env.ADMIN_DISCORD_WEBHOOK_URL || process.env.DISCORD_WEBHOOK_URL || '';
-    try {
-        const admins = await User.find({ role: 'admin' }).select('_id').lean();
-        if (!admins.length) return envWebhook;
-        const adminIds = admins.map(a => String(a._id));
-        const settingsDoc = await Settings.findOne({
-            userId: { $in: adminIds },
-            'discord.webhookUrl': { $exists: true, $ne: '' },
-        }).sort({ updatedAt: -1 }).lean();
-        return settingsDoc?.discord?.webhookUrl || envWebhook;
-    } catch {
-        return envWebhook;
-    }
-}
-
-async function notifyAdminDiscord(embed) {
-    try {
-        const webhook = await getAdminDiscordWebhook();
-        if (!webhook) return;
-        await sendDiscordAlert(webhook, embed);
-    } catch (_) {}
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -215,76 +76,6 @@ function _recordAttempt(ip) {
     const list = _loginAttempts.get(ip) || [];
     list.push(Date.now());
     _loginAttempts.set(ip, list);
-}
-
-function normalizeTimezone(tz) {
-    const fallback = 'UTC';
-    if (!tz || typeof tz !== 'string') return fallback;
-    try {
-        Intl.DateTimeFormat('en-US', { timeZone: tz }).format(new Date());
-        return tz;
-    } catch {
-        return fallback;
-    }
-}
-
-function getTodayInTimezone(tz) {
-    return new Date().toLocaleDateString('en-CA', { timeZone: normalizeTimezone(tz) });
-}
-
-function getNextMidnightIsoForTimezone(tz) {
-    const safeTz = normalizeTimezone(tz);
-    const now = new Date();
-    const tzNow = new Date(now.toLocaleString('en-US', { timeZone: safeTz }));
-    const tzNextMidnight = new Date(tzNow);
-    tzNextMidnight.setHours(24, 0, 0, 0);
-    const deltaMs = tzNextMidnight.getTime() - tzNow.getTime();
-    return new Date(now.getTime() + deltaMs).toISOString();
-}
-
-async function checkAiAnalysisLimit(req, res, next) {
-    try {
-        const user = await User.findById(req.appUserId).select('accountTier aiAnalysisCount aiAnalysisDate aiAnalysisTimezone').lean();
-        if (!user) return res.status(401).json({ error: 'Not authenticated' });
-
-        const requestedTz = req.body?.timezone;
-        const userTimezone = normalizeTimezone(requestedTz || user.aiAnalysisTimezone || 'UTC');
-        const today = getTodayInTimezone(userTimezone);
-        const resetNeeded = user.aiAnalysisDate !== today;
-        const isPremium = user.accountTier === 'premium';
-        const currentCount = resetNeeded ? 0 : (user.aiAnalysisCount || 0);
-
-        // Persist timezone and/or day rollover before limit check.
-        if (resetNeeded || user.aiAnalysisTimezone !== userTimezone) {
-            await User.findByIdAndUpdate(req.appUserId, {
-                aiAnalysisCount: currentCount,
-                aiAnalysisDate: today,
-                aiAnalysisTimezone: userTimezone,
-            });
-        }
-
-        req.aiLimit = {
-            isPremium,
-            timezone: userTimezone,
-            today,
-            used: currentCount,
-            limit: 3,
-        };
-
-        if (!isPremium && currentCount >= 3) {
-            return res.status(429).json({
-                error: 'limit_reached',
-                message: 'Daily AI analysis limit reached',
-                limit: 3,
-                used: 3,
-                resetsAt: 'midnight in your timezone',
-            });
-        }
-
-        return next();
-    } catch (e) {
-        return res.status(500).json({ error: e.message });
-    }
 }
 
 // Requires logged-in session only (no license check)
@@ -320,12 +111,10 @@ async function requireActiveAuth(req, res, next) {
         }
         req.appUserId = req.session.userId;
         if (user.role === 'admin') return next();
-        // Check suspension status
         if (user.licenseStatus === 'suspended') {
             if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License suspended' });
             return res.redirect('/suspended');
         }
-        // Check license expiration only for premium users
         if (user.licenseStatus === 'active' && user.licenseExpiresAt && new Date() > new Date(user.licenseExpiresAt)) {
             await Promise.all([
                 User.findByIdAndUpdate(req.session.userId, { licenseStatus: 'suspended' }),
@@ -334,13 +123,12 @@ async function requireActiveAuth(req, res, next) {
             if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License expired' });
             return res.redirect('/suspended?reason=expired');
         }
-        // With free tier system, all users (free and premium) can access the platform
-        // Only premium users should get premium features, which are protected by checkPremium middleware
-        return next();
-    } catch (e) { 
-        console.error('[Auth] Error:', e.message);
-        return res.status(500).json({ error: e.message }); 
-    }
+        if (user.licenseStatus !== 'active') {
+            if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License not active' });
+            return res.redirect('/license');
+        }
+        next();
+    } catch (e) { res.status(500).json({ error: e.message }); }
 }
 
 // Requires admin role
@@ -350,35 +138,6 @@ function requireAdmin(req, res, next) {
         return res.redirect('/');
     }
     next();
-}
-
-// Requires logged-in + premium tier
-async function checkPremium(req, res, next) {
-    if (!req.session.userId) {
-        if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
-        return res.redirect('/login');
-    }
-    try {
-        const user = await User.findById(req.session.userId).select('accountTier').lean();
-        if (!user) {
-            if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
-            return res.redirect('/login');
-        }
-
-        // Keep session tier synchronized with DB tier.
-        req.session.accountTier = user.accountTier || 'free';
-        if (!req.session.user) req.session.user = {};
-        req.session.user.accountTier = req.session.accountTier;
-
-        if (user.accountTier !== 'premium') {
-            if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'premium_required', message: 'This feature requires Premium access' });
-            return res.redirect('/');
-        }
-
-        return next();
-    } catch (e) {
-        return res.status(500).json({ error: e.message });
-    }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -401,24 +160,8 @@ app.post('/api/auth/register', async (req, res) => {
             email:     email.toLowerCase().trim(),
             password:  hash,
         });
-        req.session.userId         = user._id.toString();
-        req.session.role           = user.role;
-        req.session.accountTier    = user.accountTier;
-        req.session.user = {
-            id: user._id.toString(),
-            email: user.email,
-            firstName: user.firstName,
-            accountTier: user.accountTier || 'free',
-            licenseStatus: user.licenseStatus || 'inactive'
-        };
-        notifyAdminDiscord(newRegistrationEmbed({
-            userId: user._id.toString(),
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.email,
-            accountTier: user.accountTier || 'free',
-        }));
-
+        req.session.userId = user._id.toString();
+        req.session.role   = user.role;
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -463,27 +206,15 @@ app.post('/api/auth/login', async (req, res) => {
         if (user.role !== 'admin' && (uniqueIPs > 5 || uniqueFingerprints.size >= 3)) {
             await User.findByIdAndUpdate(user._id, { suspiciousActivity: true });
         }
-        req.session.userId         = user._id.toString();
-        req.session.role           = user.role;
-        req.session.accountTier    = updatedUser.accountTier;
-        req.session.sessionToken   = sessionToken;
-        req.session.user = {
-            id: user._id.toString(),
-            email: user.email,
-            firstName: user.firstName,
-            accountTier: updatedUser.accountTier || 'free',
-            licenseStatus: user.licenseStatus || 'inactive'
-        };
+        req.session.userId       = user._id.toString();
+        req.session.role         = user.role;
+        req.session.sessionToken = sessionToken;
         res.json({ ok: true, licenseStatus: user.licenseStatus, role: user.role });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/auth/logout', (req, res) => {
     req.session.destroy(() => res.json({ ok: true }));
-});
-
-app.get('/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/login'));
 });
 
 app.get('/api/auth/me', requireAuth, async (req, res) => {
@@ -507,52 +238,15 @@ app.get('/api/auth/session-check', async (req, res) => {
     const userId = req.session && req.session.userId;
     if (!userId) return res.status(401).json({ reason: 'no_session' });
     try {
-        const user = await User.findById(userId).select('activeSessionToken role accountTier email firstName licenseStatus').lean();
+        const user = await User.findById(userId).select('activeSessionToken role').lean();
         if (!user) return res.status(401).json({ reason: 'user_not_found' });
         if (user.role !== 'admin' && req.session.sessionToken && user.activeSessionToken) {
             if (user.activeSessionToken !== req.session.sessionToken) {
                 return res.status(401).json({ reason: 'session_replaced' });
             }
         }
-
-        req.session.accountTier = user.accountTier || 'free';
-        req.session.user = {
-            id: userId,
-            email: user.email,
-            firstName: user.firstName,
-            accountTier: req.session.accountTier,
-            licenseStatus: user.licenseStatus || 'inactive'
-        };
-
-        res.json({
-            valid: true,
-            accountTier: req.session.accountTier,
-            user: req.session.user
-        });
+        res.json({ valid: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/auth/refresh-session', requireAuth, async (req, res) => {
-    try {
-        const user = await User.findById(req.session.userId)
-            .select('email firstName accountTier licenseStatus role')
-            .lean();
-        if (!user) return res.status(404).json({ error: 'User not found' });
-
-        req.session.role = user.role;
-        req.session.accountTier = user.accountTier || 'free';
-        req.session.user = {
-            id: req.session.userId,
-            email: user.email,
-            firstName: user.firstName,
-            accountTier: req.session.accountTier,
-            licenseStatus: user.licenseStatus || 'inactive'
-        };
-
-        res.json({ ok: true, user: req.session.user });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -571,12 +265,6 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
         if (license.status === 'active')
             return res.status(400).json({ error: 'This license key is already in use' });
         const ip = req.ip || req.socket.remoteAddress || 'unknown';
-
-        // Fetch current user
-        const user = await User.findById(req.session.userId);
-        if (!user) return res.status(400).json({ error: 'User not found' });
-
-        // Activate license
         await License.findByIdAndUpdate(license._id, {
             status:              'active',
             activatedByUserId:   req.session.userId,
@@ -584,35 +272,22 @@ app.post('/api/license/activate', requireAuth, async (req, res) => {
             deviceFingerprint:   deviceFingerprint || '',
             $addToSet:           { ipHistory: ip },
         });
-        await user.save();
-
         await User.findByIdAndUpdate(req.session.userId, {
             licenseKey:          license.licenseKey,
             licenseStatus:       'active',
             licenseActivatedAt:  new Date(),
             licenseExpiresAt:    license.expiresAt || null,
             deviceFingerprint:   deviceFingerprint || '',
-            accountTier:         'premium',
-            premiumActivatedAt:  new Date(),
-            premiumPlan:         'lifetime',
         });
         req.session.licenseStatus = 'active';
-        req.session.accountTier = 'premium';
-        if (!req.session.user) req.session.user = {};
-        req.session.user.accountTier = 'premium';
-        req.session.user.licenseStatus = 'active';
-        req.session.user.id = req.session.userId;
-        req.session.user.email = user.email;
-        req.session.user.firstName = user.firstName;
-
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/license/status', requireAuth, async (req, res) => {
     try {
-        const user = await User.findById(req.session.userId).select('licenseStatus licenseKey accountTier').lean();
-        res.json({ status: user?.licenseStatus || 'inactive', key: user?.licenseKey, accountTier: user?.accountTier || 'free' });
+        const user = await User.findById(req.session.userId).select('licenseStatus licenseKey').lean();
+        res.json({ status: user?.licenseStatus || 'inactive', key: user?.licenseKey });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -713,27 +388,6 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/users/:id/reset-ai-limit', requireAdmin, async (req, res) => {
-    try {
-        await User.findByIdAndUpdate(req.params.id, {
-            aiAnalysisCount: 0,
-            aiAnalysisDate: null,
-        });
-        res.json({ ok: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/admin/analysis/stats', requireAdmin, async (req, res) => {
-    try {
-        const todayUtc = getTodayInTimezone('UTC');
-        const agg = await User.aggregate([
-            { $match: { aiAnalysisDate: todayUtc } },
-            { $group: { _id: null, total: { $sum: '$aiAnalysisCount' } } }
-        ]);
-        res.json({ totalToday: agg[0]?.total || 0 });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 app.post('/api/admin/users/suspend/:id', requireAdmin, async (req, res) => {
     try {
         const user = await User.findByIdAndUpdate(req.params.id, { licenseStatus: 'suspended' }, { new: true });
@@ -777,28 +431,6 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
         if (user.role === 'admin') return res.status(400).json({ error: 'Cannot delete admin accounts' });
         await User.findByIdAndDelete(req.params.id);
         res.json({ ok: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Change user account tier (admin endpoint)
-app.post('/api/admin/users/:id/tier', requireAdmin, async (req, res) => {
-    try {
-        const { accountTier } = req.body;
-        if (!['free', 'premium'].includes(accountTier)) {
-            return res.status(400).json({ error: 'Invalid tier' });
-        }
-        
-        const user = await User.findByIdAndUpdate(
-            req.params.id,
-            {
-                accountTier,
-                premiumActivatedAt: accountTier === 'premium' ? new Date() : null,
-                premiumPlan: accountTier === 'premium' ? 'lifetime' : null
-            },
-            { new: true }
-        );
-        
-        res.json({ ok: true, accountTier: user.accountTier });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -855,459 +487,14 @@ app.get('/api/admin/settings', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/settings', requireAdmin, async (req, res) => {
     try {
-    const { emailAdmin, appName,
-                walletTRC20, walletERC20, walletBEP20, pricePlanStandard, pricePlanPKR,
-                pricing_lifetime_original, pricing_lifetime_discounted,
-                pricing_discount_label } = req.body;
-
-        // Admin email (replaces old whatsapp)
-        await AppSettings.findOneAndUpdate({ key: 'emailAdmin' }, { key: 'emailAdmin', value: emailAdmin || 'support@scanr.me' }, { upsert: true });
-
-        // App name
+        const { whatsapp, appName } = req.body;
+        await AppSettings.findOneAndUpdate({ key: 'whatsapp' }, { key: 'whatsapp', value: whatsapp || '' }, { upsert: true });
         await AppSettings.findOneAndUpdate({ key: 'appName'  }, { key: 'appName',  value: appName  || '' }, { upsert: true });
-
-        // Wallet addresses
-        if (walletTRC20 !== undefined) {
-            await AppSettings.findOneAndUpdate({ key: 'walletTRC20' }, { key: 'walletTRC20', value: walletTRC20 || '' }, { upsert: true });
-        }
-        if (walletERC20 !== undefined) {
-            await AppSettings.findOneAndUpdate({ key: 'walletERC20' }, { key: 'walletERC20', value: walletERC20 || '' }, { upsert: true });
-        }
-        if (walletBEP20 !== undefined) {
-            await AppSettings.findOneAndUpdate({ key: 'walletBEP20' }, { key: 'walletBEP20', value: walletBEP20 || '' }, { upsert: true });
-        }
-
-        // Prices
-        if (pricePlanStandard !== undefined) {
-            await AppSettings.findOneAndUpdate({ key: 'pricePlanStandard' }, { key: 'pricePlanStandard', value: String(pricePlanStandard) }, { upsert: true });
-        }
-        if (pricePlanPKR !== undefined) {
-            await AppSettings.findOneAndUpdate({ key: 'pricePlanPKR' }, { key: 'pricePlanPKR', value: String(pricePlanPKR) }, { upsert: true });
-        }
-
-        // Dynamic pricing settings
-        if (pricing_lifetime_original !== undefined) {
-            await AppSettings.findOneAndUpdate(
-                { key: 'pricing_lifetime_original' },
-                { key: 'pricing_lifetime_original', value: String(pricing_lifetime_original) },
-                { upsert: true }
-            );
-        }
-        if (pricing_lifetime_discounted !== undefined) {
-            await AppSettings.findOneAndUpdate(
-                { key: 'pricing_lifetime_discounted' },
-                { key: 'pricing_lifetime_discounted', value: pricing_lifetime_discounted === '' || pricing_lifetime_discounted === null ? '' : String(pricing_lifetime_discounted) },
-                { upsert: true }
-            );
-        }
-        if (pricing_discount_label !== undefined) {
-            await AppSettings.findOneAndUpdate(
-                { key: 'pricing_discount_label' },
-                { key: 'pricing_discount_label', value: String(pricing_discount_label || '').trim() },
-                { upsert: true }
-            );
-        }
-
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ═══════════════════════════════════════════════════════════════
-//  PAYMENT SYSTEM (USDT Direct Payments)
-// ═══════════════════════════════════════════════════════════════
-
-// Setup multer for file uploads
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = path.join(__dirname, 'uploads', 'payments');
-        require('fs').mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const timestamp = Date.now();
-        const rand = Math.random().toString(36).slice(2, 8);
-        const ext = path.extname(file.originalname);
-        cb(null, `${timestamp}_${rand}${ext}`);
-    }
-});
-const upload = multer({
-    storage,
-    fileFilter: (req, file, cb) => {
-        const mimes = ['image/jpeg', 'image/png', 'image/webp'];
-        if (!mimes.includes(file.mimetype)) {
-            return cb(new Error('Only JPG, PNG, and WebP images allowed'));
-        }
-        if (file.size > 5 * 1024 * 1024) { // 5MB max
-            return cb(new Error('File too large (max 5MB)'));
-        }
-        cb(null, true);
-    }
-});
-
-// POST /api/payment/submit — Submit payment proof (requires auth)
-app.post('/api/payment/submit', requireAuth, upload.single('screenshot'), async (req, res) => {
-    try {
-        if (!req.file) return res.status(400).json({ error: 'Screenshot is required' });
-
-        const { fullName, email, phone, txId, network, message, planType, amount } = req.body;
-        if (!txId || !network || !planType || !amount) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-
-        // Get user info
-        const user = await User.findById(req.appUserId);
-        if (!user) return res.status(404).json({ error: 'User not found' });
-
-        // Check if user already has a pending payment
-        const existingPayment = await Payment.findOne({
-            userId: req.appUserId,
-            status: 'pending'
-        });
-        if (existingPayment) {
-            return res.status(400).json({ error: 'You already have a pending payment' });
-        }
-
-        // Create payment record
-        const payment = await Payment.create({
-            userId: req.appUserId,
-            buyerName: fullName || user.name || user.email,
-            buyerEmail: email || user.email,
-            buyerPhone: phone || '',
-            planType,
-            amount: parseFloat(amount),
-            txId: txId.trim(),
-            network,
-            screenshotPath: `/uploads/payments/${req.file.filename}`,
-            message: message || '',
-            status: 'pending'
-        });
-
-        notifyAdminDiscord(newPaymentSubmissionEmbed({
-            paymentId: payment._id.toString(),
-            userId: payment.userId,
-            buyerName: payment.buyerName,
-            buyerEmail: payment.buyerEmail,
-            buyerPhone: payment.buyerPhone,
-            planType: payment.planType,
-            amount: payment.amount,
-            network: payment.network,
-            txId: payment.txId,
-            screenshotPath: payment.screenshotPath,
-            createdAt: payment.createdAt,
-        }));
-
-        // Send email notification to admin
-        const notifier = require('./notifier');
-        try {
-            await notifier.sendPaymentReceivedEmail({
-                adminEmail: process.env.ADMIN_EMAIL || 'support@scanr.me',
-                buyerName: payment.buyerName,
-                buyerEmail: payment.buyerEmail,
-                planType: payment.planType,
-                amount: payment.amount,
-                network: payment.network,
-                txId: payment.txId,
-                paymentId: payment._id,
-                screenshotPath: payment.screenshotPath
-            });
-        } catch (emailErr) {
-            console.error('Failed to send admin notification email:', emailErr);
-        }
-
-        res.json({
-            ok: true,
-            payment: payment.toObject(),
-            message: 'Payment proof submitted successfully!'
-        });
-    } catch (e) {
-        if (req.file) {
-            require('fs').unlink(path.join(__dirname, 'uploads', 'payments', req.file.filename), () => {});
-        }
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// GET /api/payment/my-status — Get current user's payment status
-app.get('/api/payment/my-status', requireAuth, async (req, res) => {
-    try {
-        const payment = await Payment.findOne({ userId: req.appUserId })
-            .sort({ createdAt: -1 })
-            .lean();
-
-        if (!payment) {
-            return res.json({ payment: null });
-        }
-
-        res.json({ payment });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// POST /api/payment/clear-pending — Clear user's pending payment
-app.post('/api/payment/clear-pending', requireAuth, async (req, res) => {
-    try {
-        const result = await Payment.deleteOne({
-            userId: req.appUserId,
-            status: 'pending'
-        });
-        
-        res.json({
-            ok: true,
-            message: 'Pending payment cleared. You can now submit a new payment.'
-        });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// GET /api/license/my-license — Get current user's license status
-app.get('/api/license/my-license', requireAuth, async (req, res) => {
-    try {
-        const user = await User.findById(req.appUserId).lean();
-        res.json({
-            status: user.licenseStatus,
-            expiresAt: user.licenseExpiresAt
-        });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// GET /api/admin/payments — List all payments (admin only)
-app.get('/api/admin/payments', requireAdmin, async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = 20;
-        const skip = (page - 1) * limit;
-
-        const payments = await Payment.find()
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean();
-
-        const total = await Payment.countDocuments();
-
-        res.json({
-            payments,
-            total,
-            page,
-            pages: Math.ceil(total / limit)
-        });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// POST /api/admin/payment/verify/:paymentId — Verify payment and issue license key
-app.post('/api/admin/payment/verify/:paymentId', requireAdmin, async (req, res) => {
-    try {
-        const { licenseKey: customKey } = req.body;
-        const payment = await Payment.findById(req.params.paymentId);
-        if (!payment) return res.status(404).json({ error: 'Payment not found' });
-        if (payment.status !== 'pending') return res.status(400).json({ error: 'Payment already processed' });
-
-        // Generate or use custom license key
-        let licenseKey = customKey;
-        if (!licenseKey) {
-            // Generate SCAN-XXXX-XXXX-XXXX-XXXX format (matching licenses tab)
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            const seg = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-            licenseKey = `SCAN-${seg()}-${seg()}-${seg()}-${seg()}`;
-        }
-
-        // Get user to link license
-        const user = await User.findById(payment.userId);
-        if (!user) return res.status(404).json({ error: 'User not found' });
-
-        // Calculate expiry based on plan type
-        let expiresAt = null;
-        if (payment.planType === 'monthly') {
-            const expiry = new Date();
-            expiry.setMonth(expiry.getMonth() + 1);
-            expiresAt = expiry.toISOString();
-        } else if (payment.planType === 'yearly') {
-            const expiry = new Date();
-            expiry.setFullYear(expiry.getFullYear() + 1);
-            expiresAt = expiry.toISOString();
-        }
-        // lifetime has no expiry (null)
-
-        // Create license record
-        const license = await License.create({
-            licenseKey,
-            buyerName: payment.buyerName,
-            buyerContact: payment.buyerEmail,
-            purchaseDate: new Date().toISOString().split('T')[0],
-            price: payment.amount,
-            currency: 'USD',
-            status: 'inactive',
-            notes: `Payment: ${payment.network} txId: ${payment.txId}`,
-            userId: payment.userId,
-            expiresAt
-        });
-
-        // Upgrade user immediately after payment verification.
-        await User.findByIdAndUpdate(payment.userId, {
-            accountTier: 'premium',
-            premiumActivatedAt: new Date(),
-            premiumPlan: ['monthly', 'yearly'].includes(payment.planType) ? payment.planType : 'lifetime'
-        });
-
-        // Update payment
-        payment.status = 'verified';
-        payment.licenseKeyIssued = licenseKey;
-        payment.verifiedAt = new Date();
-        await payment.save();
-
-        // Send email to user with license key
-        const notifier = require('./notifier');
-        try {
-            await notifier.sendLicenseKeyEmail({
-                userEmail: payment.buyerEmail,
-                userName: payment.buyerName,
-                licenseKey,
-                planType: payment.planType
-            });
-        } catch (emailErr) {
-            console.error('Failed to send license key email:', emailErr);
-        }
-
-        // Emit Socket.io event to user for real-time update
-        io.to(payment.userId).emit('payment_verified', { licenseKey });
-
-        res.json({
-            ok: true,
-            licenseKey,
-            message: 'License key generated and sent to user'
-        });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// POST /api/admin/payment/reject/:paymentId — Reject payment
-app.post('/api/admin/payment/reject/:paymentId', requireAdmin, async (req, res) => {
-    try {
-        const { reason } = req.body;
-        const payment = await Payment.findById(req.params.paymentId);
-
-        if (!payment) return res.status(404).json({ error: 'Payment not found' });
-        if (payment.status !== 'pending') return res.status(400).json({ error: 'Payment already processed' });
-
-        payment.status = 'rejected';
-        payment.rejectionReason = reason || 'Payment could not be verified';
-        payment.rejectedAt = new Date();
-        await payment.save();
-
-        // Send rejection email
-        const notifier = require('./notifier');
-        try {
-            await notifier.sendPaymentRejectionEmail({
-                userEmail: payment.buyerEmail,
-                userName: payment.buyerName,
-                reason: payment.rejectionReason
-            });
-        } catch (emailErr) {
-            console.error('Failed to send rejection email:', emailErr);
-        }
-
-        // Emit Socket.io event to user for real-time update
-        io.to(payment.userId).emit('payment_rejected', { reason: payment.rejectionReason });
-
-        res.json({ ok: true, message: 'Payment rejected' });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-function parseNum(value, fallback) {
-    const n = parseFloat(value);
-    return Number.isFinite(n) ? n : fallback;
-}
-
-function buildPlanPricing(originalValue, discountedValue, fallbackOriginal) {
-    const original = parseNum(originalValue, fallbackOriginal);
-    const discountedParsed = parseFloat(discountedValue);
-    const hasDiscount = Number.isFinite(discountedParsed) && discountedParsed > 0 && discountedParsed < original;
-    const discounted = hasDiscount ? discountedParsed : null;
-    const discountPct = hasDiscount ? Math.round(((original - discounted) / original) * 100) : null;
-    return {
-        original,
-        discounted,
-        displayPrice: hasDiscount ? discounted : original,
-        discountPct
-    };
-}
-
-// Public: fetch wallet addresses
-app.get('/api/payment/wallet-addresses', async (req, res) => {
-    try {
-        const trc20 = await AppSettings.findOne({ key: 'walletTRC20' });
-        const erc20 = await AppSettings.findOne({ key: 'walletERC20' });
-        const bep20 = await AppSettings.findOne({ key: 'walletBEP20' });
-
-        res.json({
-            walletTRC20: trc20?.value || '',
-            walletERC20: erc20?.value || '',
-            walletBEP20: bep20?.value || ''
-        });
-    } catch (e) { res.json({ walletTRC20: '', walletERC20: '', walletBEP20: '' }); }
-});
-
-// Public: fetch normalized pricing settings
-app.get('/api/settings/pricing', async (req, res) => {
-    try {
-        const keys = [
-            'pricing_lifetime_original',
-            'pricing_lifetime_discounted',
-            'pricing_discount_label'
-        ];
-        const docs = await AppSettings.find({ key: { $in: keys } }).lean();
-        const map = {};
-        docs.forEach(d => { map[d.key] = d.value; });
-
-        const lifetime = buildPlanPricing(map.pricing_lifetime_original, map.pricing_lifetime_discounted, 49);
-        const anyDiscount = Boolean(lifetime.discountPct);
-        const discountLabelRaw = String(map.pricing_discount_label || '').trim();
-
-        res.json({
-            lifetime,
-            discountLabel: anyDiscount ? (discountLabelRaw || null) : null
-        });
-    } catch (e) {
-        const lifetime = buildPlanPricing(null, null, 49);
-        res.json({ lifetime, discountLabel: null });
-    }
-});
-
-// Public: fetch payment prices
-app.get('/api/payment/prices', async (req, res) => {
-    try {
-        const keys = [
-            'pricing_lifetime_original',
-            'pricing_lifetime_discounted'
-        ];
-        const docs = await AppSettings.find({ key: { $in: keys } }).lean();
-        const map = {};
-        docs.forEach(d => { map[d.key] = d.value; });
-
-        const lifetime = buildPlanPricing(map.pricing_lifetime_original, map.pricing_lifetime_discounted, 49);
-
-        res.json({
-            priceLifetime: lifetime.displayPrice,
-            priceMonthly: lifetime.displayPrice,
-            priceYearly: lifetime.displayPrice
-        });
-    } catch (e) {
-        res.json({ priceLifetime: 49, priceMonthly: 49, priceYearly: 49 });
-    }
-});
-
-// Public: fetch admin email
-app.get('/api/public/admin-email', async (req, res) => {
-    try {
-        const doc = await AppSettings.findOne({ key: 'emailAdmin' });
-        res.json({ email: doc?.value || 'support@scanr.me' });
-    } catch (e) { res.json({ email: 'support@scanr.me' }); }
-});
-
-// Public: fetch WhatsApp number (DEPRECATED - kept for backward compat)
+// Public: fetch WhatsApp number for license/suspended pages
 app.get('/api/public/whatsapp', async (req, res) => {
     try {
         const doc = await AppSettings.findOne({ key: 'whatsapp' }).lean();
@@ -1327,14 +514,7 @@ app.post('/api/public/contact', async (req, res) => {
     try {
         const { name, email, phone, message } = req.body;
         if (!name || !email || !message) return res.status(400).json({ error: 'Name, email and message are required.' });
-        const contact = await Contact.create({ name, email, phone: phone || '', message });
-        notifyAdminDiscord(newContactEmbed({
-            name: contact.name,
-            email: contact.email,
-            phone: contact.phone,
-            message: contact.message,
-            createdAt: contact.createdAt,
-        }));
+        await Contact.create({ name, email, phone: phone || '', message });
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1361,90 +541,12 @@ app.delete('/api/admin/contacts/:id', requireAdmin, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Apex Scanner (Setups) - MUST BE BEFORE requireActiveAuth MIDDLEWARE ──────────────────────────────────────
-app.get('/api/setups/status', checkPremium, (req, res) => {
-    console.log('[Setups Status] GET /api/setups/status');
-    const uid = req.appUserId || req.session.userId;
-    res.json({ scanning: setupsScanner.getScanStatus(uid) });
-});
-
-app.get('/api/setups/signals', checkPremium, async (req, res) => {
-    console.log('[Setups Signals] GET /api/setups/signals');
-    try {
-        const uid = req.appUserId || req.session.userId;
-        const signals = await setupsScanner.getLastSignals(uid);
-        res.json({ signals });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-app.delete('/api/setups/signals', checkPremium, async (req, res) => {
-    console.log('[Setups Signals] DELETE /api/setups/signals');
-    try {
-        const uid = req.appUserId || req.session.userId;
-        await setupsScanner.clearLastSignals(uid);
-        res.json({ ok: true });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
-app.post('/api/setups/run', checkPremium, (req, res, next) => {
-    // Manually call the async middleware wrapper
-    requireActiveAuth(req, res, () => {
-        try {
-            console.log('[Setups Endpoint] POST /api/setups/run called');
-            console.log('[Setups Endpoint] appUserId:', req.appUserId);
-            
-            if (!req.appUserId) {
-                console.error('[Setups Endpoint] No appUserId!');
-                return res.status(401).json({ error: 'Not authenticated' });
-            }
-            
-            if (setupsScanner.getScanStatus(req.appUserId)) {
-                console.log('[Setups Endpoint] Scan already in progress');
-                return res.status(400).json({ error: 'Scan already running' });
-            }
-            
-            const {coins, accountSize, riskPercent, rrRatio, minScore} = req.query;
-            const options = {
-                coins: parseInt(coins) || 50,
-                accountSize: parseFloat(accountSize) || 1000,
-                riskPercent: parseFloat(riskPercent) || 1,
-                rrRatio: parseFloat(rrRatio) || 1.5,
-                minScore: parseInt(minScore) || 35,
-            };
-            
-            console.log('[Setups Endpoint] Starting scan with options:', options);
-            
-            // Start scan asynchronously
-            setupsScanner.runApexScanner(io, req.appUserId, options).catch(err => {
-                console.error('[Setups Endpoint] Scan error:', err.message);
-            });
-            
-            console.log('[Setups Endpoint] Sending response');
-            res.json({ ok: true, message: 'Scan started' });
-        } catch (err) {
-            console.error('[Setups Endpoint] Exception:', err.message, err.stack);
-            res.status(500).json({ error: err.message });
-        }
-    });
-});
-
-// TEST ENDPOINT - SIMPLE VERSION WITHOUT MIDDLEWARE
-app.post('/test-scan', (req, res) => {
-    console.log('[TEST] Test endpoint called');
-    res.json({ ok: true, test: 'works' });
-});
-
 // ═══════════════════════════════════════════════════════════════
 //  ALL OTHER /api/* ROUTES REQUIRE ACTIVE AUTH
 // ═══════════════════════════════════════════════════════════════
-app.use('/api/', (req, res, next) => {
-    requireActiveAuth(req, res, next);
-});
-app.use('/api/strategy', checkPremium, strategyRoutes);
+app.use('/api/', requireActiveAuth);
+
+app.use('/api/strategy', strategyRoutes);
 
 // ─────────────────────────────────────────────────────────────
 //  API ROUTES  (all protected by requireActiveAuth above)
@@ -1704,21 +806,8 @@ app.post('/api/bybit/proxy', async (req, res) => {
         const env = doc?.activeEnv || 'mainnet';
         const cred = doc?.[env];
         if (!cred?.apiKey || !cred?.apiSecret) return res.status(400).json({ retCode: -1, retMsg: 'No API credentials saved.' });
-        
         const { path, body } = req.body;
         if (!path) return res.status(400).json({ retCode: -1, retMsg: 'Missing path.' });
-        
-        // Check if this is a write operation (order placement, position change, etc.)
-        const isWriteOp = /order|position|cancel|amend|switchLeverage|setRiskLimit|setMarginMode/i.test(path);
-        
-        // Free users can only read, not write
-        if (isWriteOp) {
-            const user = await User.findById(req.appUserId).select('accountTier').lean();
-            if (user?.accountTier === 'free') {
-                return res.status(403).json({ retCode: -1, retMsg: 'Trading is a premium feature. Upgrade to Premium to place orders.' });
-            }
-        }
-        
         const crypto = require('crypto');
         const base = env === 'testnet' ? 'https://api-demo.bybit.com' : 'https://api.bybit.com';
         const ts = Date.now().toString();
@@ -1745,9 +834,44 @@ app.post('/api/bybit/proxy', async (req, res) => {
 });
 
 // ── PnL Calendar ───────────────────────────────────────────────
-app.get('/api/pnl-calendar', checkPremium, async (req, res) => {
+app.get('/api/pnl-calendar', async (req, res) => {
     try {
-        res.json({ ok: true, data: {} });
+        // Use AgentTrade.closedAt grouped by date in UTC+5 (PKT) timezone
+        const TZ_OFFSET_MS = 5 * 60 * 60 * 1000; // UTC+5
+        const trades = await AgentTrade.find({
+            userId: req.appUserId,
+            closedAt: { $exists: true, $ne: null }
+        }).lean();
+        const data = {};
+        for (const t of trades) {
+            if (!t.closedAt || !t.pnl) continue;
+            // Convert ISO timestamp to UTC+5 date string
+            const ts = new Date(t.closedAt).getTime();
+            if (isNaN(ts)) continue;
+            const localDate = new Date(ts + TZ_OFFSET_MS);
+            const dateStr = localDate.toISOString().slice(0, 10); // YYYY-MM-DD
+            if (!data[dateStr]) data[dateStr] = { pnl: 0, trades: 0, wins: 0, losses: 0 };
+            data[dateStr].pnl    += parseFloat(t.pnl || 0);
+            data[dateStr].trades += 1;
+            if ((t.pnl || 0) > 0) data[dateStr].wins++;
+            else data[dateStr].losses++;
+        }
+        // Round PnL values
+        for (const d of Object.keys(data)) data[d].pnl = parseFloat(data[d].pnl.toFixed(2));
+        // Fallback: also include AgentSession data if no trades found
+        if (!trades.length) {
+            const sessions = await AgentSession.find({ userId: req.appUserId, date: { $exists: true } }).lean();
+            for (const s of sessions) {
+                if (!s.date) continue;
+                data[s.date] = {
+                    pnl:    parseFloat((s.totalPnl || 0).toFixed(2)),
+                    trades: s.tradesTaken || 0,
+                    wins:   s.wins || 0,
+                    losses: s.losses || 0,
+                };
+            }
+        }
+        res.json({ ok: true, data });
     } catch (e) { res.status(500).json({ ok: false, error: e.message }); }
 });
 
@@ -2074,15 +1198,15 @@ app.post('/api/autopilot/stop', async (req, res) => {
 
 // ── Scan Setups ────────────────────────────────────────────────
 const setupsScanRunning = new Set();
-app.post('/api/scan/setups', checkPremium, async (req, res) => {
+app.post('/api/scan/setups', async (req, res) => {
     const uid = req.appUserId;
     if (setupsScanRunning.has(uid)) return res.json({ ok: false, error: 'Scan already in progress' });
     try {
-        const user = await User.findById(uid).select('accountTier').lean();
         const { runHardFilterScan } = require('./coinScanner');
+        const agDoc = await AgentSettings.findOne({ userId: uid }).lean();
         setupsScanRunning.add(uid);
         res.json({ ok: true });
-        runHardFilterScan({ accountTier: user?.accountTier || 'free' }, (event, data) => {
+        runHardFilterScan(agDoc || {}, (event, data) => {
             io.to(uid).emit(event, data);
         }).catch(e => {
             io.to(uid).emit('setups:done', { error: e.message, candidates: [] });
@@ -2200,35 +1324,8 @@ app.post('/api/ai/test', requireActiveAuth, async (req, res) => {
     } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
-app.get('/api/analysis/usage', requireActiveAuth, async (req, res) => {
-    try {
-        const user = await User.findById(req.appUserId).select('accountTier aiAnalysisCount aiAnalysisDate aiAnalysisTimezone').lean();
-        if (!user) return res.status(401).json({ error: 'Not authenticated' });
-
-        const tz = normalizeTimezone(user.aiAnalysisTimezone || 'UTC');
-        const today = getTodayInTimezone(tz);
-        const resetNeeded = user.aiAnalysisDate !== today;
-        const used = resetNeeded ? 0 : (user.aiAnalysisCount || 0);
-
-        if (resetNeeded) {
-            await User.findByIdAndUpdate(req.appUserId, { aiAnalysisCount: 0, aiAnalysisDate: today, aiAnalysisTimezone: tz });
-        }
-
-        const isPremium = user.accountTier === 'premium';
-        res.json({
-            used: isPremium ? 0 : used,
-            limit: 3,
-            isPremium,
-            resetsAt: getNextMidnightIsoForTimezone(tz),
-            timezone: tz,
-        });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
 // Proxy AI analysis — frontend sends prompt, server calls selected provider
-async function handleAiAnalyze(req, res) {
+app.post('/api/ai/analyze', requireActiveAuth, async (req, res) => {
     try {
         const { prompt } = req.body;
         if (!prompt) return res.status(400).json({ ok: false, error: 'No prompt provided' });
@@ -2243,24 +1340,12 @@ async function handleAiAnalyze(req, res) {
             }
         }
         const raw = await analyzeWithAI(prompt, settings);
-
-        if (!req.aiLimit?.isPremium) {
-            await User.findByIdAndUpdate(req.appUserId, {
-                aiAnalysisCount: (req.aiLimit?.used || 0) + 1,
-                aiAnalysisDate: req.aiLimit?.today || getTodayInTimezone(req.aiLimit?.timezone || 'UTC'),
-                aiAnalysisTimezone: req.aiLimit?.timezone || 'UTC',
-            });
-        }
-
         res.json({ ok: true, result: raw });
     } catch(e) {
         const msg = e.message || 'AI analysis failed';
         res.json({ ok: false, error: msg });
     }
-}
-
-app.post('/api/ai/analyze', requireActiveAuth, checkAiAnalysisLimit, handleAiAnalyze);
-app.post('/api/analysis/analyze', requireActiveAuth, checkAiAnalysisLimit, handleAiAnalyze);
+});
 
 // ═══════════════════════════════════════════════════════════════
 //  SPA PAGE ROUTES
@@ -2283,9 +1368,6 @@ app.get('/refund',      (req, res) => res.sendFile(PUB('refund.html')));
 // Requires login but not active license
 app.get('/license',   requireAuth, (req, res) => res.sendFile(PUB('license.html')));
 app.get('/suspended', requireAuth, (req, res) => res.sendFile(PUB('suspended.html')));
-app.get('/payment',   requireAuth, (req, res) => res.sendFile(PUB('payment.html')));
-app.get('/payments',  requireAuth, (req, res) => res.redirect('/payment'));
-app.get('/referral',  requireAuth, (req, res) => res.redirect('/dashboard'));
 
 // Admin only
 app.get('/admin', requireAdmin, (req, res) => res.sendFile(PUB('admin.html')));
@@ -2298,6 +1380,7 @@ app.get('/dashboard',  requireActiveAuth, (req, res) => res.sendFile(DASHBOARD))
 app.get('/scanner',    requireActiveAuth, (req, res) => res.sendFile(PUB('index.html')));
 app.get('/settings',   requireActiveAuth, (req, res) => res.sendFile(SETTINGS));
 app.get('/terminal',   requireActiveAuth, (req, res) => res.sendFile(TERMINAL));
+app.get('/agent',      requireActiveAuth, (req, res) => res.sendFile(PUB('agent.html')));
 app.get('/setups',     requireActiveAuth, (req, res) => res.sendFile(PUB('setups.html')));
 app.get('/coin-detail',requireActiveAuth, (req, res) => res.sendFile(PUB('pages/coin-detail.html')));
 app.get('/calendar',   requireActiveAuth, (req, res) => res.sendFile(PUB('calendar.html')));
@@ -2364,65 +1447,11 @@ connectDB()
         // Drop stale singleton_1 index from AppSettings (leftover from old schema)
         try { await AppSettings.collection.dropIndex('singleton_1'); } catch (_) {}
         await createAdminIfNeeded();
-        // One-time cleanup for removed social posting collections
-        try {
-            await mongoose.connection.db.collection('twi' + 'ttersettings').deleteMany({});
-            await mongoose.connection.db.collection('twi' + 'tterposthistories').deleteMany({});
-        } catch (e) {
-            console.warn('[Startup cleanup] Removed collections cleanup skipped:', e.message);
-        }
-        // One-time cleanup for removed AI Agent collections
-        try {
-            const cleanupKey = '__agent_cleanup_done__';
-            const done = await AppSettings.findOne({ key: cleanupKey }).lean();
-            if (!done) {
-                const namesToDrop = ['agenttrades', 'agentsettings', 'agentlogs', 'agentsessions', 'agentstates'];
-                const existing = await mongoose.connection.db.listCollections().toArray();
-                const existingSet = new Set(existing.map(c => c.name));
-                for (const name of namesToDrop) {
-                    if (existingSet.has(name)) await mongoose.connection.db.dropCollection(name);
-                }
-                await AppSettings.updateOne(
-                    { key: cleanupKey },
-                    { $set: { value: new Date().toISOString() } },
-                    { upsert: true }
-                );
-            }
-        } catch (e) {
-            console.warn('[Startup cleanup] Agent collections cleanup skipped:', e.message);
-        }
-        // ── Migrate existing premium license users to new tier system ──
-        try {
-            const migrationKey = '__premium_tier_migration_done__';
-            const migrated = await AppSettings.findOne({ key: migrationKey }).lean();
-            if (!migrated) {
-                const result = await User.updateMany(
-                    { licenseStatus: 'active' },
-                    { 
-                        $set: { 
-                            accountTier: 'premium',
-                            premiumActivatedAt: new Date(),
-                            premiumPlan: 'lifetime'
-                        } 
-                    }
-                );
-                console.log(`[Startup migration] Upgraded ${result.modifiedCount} users with active licenses to premium tier`);
-                await AppSettings.updateOne(
-                    { key: migrationKey },
-                    { $set: { value: new Date().toISOString() } },
-                    { upsert: true }
-                );
-            }
-        } catch (e) {
-            console.warn('[Startup migration] Premium tier migration skipped:', e.message);
-        }
         httpServer.listen(PORT, () => {
-            console.log(`\n╔═══════════════════════════════════════════════════╗`);
-            console.log(`║  🚀 RSI + MACD Scanner running at http://localhost:${PORT}  ║`);
-            console.log(`║  ✅ SETUPS ROUTES REGISTERED (before middleware)   ║`);
-            console.log(`╚═══════════════════════════════════════════════════╝\n`);
+            console.log(`RSI + MACD Scanner running at http://localhost:${PORT}`);
         });
         await autopilot.resumeOnBoot();
+        await dayAgent.resumeOnBoot();
         await strategyBot.resumeActiveBots();
         setInterval(checkPriceAlerts, 30000);
     })
@@ -2430,4 +1459,3 @@ connectDB()
         console.error('Failed to connect to MongoDB:', err.message);
         process.exit(1);
     });
-

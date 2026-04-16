@@ -6,6 +6,7 @@ const { Strategy, BotTrade, BybitStore } = require('./models');
 const { Settings, BotLog }               = require('./models');
 const notifier                            = require('./notifier');
 const { sendStrategyBotAlert }            = require('./discordNotifier');
+const { sendStrategyBotAlert: sendTelegramStrategyBotAlert } = {} //;
 const {
     calcEMASeries,
     calcSMASeries,
@@ -688,6 +689,16 @@ async function getStrategyBotWebhook(userId) {
     } catch (_) { return null; }
 }
 
+async function getTelegramBotSettings(userId) {
+    try {
+        const settings = await Settings.findOne({ userId }).lean();
+        const telegram = settings?.telegram;
+        if (!telegram?.chatId) return null;
+        if (telegram?.alerts?.strategyBotAlerts === false) return null;
+        return { botToken: require('./telegramBot').getBotToken(), chatId: telegram.chatId };
+    } catch (_) { return null; }
+}
+
 async function checkClosedTrades(userId, store, strategyId) {
     if (!store) return;
     const openTrades = await BotTrade.find({ userId, strategyId, status: 'open' }).lean().catch(() => []);
@@ -696,6 +707,7 @@ async function checkClosedTrades(userId, store, strategyId) {
     const openSymbols    = new Set(bybitPositions.map(p => p.symbol));
 
     const webhook     = await getStrategyBotWebhook(userId);
+    const tgSettings  = await getTelegramBotSettings(userId);
     const strategyDoc = await Strategy.findById(strategyId).lean().catch(() => null);
 
     for (const trade of openTrades) {
@@ -726,6 +738,13 @@ async function checkClosedTrades(userId, store, strategyId) {
 
         if (webhook) {
             sendStrategyBotAlert(webhook, closeType, {
+                symbol: trade.symbol, direction: trade.side,
+                entryPrice: trade.entryPrice, exitPrice,
+                pnl, pnlPct, strategyName: strategyDoc?.name,
+            }).catch(() => {});
+        }
+        if (tgSettings) {
+            sendTelegramStrategyBotAlert(tgSettings.botToken, tgSettings.chatId, closeType, {
                 symbol: trade.symbol, direction: trade.side,
                 entryPrice: trade.entryPrice, exitPrice,
                 pnl, pnlPct, strategyName: strategyDoc?.name,
@@ -955,6 +974,12 @@ async function runScanCycle(userId) {
                                 sl, tp, qty, strategyName: strategy.name,
                             }).catch(() => {});
                         }).catch(() => {});
+                        getTelegramBotSettings(userId).then(tg => {
+                            if (tg) sendTelegramStrategyBotAlert(tg.botToken, tg.chatId, 'trade_placed', {
+                                symbol: sym, direction: dir, entryPrice: ind.price,
+                                sl, tp, qty, strategyName: strategy.name,
+                            }).catch(() => {});
+                        }).catch(() => {});
                         foundSignals++;
                     } catch (e) {
                         addLog(userId, 'error', `Order failed ${sym}: ${e.message}`);
@@ -1047,6 +1072,13 @@ async function startBot(userId, strategyId) {
         // Discord bot start notification
         getStrategyBotWebhook(userId).then(wh => {
             if (wh) sendStrategyBotAlert(wh, 'bot_start', {
+                strategyName: strategy?.name,
+                timeframe:    strategy?.timeframe || '5m',
+                coinCount:    (strategy?.coins || []).length,
+            }).catch(() => {});
+        }).catch(() => {});
+        getTelegramBotSettings(userId).then(tg => {
+            if (tg) sendTelegramStrategyBotAlert(tg.botToken, tg.chatId, 'bot_start', {
                 strategyName: strategy?.name,
                 timeframe:    strategy?.timeframe || '5m',
                 coinCount:    (strategy?.coins || []).length,
@@ -1156,6 +1188,16 @@ async function closeTradeManually(userId, tradeId) {
         if (!wh) return;
         const strategyDoc = await Strategy.findById(trade.strategyId).lean().catch(() => null);
         sendStrategyBotAlert(wh, 'manual_close', {
+            symbol: trade.symbol, direction: trade.side,
+            entryPrice: trade.entryPrice, exitPrice,
+            pnl, pnlPct, strategyName: strategyDoc?.name,
+        }).catch(() => {});
+    }).catch(() => {});
+
+    getTelegramBotSettings(userId).then(async tg => {
+        if (!tg) return;
+        const strategyDoc = await Strategy.findById(trade.strategyId).lean().catch(() => null);
+        sendTelegramStrategyBotAlert(tg.botToken, tg.chatId, 'manual_close', {
             symbol: trade.symbol, direction: trade.side,
             entryPrice: trade.entryPrice, exitPrice,
             pnl, pnlPct, strategyName: strategyDoc?.name,
