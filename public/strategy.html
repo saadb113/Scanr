@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Strategy Builder — Monty</title>
+  <title>Strategy Builder — SCANR</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
   <style>
@@ -623,7 +623,7 @@
       border-radius: 12px;
       padding: 1.5rem;
       min-width: 340px;
-      max-width: 480px;
+      max-width: 850px;
       width: 100%;
       position: relative;
     }
@@ -881,7 +881,7 @@
 
     /* ── Bot Modal ── */
     #botModal .strat-modal {
-      width: min(820px, 96vw); max-height: 92vh;
+      width: 90vw; max-height: 92vh;
       display: flex; flex-direction: column;
       padding: 0; overflow: hidden;
       background: #1a1d26; border-color: #2b2f3e;
@@ -978,10 +978,11 @@
     .bot-toggle input:checked + .bot-toggle-slider::before { transform: translateX(16px); background: #0ecb81; }
   </style>
 </head>
-<body>
+<body data-premium-page="strategy">
   <script src="/js/nav.js"></script>
   <script src="/js/session-check.js"></script>
 
+  <div class="page-content">
   <div class="strat-page">
 
     <!-- Top bar -->
@@ -995,9 +996,9 @@
           <option value="">Switch Strategy…</option>
         </select>
         <button class="strat-btn primary" onclick="stratNew()">+ New</button>
-        <button class="strat-btn accent" onclick="stratSave()">💾 Save</button>
-        <button class="strat-btn accent" onclick="openPineModal()">📜 Pine Script</button>
-        <button class="strat-btn accent" onclick="openBotModal()">🤖 Bot</button>
+        <button class="strat-btn accent" onclick="stratSave()"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+        <button class="strat-btn accent" onclick="openPineModal()"><i class="fa-solid fa-code"></i> Pine Script</button>
+        <button class="strat-btn accent" onclick="openBotModal()"><i class="fa-solid fa-robot" ></i> Bot</button>
         <button class="strat-btn danger" id="stratDeleteBtn" onclick="stratDelete()" >Delete</button>
       </div>
     </div>
@@ -1017,7 +1018,7 @@
       <div class="strat-canvas">
 
         <div class="strat-zone strat-zone-filters" id="zoneFilters">
-          <div class="strat-zone-header"><span class="zh-emoji">📋</span> Filters <small style="color:#4a5568;font-weight:500;font-size:0.68rem;margin-left:auto">All must pass before IF blocks run</small></div>
+          <div class="strat-zone-header"><span class="zh-emoji"><i class="fa-solid fa-filter" ></i></span> Filters <small style="color:#4a5568;font-weight:500;font-size:0.68rem;margin-left:auto">All must pass before IF blocks run</small></div>
           <div class="strat-zone-drop drop-zone" id="dropFilters" data-zone="filters" data-zone-key="filters"
                ondragover="stratDragOver(event)" ondrop="stratDrop(event,'filters')" ondragleave="stratDragLeave(event)">
             <div class="strat-zone-empty" id="emptyFilters">Drag filter blocks here</div>
@@ -1577,7 +1578,12 @@
     obs.observe(lib, { childList: true });
   })();
   </script>
-
+  <script>
+    (async function checkPremiumAccess() {
+      await window.enforcePremiumAccess(typeof window.initPage === 'function' ? window.initPage : null);
+    })();
+  </script>
+  </div><!-- /page-content -->
 <!-- AI Chatbot Widget -->
 <div id="ai-chatbot-widget" class="ai-chatbot-widget">
   <div id="chatbot-toggle" class="chatbot-toggle">
@@ -1715,3 +1721,4 @@ window.addEventListener('load', () => {
 </script>
 </body>
 </html>
+

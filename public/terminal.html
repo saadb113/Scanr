@@ -118,7 +118,7 @@
     }
     .byt-order-sidebar::-webkit-scrollbar { width: 4px; }
     .byt-order-sidebar::-webkit-scrollbar-track { background: transparent; }
-    .byt-order-sidebar::-webkit-scrollbar-thumb { background: var(--byt-border); border-radius: 2px; }
+    .byt-order-sidebar::-webkit-scrollbar-thumb { background: var(--accent-green, #00e5a0); border-radius: 2px; }
 
     .byt-order-body { padding: 0.8rem 0.85rem; flex: 1; }
 
@@ -384,6 +384,22 @@
     }
     .ap-mode-btn.manual.active    { background: var(--byt-card); color: var(--byt-text); }
     .ap-mode-btn.autopilot.active { background: rgba(124,58,237,0.2); color: #a855f7; }
+    .ap-info-tip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      margin-left: 0.35rem;
+      border: 1px solid rgba(168,85,247,0.45);
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      color: #a855f7;
+      background: rgba(124,58,237,0.1);
+      cursor: help;
+    }
 
     /* ── Place button ── */
     .byt-place-btn {
@@ -415,7 +431,7 @@
       cursor: pointer;
       outline: none;
     }
-    .byt-ai-tf-sel:focus { border-color: rgba(168,85,247,0.5); }
+    .byt-ai-tf-sel:focus { border-color: rgba(0,229,160,0.55); }
 
     /* ── Bottom section ── */
     .byt-bottom-section {
@@ -507,7 +523,8 @@
     .ap-milestone-label { position: absolute; top: -18px; left: 2px; font-size: 9px; color: #4a5568; white-space: nowrap; }
     .ap-log { background: var(--byt-bg); border: 1px solid var(--byt-border); border-radius: 6px; padding: 0.5rem; max-height: 140px; overflow-y: auto; font-size: 11px; }
     .ap-log::-webkit-scrollbar { width: 3px; }
-    .ap-log::-webkit-scrollbar-thumb { background: var(--byt-border); }
+    .ap-log::-webkit-scrollbar-track { background: transparent; }
+    .ap-log::-webkit-scrollbar-thumb { background: var(--accent-green, #00e5a0); }
     .ap-log-row { display: flex; gap: 0.5rem; margin-bottom: 0.2rem; }
     .ap-log-row:last-child { margin-bottom: 0; }
     .ap-log-time { color: #4a5568; font-family: var(--byt-mono); }
@@ -543,9 +560,10 @@
     }
   </style>
 </head>
-<body>
+<body data-premium-page="terminal">
 <script src="/js/nav.js"></script>
 
+<div class="page-content">
 <div id="bybitTerminal" class="bybit-terminal">
 
   <!-- Global notification bar -->
@@ -748,8 +766,8 @@
 
         <!-- Futures / Spot -->
         <div class="byt-cat-toggle">
-          <button id="bytCatFutures" onclick="bytSetCategory('linear')" class="byt-cat-btn active">📈 Futures</button>
-          <button id="bytCatSpot"    onclick="bytSetCategory('spot')"   class="byt-cat-btn">💱 Spot</button>
+          <button id="bytCatFutures" onclick="bytSetCategory('linear')" class="byt-cat-btn active"><i class="fa-solid fa-chart-area" ></i> Futures</button>
+          <button id="bytCatSpot"    onclick="bytSetCategory('spot')"   class="byt-cat-btn"><i class="fa-solid fa-sack-dollar" ></i> Spot</button>
         </div>
 
         <!-- Long / Short -->
@@ -781,40 +799,14 @@
           <input id="bytEntry" class="byt-input" type="number" placeholder="0.00" step="any">
         </div>
 
-        <!-- Quantity -->
+        <!-- Amount (USDT Cost) -->
         <div class="byt-field">
-          <label>Amount</label>
-          <div class="byt-qty-tabs">
-            <button class="byt-qty-mode active" data-mode="qty"    onclick="bytSetQtyMode('qty')">QTY</button>
-            <button class="byt-qty-mode"        data-mode="cost"   onclick="bytSetQtyMode('cost')">COST $</button>
-            <button class="byt-qty-mode"        data-mode="margin" onclick="bytSetQtyMode('margin')">MARGIN $</button>
-            <button class="byt-qty-mode"        data-mode="risk"   onclick="bytSetQtyMode('risk')">RISK %</button>
+          <label>Amount (USDT Cost)</label>
+          <div id="bytQtyRow_cost">
+            <input id="bytQtyCost" class="byt-input" type="number" placeholder="Enter amount in USDT" step="any" oninput="bytCalcFromCost()">
           </div>
-          <div id="bytQtyRow_qty">
-            <input id="bytQty" class="byt-input" type="number" placeholder="Contracts e.g. 0.5" step="any" oninput="bytUpdateSummary()">
-          </div>
-          <div id="bytQtyRow_cost" style="display:none">
-            <input id="bytQtyCost" class="byt-input" type="number" placeholder="Total order value in USDT" step="any" oninput="bytCalcFromCost()">
-          </div>
-          <div id="bytQtyRow_margin" style="display:none">
-            <input id="bytQtyMargin" class="byt-input" type="number" placeholder="Margin amount in USDT" step="any" oninput="bytCalcFromMargin()">
-          </div>
-          <div id="bytQtyRow_risk" style="display:none">
-            <div style="display:flex;align-items:center;gap:0.5rem">
-              <input type="range" id="bytQtyRiskSlider" min="0.1" max="10" step="0.1" value="1" style="flex:1;accent-color:#f0b90b" oninput="el('bytQtyRiskVal').textContent=parseFloat(this.value).toFixed(1)+'%';bytCalcFromRisk()">
-              <span id="bytQtyRiskVal" style="color:#f0b90b;font-weight:700;font-size:13px;min-width:38px;text-align:right;font-family:var(--byt-mono)">1.0%</span>
-            </div>
-            <div id="bytQtyRiskNote" style="font-size:11px;color:#4a5568;margin-top:0.2rem"></div>
-          </div>
+          <input id="bytQty" type="hidden" value="">
           <div id="bytQtyHint" style="font-size:11px;color:#4a5568;margin-top:0.25rem;min-height:13px;font-family:var(--byt-mono)"></div>
-        </div>
-
-        <!-- % quick-fill -->
-        <div class="byt-pct-row">
-          <button class="byt-pct-btn" onclick="bytFillPct(25)">25%</button>
-          <button class="byt-pct-btn" onclick="bytFillPct(50)">50%</button>
-          <button class="byt-pct-btn" onclick="bytFillPct(75)">75%</button>
-          <button class="byt-pct-btn" onclick="bytFillPct(100)">100%</button>
         </div>
 
         <!-- Leverage -->
@@ -885,11 +877,11 @@
         <!-- Manual / Autopilot -->
         <div id="bytApModeWrap">
           <div class="ap-mode-toggle">
-            <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')">✋ Manual</button>
-            <button class="ap-mode-btn autopilot"     id="apModeAutoBtn"   onclick="apSetMode('autopilot')">🤖 Autopilot</button>
+            <button class="ap-mode-btn manual active" id="apModeManualBtn" onclick="apSetMode('manual')"><i class="fa-solid fa-hand"></i> Manual</button>
+            <button class="ap-mode-btn autopilot" id="apModeAutoBtn" onclick="apSetMode('autopilot')"><i class="fa-solid fa-robot" ></i> Auto Mode <span class="ap-info-tip" title="Auto Mode places your order and automatically starts SL/TP milestone monitoring. It requires both SL and TP.">i</span></button>
           </div>
           <div id="apModeHint" style="display:none;font-size:11px;color:#a855f7;margin-top:0.35rem;padding:0.35rem 0.5rem;background:rgba(124,58,237,0.08);border-radius:4px;border:1px solid rgba(124,58,237,0.2);line-height:1.5">
-            🤖 Order will be placed and autopilot will automatically monitor SL/TP milestones. Requires both SL and TP.
+            <i class="fa-solid fa-robot" ></i> Order will be placed and Auto Mode will automatically monitor SL/TP milestones. Requires both SL and TP.
           </div>
         </div>
 
@@ -901,7 +893,7 @@
 
         <!-- AI Analysis -->
         <div style="border-top:1px solid #2b2f3e;margin-top:0.85rem;padding-top:0.75rem">
-          <div style="font-size:10px;font-weight:700;color:#848e9c;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem">🤖 AI Analysis</div>
+          <div style="font-size:10px;font-weight:700;color:#848e9c;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.4rem"><i class="fa-solid fa-robot" ></i> AI Analysis</div>
           <select id="bytAITfSel" class="byt-ai-tf-sel" onchange="bytSetAITf(this.value)">
             <option value="1" selected>1m</option>
             <option value="3">3m</option>
@@ -916,8 +908,9 @@
             <option value="M">1M</option>
           </select>
           <button id="bytAIBtn" onclick="bytRunAI()" style="width:100%;padding:0.5rem;background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.35);border-radius:4px;color:#a855f7;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">
-            🤖 Analyze with AI
+            <i class="fa-solid fa-robot" ></i> Analyze with AI
           </button>
+          <div id="bytAIUsage" style="margin-top:6px;font-size:11px;font-weight:700;color:#848e9c;text-align:center;display:none"></div>
           <div id="bytAIInfo" style="font-size:11px;color:#4a5568;margin-top:0.3rem;text-align:center">— select a coin first</div>
           <div id="bytAIPanel" style="display:none;margin-top:0.55rem;background:#0b0e11;border:1px solid #2b2f3e;border-radius:6px;padding:0.6rem"></div>
         </div>
@@ -962,6 +955,21 @@
     <input type="hidden" id="bytModOrdSym">
     <button onclick="bytSubmitModifyOrder()" style="background:#1d4ed8;color:#fff;border:none;border-radius:4px;padding:0.6rem;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit">Update Order</button>
     <div id="bytModOrdMsg" style="display:none;font-size:12px;font-weight:600;text-align:center;padding:0.4rem;border-radius:4px"></div>
+  </div>
+</div>
+
+<div id="bytAiLimitModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3300;align-items:center;justify-content:center;padding:16px">
+  <div style="width:min(420px,95vw);background:#121826;border:1px solid #2b3242;border-radius:12px;padding:18px 16px;color:#dde4f0">
+    <div style="font-size:18px;font-weight:800;margin-bottom:10px"><i class="fa-solid fa-robot" ></i> Daily Limit Reached</div>
+    <div style="font-size:13px;color:#9aa3b5;line-height:1.65;margin-bottom:14px">
+      Free users get 3 AI analyses per day.<br><br>
+      Your limit resets at midnight (your timezone).<br><br>
+      Upgrade to Premium for unlimited AI analysis 🚀
+    </div>
+    <div style="display:grid;grid-template-columns:1fr;gap:8px">
+      <button onclick="window.location.href='/pricing'" style="padding:11px 12px;background:#00e5a0;color:#041017;border:none;border-radius:8px;font-weight:800;cursor:pointer"><i class="fa-solid fa-rocket" ></i> Upgrade to Premium</button>
+      <button onclick="document.getElementById('bytAiLimitModal').style.display='none'" style="padding:10px 12px;background:#1b2433;color:#c9d1e2;border:1px solid #2f3a4d;border-radius:8px;font-weight:700;cursor:pointer">Maybe Later</button>
+    </div>
   </div>
 </div>
 
@@ -1033,7 +1041,22 @@
 
   // Init on load
   document.addEventListener('DOMContentLoaded', function() {
-    bytInitTvWidget('BTCUSDT');
+    const urlParams = new URLSearchParams(window.location.search || '');
+    const requested = (urlParams.get('symbol') || '').trim().toUpperCase();
+    const startSym = requested ? (requested.endsWith('USDT') ? requested : requested + 'USDT') : 'BTCUSDT';
+    const startBase = startSym.replace('USDT', '');
+
+    window.currentSymbol = startSym;
+    bytInitTvWidget(startSym);
+    // Default order form symbol
+    if (typeof bytSelectSym === 'function') {
+      bytSelectSym(startSym);
+    } else {
+      const symInput = document.getElementById('bytSymbol');
+      const symLabel = document.getElementById('bytSymLabel');
+      if (symInput) symInput.value = startBase;
+      if (symLabel) symLabel.textContent = `${startBase}/USDT`;
+    }
 
     // Sync symbol label → TV chart and read-only spans
     const symLabel = document.getElementById('bytSymLabel');
@@ -1074,10 +1097,64 @@
         }
       });
     }
+
+    bytFetchAIUsage();
   });
 
   // ── AI Analysis ──────────────────────────────────────────────
   let _bytAITf = '60';
+  let _bytAIUsage = null;
+
+  function bytClientTimezone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+    catch (_) { return 'UTC'; }
+  }
+
+  function bytShowAiLimitModal() {
+    const md = document.getElementById('bytAiLimitModal');
+    if (md) md.style.display = 'flex';
+  }
+
+  async function bytFetchAIUsage() {
+    try {
+      const res = await fetch('/api/analysis/usage', { cache: 'no-store' });
+      if (!res.ok) return null;
+      _bytAIUsage = await res.json();
+      bytRenderAIUsage();
+      return _bytAIUsage;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function bytRenderAIUsage() {
+    const usageEl = document.getElementById('bytAIUsage');
+    const btn = document.getElementById('bytAIBtn');
+    if (!usageEl || !btn || !_bytAIUsage) return;
+    if (_bytAIUsage.isPremium) {
+      usageEl.style.display = 'block';
+      usageEl.style.color = '#0ecb81';
+      usageEl.textContent = 'AI ∞';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.title = 'Analyze with AI (Unlimited)';
+      return;
+    }
+    const used = Number(_bytAIUsage.used || 0);
+    const limit = Number(_bytAIUsage.limit || 3);
+    const reached = used >= limit;
+    let color = '#0ecb81';
+    if (reached) color = '#f6465d';
+    else if (used >= limit - 1) color = '#f0b90b';
+    usageEl.style.display = 'block';
+    usageEl.style.color = color;
+    usageEl.textContent = reached ? `AI ${limit}/${limit} • limit` : `AI ${used}/${limit}`;
+    btn.disabled = false;
+    btn.style.opacity = reached ? '0.6' : '1';
+    btn.style.cursor = reached ? 'not-allowed' : 'pointer';
+    btn.title = reached ? 'Daily limit reached (3/3) Resets at midnight your time' : 'Analyze with AI';
+  }
 
   function bytSetAITf(tf) {
     _bytAITf = tf;
@@ -1101,18 +1178,23 @@
     const panel = document.getElementById('bytAIPanel');
     const info  = document.getElementById('bytAIInfo');
 
+    if (_bytAIUsage && !_bytAIUsage.isPremium && Number(_bytAIUsage.used || 0) >= Number(_bytAIUsage.limit || 3)) {
+      bytShowAiLimitModal();
+      return;
+    }
+
     btn.disabled = true; btn.textContent = '⏳ Analyzing…';
     if (info) info.textContent = `${fullSym.replace('USDT','')} · ${tfLabel}`;
     panel.style.display = 'block';
     panel.innerHTML = '<div style="text-align:center;padding:0.75rem;color:#848e9c;font-size:12px">Fetching klines…</div>';
 
     try {
-      const bybitBase = 'https://api.bybit.com';
-      const klRes = await fetch(`${bybitBase}/v5/market/kline?category=linear&symbol=${fullSym}&interval=${tf}&limit=100`);
+      const tfMap = {'1':'1m','3':'3m','5':'5m','15':'15m','30':'30m','45':'45m','60':'1h','240':'4h','D':'1d','W':'1w','M':'1M'};
+      const klRes = await fetch(`/api/proxy/binance?path=/fapi/v1/klines&symbol=${fullSym}&interval=${tfMap[tf] || tf}&limit=100`);
       const klData = await klRes.json();
-      if (klData.retCode !== 0 || !klData.result?.list?.length) throw new Error('Failed to fetch klines for ' + fullSym);
+      if (!Array.isArray(klData) || !klData.length) throw new Error('Failed to fetch klines for ' + fullSym);
 
-      const ohlcv  = klData.result.list.slice().reverse().map(c => [+c[1],+c[2],+c[3],+c[4],+c[5]]);
+      const ohlcv  = klData.map(c => [+c[1],+c[2],+c[3],+c[4],+c[5]]);
       const closes = ohlcv.map(c => c[3]);
       const price  = closes[closes.length - 1];
 
@@ -1163,13 +1245,18 @@ ${candleTable}
 Respond ONLY in this exact JSON (no markdown):
 {"direction":"LONG or SHORT or NEUTRAL","entry":<number>,"tp":<number>,"sl":<number>,"rr":"<e.g. 1:2.3>","confidence":"LOW or MEDIUM or HIGH","reasoning":"<3-5 sentences>"}`;
 
-      panel.innerHTML = '<div style="text-align:center;padding:0.75rem;color:#a855f7;font-size:12px">🤖 Asking AI…</div>';
+      panel.innerHTML = '<div style="text-align:center;padding:0.75rem;color:#a855f7;font-size:12px"><i class="fa-solid fa-robot" ></i> Asking AI…</div>';
       const aiRes = await fetch('/api/ai/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, timezone: bytClientTimezone() }),
       });
       const aiData = await aiRes.json();
+      if (aiRes.status === 429 || aiData?.error === 'limit_reached') {
+        await bytFetchAIUsage();
+        bytShowAiLimitModal();
+        throw new Error(aiData.message || 'Daily AI analysis limit reached');
+      }
       if (!aiRes.ok) throw new Error(aiData.error || `Server error ${aiRes.status}`);
       const raw = aiData.result || '';
       let r;
@@ -1192,10 +1279,16 @@ Respond ONLY in this exact JSON (no markdown):
         </div>
         <div style="font-size:11px;color:#848e9c;line-height:1.55;margin-bottom:0.4rem;max-height:80px;overflow-y:auto">${(r.reasoning||'').replace(/\n/g,'<br>')}</div>
         ${dir!=='NEUTRAL'&&r.entry&&r.sl?`<button onclick="bytApplyAI(${+r.entry||0},${+r.sl||0},${+r.tp||0},'${dir}')" style="width:100%;padding:0.3rem;background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#a855f7;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">⚡ Apply to Order Form</button>`:''}`;
+      if (_bytAIUsage && !_bytAIUsage.isPremium) {
+        _bytAIUsage.used = Number(_bytAIUsage.used || 0) + 1;
+        bytRenderAIUsage();
+      } else {
+        bytFetchAIUsage();
+      }
     } catch(err) {
       panel.innerHTML = `<div style="color:#f6465d;font-size:12px;padding:0.5rem">✗ ${err.message}</div>`;
     } finally {
-      btn.disabled = false; btn.textContent = '🤖 Analyze with AI';
+      btn.disabled = false; btn.textContent = '<i class="fa-solid fa-robot" ></i> Analyze with AI';
     }
   }
 
@@ -1322,7 +1415,12 @@ Respond ONLY in this exact JSON (no markdown):
   })();
 </script>
 <script src="/js/session-check.js"></script>
-
+<script>
+  (async function checkPremiumAccess() {
+    await window.enforcePremiumAccess(typeof window.initPage === 'function' ? window.initPage : null);
+  })();
+</script>
+</div><!-- /page-content -->
 <!-- AI Chatbot Widget -->
 <div id="ai-chatbot-widget" style="position:fixed;bottom:20px;right:20px;z-index:9999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif"><div id="chatbot-toggle" style="width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(102,126,234,0.4);transition:all 0.3s ease;position:relative"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="unread-badge" id="chatbot-unread-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#ff4757;color:white;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold">1</span></div><div id="chatbot-window" style="display:none;position:absolute;bottom:90px;right:0;width:400px;height:600px;background:white;border-radius:12px;box-shadow:0 5px 40px rgba(0,0,0,0.16);flex-direction:column;overflow:hidden;animation:slideUp 0.3s ease"><div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.1)"><div style="display:flex;gap:12px;align-items:center"><div style="font-size:28px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.2);border-radius:50%">🤖</div><div><h3 style="margin:0;font-size:16px;font-weight:600">Scanr AI Assistant</h3><p style="margin:2px 0 0 0;font-size:12px;opacity:0.9;display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;background:#2ed573;border-radius:50%;animation:pulse 2s infinite"></span>Online</p></div></div></div><div style="display:flex;gap:8px"><button id="chatbot-clear" style="background:0;border:0;color:white;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m1 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg></button><button id="chatbot-minimize" style="background:0;border:0;color:white;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:background 0.2s"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg></button></div></div><div id="chatbot-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#f8f9fa"><div style="text-align:center;padding:20px"><div style="font-size:48px;margin-bottom:12px">👋</div><h3 style="margin:0 0 8px 0;color:#333;font-size:18px">Welcome to Scanr AI!</h3><p style="margin:0 0 16px 0;color:#666;font-size:14px;line-height:1.5">Ask me about trading strategies, platform features, risk management, or technical analysis.</p></div></div><div style="display:flex;gap:8px;padding:12px;border-top:1px solid #e0e0e0;background:white"><input id="chatbot-input" type="text" placeholder="Ask me anything..." style="flex:1;border:1px solid #ddd;border-radius:20px;padding:10px 16px;font-size:14px;outline:0;font-family:inherit" autocomplete="off"/><button id="chatbot-send" style="background:#667eea;color:white;border:0;border-radius:50%;width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button></div><div id="chatbot-loading" style="display:none;justify-content:center;padding:12px"><div style="display:flex;gap:4px"><span style="width:8px;height:8px;background:#667eea;border-radius:50%;animation:typing 1.4s infinite"></span><span style="width:8px;height:8px;background:#667eea;border-radius:50%;animation:typing 1.4s infinite;animation-delay:0.2s"></span><span style="width:8px;height:8px;background:#667eea;border-radius:50%;animation:typing 1.4s infinite;animation-delay:0.4s"></span></div></div></div></div>
 
