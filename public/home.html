@@ -245,7 +245,7 @@
       max-width: 1180px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(4, 1fr);
     }
     .stat-item {
       padding: 30px 20px;
@@ -364,106 +364,152 @@
     .step p { font-size: 14px; color: var(--text-secondary); line-height: 1.7; }
 
     /* ─────────────────────────────────────
-       PRICING PREVIEW
+       PRICING PREVIEW (matches pricing page)
     ───────────────────────────────────── */
     .pricing-card {
       background: var(--bg-card);
-      border: 1.5px solid rgba(0,229,160,0.22);
-      border-radius: 20px;
-      max-width: 480px;
-      margin: 0 auto;
-      padding: 44px;
+      border: 1.5px solid rgba(0,229,160,0.35);
+      border-radius: 22px;
+      padding: 44px 44px 40px;
+      max-width: 460px;
+      width: 100%;
       text-align: center;
       position: relative;
-      overflow: hidden;
+      box-shadow: 0 0 60px rgba(0,229,160,0.08), 0 12px 48px rgba(0,0,0,0.4);
     }
     .pricing-card::before {
       content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(0,229,160,0.5), transparent);
+      position: absolute; inset: 0;
+      border-radius: 22px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(0,229,160,0.07) 0%, transparent 60%);
+      pointer-events: none;
     }
-    .pricing-chip {
-      display: inline-flex;
-      background: rgba(0,229,160,0.08);
-      border: 1px solid rgba(0,229,160,0.22);
+    .pc-badge {
+      display: inline-block;
+      background: rgba(0,229,160,0.12);
+      border: 1px solid rgba(0,229,160,0.3);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 5px 16px;
+      border-radius: 20px;
+      margin-bottom: 2rem;
+    }
+    .pc-discount-badge {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #ef4444;
+      color: #fff;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      display: none;
+    }
+    .pc-discount-badge.active { display: inline-block; }
+    .pc-original {
+      display: none;
+      margin-bottom: 4px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+    }
+    .pc-original.active { display: block; }
+    .pc-price-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 3px;
+      line-height: 1;
+      margin-bottom: 0.35rem;
+    }
+    .pc-currency {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 14px;
+    }
+    .pc-amount {
+      font-size: 5.5rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: -3px;
+    }
+    .pc-period {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin-bottom: 2rem;
+    }
+    .pc-sale-label {
+      display: none;
+      font-size: 12px;
+      color: #fca5a5;
+      font-weight: 700;
+      margin-top: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .pc-sale-label.active { display: block; }
+    .pc-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0 0 1.75rem;
+    }
+    .pc-features {
+      list-style: none;
+      text-align: left;
+      margin-bottom: 2.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.72rem;
+    }
+    .pc-features li {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      font-size: 14.5px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .pc-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(0,229,160,0.12);
+      border: 1.5px solid rgba(0,229,160,0.35);
       color: var(--accent);
       font-size: 11px;
       font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      padding: 5px 15px;
-      border-radius: 40px;
-      margin-bottom: 1.75rem;
-    }
-    .pricing-price {
-      font-size: 4.25rem;
-      font-weight: 800;
-      color: var(--accent);
-      letter-spacing: -0.045em;
-      line-height: 1;
-    }
-    .pricing-price sup {
-      font-size: 1.75rem;
-      vertical-align: top;
-      margin-top: 0.8rem;
-      display: inline-block;
-      font-weight: 700;
-    }
-    .pricing-period {
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin: 8px 0 1.875rem;
-    }
-    .pricing-list {
-      list-style: none;
-      text-align: left;
-      border-top: 1px solid var(--border);
-      padding-top: 1.5rem;
-      margin-bottom: 1.25rem;
-    }
-    .pricing-list li {
-      padding: 7px 0;
-      font-size: 14px;
-      color: var(--text-primary);
       display: flex;
       align-items: center;
-      gap: 10px;
-    }
-    .pricing-list li::before {
-      content: '';
-      display: inline-flex;
+      justify-content: center;
       flex-shrink: 0;
-      width: 18px; height: 18px;
-      border-radius: 50%;
-      background: rgba(0,229,160,0.08);
-      border: 1.5px solid rgba(0,229,160,0.28);
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 8' fill='none'%3E%3Cpath d='M1 4L3.5 6.5L9 1' stroke='%2300e5a0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: center;
     }
-    .pricing-note {
-      font-size: 12px;
-      color: var(--text-secondary);
-      margin-bottom: 1.75rem;
-      line-height: 1.6;
-    }
-    .pricing-btn {
-      display: block;
-      width: 100%;
-      padding: 15px;
+    .lp-wa-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
       background: var(--accent);
+      color: #fff;
       border: none;
-      border-radius: 10px;
+      border-radius: 11px;
+      padding: 15px 28px;
       font-size: 15px;
       font-weight: 700;
-      color: #000;
-      cursor: pointer;
       font-family: inherit;
+      cursor: pointer;
+      width: 100%;
       transition: opacity 0.15s, transform 0.15s;
+      text-decoration: none;
+      line-height: 1;
     }
-    .pricing-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+    .lp-wa-btn:hover { opacity: 0.88; transform: translateY(-1px); }
 
     /* ─────────────────────────────────────
        FAQ
@@ -690,7 +736,7 @@
     </nav>
     <div class="lp-header-btns">
       <a href="/login" class="lp-btn-outline">Sign In</a>
-      <a href="/register" class="lp-btn-filled">Get Started</a>
+      <a href="/register?plan=free" class="lp-btn-filled">Get Started</a>
     </div>
     <button class="lp-mobile-menu" id="lpMobileMenu">&#9776;</button>
   </div>
@@ -708,7 +754,7 @@
     <h1 class="hero-h1">Trade Smarter.<br><em>Not Harder.</em></h1>
     <p class="hero-p">AI-powered Professional crypto scanner built for serious traders.</p>
     <div class="hero-btns">
-      <a href="/register" class="btn-lg filled">Get Started &#8594;</a>
+      <a href="/register?plan=lifetime&redirect=payment" class="btn-lg filled">Get Started &#8594;</a>
       <a href="/features" class="btn-lg outline">View Features</a>
     </div>
   </div>
@@ -720,7 +766,7 @@
 <div class="stats-bar">
   <div class="stats-bar-inner">
     <div class="stat-item">
-      <div class="stat-value">50+</div>
+      <div class="stat-value">100+</div>
       <div class="stat-label">Coins Monitored</div>
     </div>
     <div class="stat-item">
@@ -734,10 +780,6 @@
     <div class="stat-item">
       <div class="stat-value">Bybit</div>
       <div class="stat-label">Integration + Discord Alerts</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-value">75+</div>
-      <div class="stat-label">AI Score Threshold</div>
     </div>
   </div>
 </div>
@@ -754,22 +796,18 @@
       <div class="feature-card fade-in">
         <span class="fc-icon">&#128269;</span>
         <h3>Smart Scanner</h3>
-        <p>Scan 50+ coins simultaneously with RSI, MACD, divergence detection and hard filter setup finder. Find high quality setups in seconds.</p>
+        <p>Scan 100+ coins simultaneously with RSI, MACD, divergence detection and hard filter setup finder. Find high quality setups in seconds.</p>
       </div>
+      
       <div class="feature-card fade-in">
-        <span class="fc-icon">&#129302;</span>
-        <h3>Multiple AI Models</h3>
-        <p>Choose from GLM-4.7-Flash (free), Kimi K2, or Claude Sonnet for instant trade analysis. Get entry, SL, TP, RR and reasoning in one click.</p>
-      </div>
-      <div class="feature-card fade-in">
-        <span class="fc-icon">&#129329;</span>
+        <span class="fc-icon">🧑‍💻</span>
         <h3>No-Code Strategy Builder</h3>
         <p>Build your own trading bot using drag and drop blocks — no coding required. Set conditions, actions, and let the bot trade automatically on Bybit.</p>
       </div>
       <div class="feature-card fade-in">
-        <span class="fc-icon">&#129504;</span>
-        <h3>AI Trading Agent</h3>
-        <p>Autonomous AI agent that hard-filters 50+ coins, scores each one using technical analysis + AI reasoning, and automatically places trades on coins scoring 75 or above. Runs 24/7 with built-in risk guardrails.</p>
+        <span class="fc-icon">📊</span>
+        <h3>Setup Finder</h3>
+        <p>Hard filter scanner finds only the highest quality tradeable setups using volume, ATR, trend alignment, and RSI confluence filters.</p>
       </div>
 
     </div>
@@ -791,7 +829,7 @@
         <div class="step fade-in">
           <div class="step-badge">1</div>
           <h3>Scan the Market</h3>
-          <p>Launch the real-time scanner and get instant signals across 50+ coins. RSI, MACD, divergences — all surfaced in one view, live.</p>
+          <p>Launch the real-time scanner and get instant signals across 100+ coins. RSI, MACD, divergences — all surfaced in one view, live.</p>
         </div>
         <div class="step fade-in">
           <div class="step-badge">2</div>
@@ -814,29 +852,53 @@
 <section class="lp-section lp-section-center">
   <div class="lp-section-inner">
     <span class="lp-label fade-in">Simple Pricing</span>
-    <h2 class="lp-h2 fade-in">One Plan. Full Access. Forever.</h2>
-    <p class="lp-sub fade-in">No subscriptions, no hidden fees. Pay once and trade for life.</p>
-    <div class="pricing-card fade-in">
-      <span class="pricing-chip">Lifetime Access</span>
-      <div class="pricing-price"><sup>$</sup>30</div>
-      <div class="pricing-period">one time payment</div>
-      <ul class="pricing-list">
-         <li><span class="pc-check"></span>All current features</li>
-      <li><span class="pc-check"></span>All future updates</li>
-      <li><span class="pc-check"></span>Bybit integration (Spot &amp; Futures)</li>
-      <li><span class="pc-check"></span>No-code strategy builder</li>
-      <li><span class="pc-check"></span>Live strategy bot</li>
-      <li><span class="pc-check"></span>AI Trading Agent</li>
-      <li><span class="pc-check"></span>Discord alerts + price alerts</li>
-      <li><span class="pc-check"></span>3 AI models (GLM free, Kimi, Claude)</li>
-      <li><span class="pc-check"></span>Prop firm challenge tracker</li>
-      <li><span class="pc-check"></span>Trade journal + PnL calendar</li>
-      <li><span class="pc-check"></span>Single license key</li>
-      <li><span class="pc-check"></span>WhatsApp support</li>
-   
-      </ul>
-      <p class="pricing-note">30-day happiness guarantee. Message us on WhatsApp if you are not satisfied.</p>
-      <a href="/pricing"><button class="pricing-btn">Get Access Now &#8594;</button></a>
+    <h2 class="lp-h2 fade-in">Choose Your Plan</h2>
+    <p class="lp-sub fade-in">Start free, upgrade anytime. No hidden fees or subscriptions.</p>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; width: 100%; max-width: 900px; margin: 2rem auto 0;">
+      <!-- FREE TIER -->
+      <div class="pricing-card fade-in" style="position: relative; opacity: 0.85;">
+        <div class="pc-badge" style="background: rgba(100, 120, 160, 0.2); color: var(--text-secondary);">Free</div>
+        <div style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin: 1rem 0 0.5rem;">$0</div>
+        <p class="pc-period">forever</p>
+        <hr class="pc-divider"/>
+        <ul class="pc-features" style="opacity: 0.8;">
+           <li><span class="pc-check">✓</span>Coin scanner </li>
+        <li><span class="pc-check">✓</span>Price alerts &amp; Discord alerts</li>
+        <li><span class="pc-check">✓</span>Challenge tracker </li>
+        <li><span class="pc-check">✓</span>3 Free AI Analysis/Day</li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Live trading terminal (Spot &amp; Futures)</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Strategy builder</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Strategy automation bot</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Apex Setup Scanner</span></li></ul>
+      <a href="/register?plan=free"><button class="lp-wa-btn" >Get Started Free</button></a>
+      </div>
+
+      <!-- PREMIUM TIER (Highlighted) -->
+      <div class="pricing-card fade-in" style="position: relative; border: 2px solid var(--accent); box-shadow: 0 0 32px rgba(0, 229, 160, 0.15);">
+        <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--accent), #00d18f); color: #0a0f16; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">★ POPULAR</div>
+        <div class="pc-badge">Lifetime Access</div>
+        <div class="pc-discount-badge" id="pcDiscountBadge"></div>
+        <div class="pc-original" id="pcOriginalPrice">$69</div>
+        <div class="pc-price-row">
+          <span class="pc-currency">$</span>
+          <span class="pc-amount" data-price="lifetime">49</span>
+        </div>
+        <div class="pc-sale-label" id="pcSaleLabel"></div>
+        <p class="pc-period">one time payment</p>
+        <hr class="pc-divider"/>
+        <ul class="pc-features">
+          <li><span class="pc-check">✓</span>Coin scanner </li>
+        <li><span class="pc-check">✓</span>Price alerts &amp; Discord alerts</li>
+        <li><span class="pc-check">✓</span>Challenge tracker </li>
+        <li><span class="pc-check">✓</span>Unlimited AI Analysis</li>
+        <li><span class="pc-check">✓</span>Live trading terminal (Spot &amp; Futures)</li>
+        <li><span class="pc-check">✓</span>Strategy builder</li>
+        <li><span class="pc-check">✓</span>Strategy automation bot</li>
+        <li><span class="pc-check">✓</span>Apex Setup Scanner</li>
+        <li><span class="pc-check">✓</span>All future updates</li>
+        </ul>
+        <button class="lp-wa-btn" style="background: linear-gradient(135deg, var(--accent), #00d18f); font-weight: 900;" onclick="upgradeFromPricingCard()">🚀 Upgrade to Premium</button>
+      </div>
     </div>
   </div>
 </section>
@@ -860,11 +922,11 @@
       </details>
       <details class="faq-item fade-in">
         <summary>Is this a monthly subscription?</summary>
-        <div class="faq-body">No. Scanr is a one-time payment of $30 for lifetime access. There are no monthly fees, no renewal charges, and all future updates are included at no extra cost.</div>
+        <div class="faq-body">No. Scanr is a one-time payment of $<span data-price="lifetime">49</span> for lifetime access. There are no monthly fees, no renewal charges, and all future updates are included at no extra cost.</div>
       </details>
       <details class="faq-item fade-in">
         <summary>What is a license key?</summary>
-        <div class="faq-body">After purchasing access via WhatsApp, you will receive a unique license key. You enter this key once when activating your account. It unlocks full platform access permanently and is tied to your account.</div>
+        <div class="faq-body">After purchasing, you will receive a unique license key. You enter this key once when activating your account. It unlocks full platform access permanently and is tied to your account.</div>
       </details>
       <details class="faq-item fade-in">
         <summary>Is my API key safe?</summary>
@@ -876,7 +938,7 @@
       </details>
       <details class="faq-item fade-in">
         <summary>What if I need help setting up?</summary>
-        <div class="faq-body">We provide a full setup guide at /setup-guide covering everything from Bybit API setup to scanner configuration. You can also reach us directly via WhatsApp for personal, one-on-one assistance.</div>
+        <div class="faq-body">We provide a full setup guide at /setup-guide covering everything from Bybit API setup to scanner configuration. You can also reach us directly via Email for personal, one-on-one assistance.</div>
       </details>
       <details class="faq-item fade-in">
         <summary>Do I need to know coding to use the strategy builder?</summary>
@@ -909,7 +971,7 @@
   <div class="lp-section-inner">
     <span class="lp-label fade-in">Reach Out</span>
     <h2 class="lp-h2 fade-in">Get In Touch</h2>
-    <p class="lp-sub fade-in">Have questions before purchasing? Send us a message and we will reply on WhatsApp shortly.</p>
+    <p class="lp-sub fade-in">Have questions before purchasing? Send us a message and we will reply on your Email shortly.</p>
     <div class="contact-card fade-in">
       <div class="form-row-2">
         <div class="form-group">
@@ -922,7 +984,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Phone / WhatsApp (optional)</label>
+        <label>Phone (optional)</label>
         <input type="tel" id="cfPhone" placeholder="+1 234 567 8900"/>
       </div>
       <div class="form-group">
@@ -954,13 +1016,86 @@
       <a href="/refund">Refund Policy</a>
     </nav>
     <div class="lp-footer-right">
-      <a class="lp-wa-btn" id="lpWaFooter" href="#" target="_blank">&#128172; WhatsApp</a>
+      <a class="lp-wa-cta" href="mailto:support@scanr.me">📧 Email Us</a>
       <p class="lp-copy">&copy; 2025 <span class="lp-logo-text">Scanr</span>. All rights reserved.</p>
     </div>
   </div>
 </footer>
 
 <script>
+const PRICING_CACHE_KEY='scanr_pricing';
+const PRICING_CACHE_TTL_MS=5*60*1000;
+
+// Upgrade handlers
+function upgradeFromPricingCard() {
+  fetch('/api/auth/me')
+    .then(r => {
+      if (r.ok) {
+        // User is logged in, show upgrade modal
+        if (typeof window.showUpgradeModal === 'function') {
+          window.showUpgradeModal();
+        } else {
+          window.location.href = '/payment?plan=lifetime';
+        }
+      } else {
+        // User not logged in, go to free registration
+        window.location.href = '/register?plan=free';
+      }
+    })
+    .catch(() => {
+      // Error checking auth, go to free registration
+      window.location.href = '/register?plan=free';
+    });
+}
+
+function readPricingCache(){
+  try{
+    const raw=sessionStorage.getItem(PRICING_CACHE_KEY);
+    if(!raw)return null;
+    const parsed=JSON.parse(raw);
+    if(!parsed?.ts||!parsed?.data)return null;
+    if(Date.now()-parsed.ts>PRICING_CACHE_TTL_MS)return null;
+    return parsed.data;
+  }catch(_){return null;}
+}
+
+function writePricingCache(data){
+  try{sessionStorage.setItem(PRICING_CACHE_KEY,JSON.stringify({ts:Date.now(),data}));}catch(_){}
+}
+
+async function loadPricingData(){
+  try{
+    const r=await fetch('/api/settings/pricing',{cache:'no-store'});
+    if(!r.ok)throw new Error('Failed to fetch pricing');
+    const d=await r.json();
+    writePricingCache(d);
+    return d;
+  }catch(_){
+    const cached=readPricingCache();
+    if(cached)return cached;
+    throw _;
+  }
+}
+
+function applyPricingToHome(pricing){
+  const lifetime=pricing?.lifetime||{original:49,discounted:null,displayPrice:49,discountPct:null};
+  const display=Number(lifetime.displayPrice||lifetime.original||49);
+  document.querySelectorAll('[data-price="lifetime"]').forEach(el=>{el.textContent=String(display.toFixed(2));});
+  const hasDiscount=lifetime.discounted!==null&&lifetime.discountPct!==null;
+  const originalEl=document.getElementById('pcOriginalPrice');
+  const badgeEl=document.getElementById('pcDiscountBadge');
+  const labelEl=document.getElementById('pcSaleLabel');
+  if(hasDiscount){
+    if(originalEl){originalEl.textContent=`$${Number(lifetime.original).toFixed(2)}`;originalEl.classList.add('active');}
+    if(badgeEl){badgeEl.textContent=`${lifetime.discountPct}% OFF`;badgeEl.classList.add('active');}
+    if(labelEl){labelEl.textContent=pricing.discountLabel||'Limited Time Offer';labelEl.classList.add('active');}
+  }else{
+    if(originalEl)originalEl.classList.remove('active');
+    if(badgeEl)badgeEl.classList.remove('active');
+    if(labelEl)labelEl.classList.remove('active');
+  }
+}
+
 /* ── Dynamic app name ── */
 fetch('/api/public/app-name').then(r=>r.ok?r.json():null).then(d=>{
   if(!d?.appName)return;
@@ -982,16 +1117,7 @@ document.getElementById('lpMobileMenu').addEventListener('click',()=>{
   document.getElementById('lpHeader').classList.toggle('nav-open');
 });
 
-/* ── WhatsApp CTA ── */
-fetch('/api/public/whatsapp').then(r=>r.ok?r.json():null).then(d=>{
-  if(!d?.whatsapp)return;
-  const num=d.whatsapp.replace(/\D/g,'');
-  const msg=encodeURIComponent('Hi, I want to purchase Scanr lifetime access ($30)');
-  const url=`https://wa.me/${num}?text=${msg}`;
-  document.querySelectorAll('.lp-wa-cta').forEach(el=>{el.href=url;});
-  const foot=document.getElementById('lpWaFooter');
-  if(foot)foot.href=url;
-}).catch(()=>{});
+
 
 /* ── Scroll fade-in ── */
 const obs=new IntersectionObserver(entries=>{
@@ -1018,14 +1144,15 @@ async function submitContact(){
       body:JSON.stringify({name,email,phone,message})
     });
     if(!res.ok)throw new Error('failed');
-    msgEl.textContent="Message sent! We'll get back to you on WhatsApp shortly.";
+    msgEl.textContent="Message sent! We'll get back to you on Email shortly.";
     msgEl.className='form-msg ok';
     ['cfName','cfEmail','cfPhone','cfMessage'].forEach(id=>document.getElementById(id).value='');
   }catch(e){
-    msgEl.textContent='Could not send message. Please contact us directly on WhatsApp.';
+    msgEl.textContent='Could not send message. Please contact us directly on Email.';
     msgEl.className='form-msg err';
   }
 }
+loadPricingData().then(applyPricingToHome).catch(()=>{});
 </script>
 </body>
 </html>

@@ -16,9 +16,9 @@ document.documentElement.setAttribute('data-page', _PAGE);
 const DEFS = {
     timeframe: '1m', rsiLen: 14, fastLen: 12, slowLen: 26, signalLen: 9, cellSize: 160,
     symbols: null,
-    colors: { rsi:'#29ffb8', rsiOB:'#f56565', rsiOS:'#48bb78', macd:'#63b3ed', signal:'#f6ad55', bull:'#48bb78', bear:'#f56565', lw: 2, price:'#e5e9f2' },
+    colors: { rsi:'#a600ff', rsiOB:'#f56565', rsiOS:'#48bb78', macd:'#63b3ed', signal:'#f6ad55', bull:'#48bb78', bear:'#f56565', lw: 2, price:'#e5e9f2' },
     visibility: { price: true, rsi: true, macd: true },
-    priceType: 'line'
+    priceType: 'candle'
 };
 
 // ─── API helpers ────────────────────────────────────────────
@@ -86,12 +86,35 @@ function saveWatchlist() { apiPost('/api/watchlist', { symbols: watchlist }); }
 let activeSort = 'default';
 
 // Layout (grid | list)
-let layout = localStorage.getItem('monty_layout') || 'grid';
+let layout = localStorage.getItem('SCANR_layout') || 'grid';
 
 // TradingView
 let tvMode = false;
 let tvWidget = null;
 const TV_TF_MAP = {'1m':'1','3m':'3','5m':'5','15m':'15','30m':'30','1h':'60','2h':'120','4h':'240','8h':'480','1d':'D','3d':'3D','1w':'W'};
+
+const SCANNER_TIMEFRAMES_KEY = 'scanner_timeframes';
+const SCANNER_TF_OPTIONS = [
+    { value: '1m', label: '1m' },
+    { value: '3m', label: '3m' },
+    { value: '5m', label: '5m' },
+    { value: '15m', label: '15m' },
+    { value: '30m', label: '30m' },
+    { value: '1h', label: '1h' },
+    { value: '2h', label: '2h' },
+    { value: '4h', label: '4h' },
+    { value: '1d', label: '1D' },
+    { value: '1w', label: '1W' }
+];
+const FREE_TIMEFRAME_LIMIT = 3;
+let scannerIsPremium = false;
+let activeTimeframes = [];
+let activeScannerTimeframe = '1m';
+let scannerStorageUserId = 'anon';
+
+function getScannerTimeframesStorageKey() {
+    return `${SCANNER_TIMEFRAMES_KEY}:${scannerStorageUserId}`;
+}
 
 // Drag
 let dragSrc=null;
@@ -151,13 +174,15 @@ async function loadAppState() {
     if (s.colors)     Object.assign(colors, s.colors);
     if (s.visibility) Object.assign(visibility, s.visibility);
     if (s.priceType)  priceType  = s.priceType;
+    if (!s.colors || !s.colors.rsi) colors.rsi = '#a600ff';
+    if (!s.priceType) priceType = 'candle';
     if (s.activeSort) activeSort = s.activeSort;
     // Restore symbols on every page so coins tab shows correct state
     if (s.symbols && s.symbols.length) symbols = [...s.symbols];
     // Apply accent color to all CSS vars immediately
-    window._accentColor = s.accentColor || '#00e5a0';
-    if (typeof window.applyAccentColor === 'function') window.applyAccentColor(window._accentColor);
-    else document.documentElement.style.setProperty('--accent-green', window._accentColor);
+    window._accentColor = '#00e5a0';
+    if (typeof window.applyAccentColor === 'function') window.applyAccentColor('#00e5a0');
+    else document.documentElement.style.setProperty('--accent-green', '#00e5a0');
 
     // Watchlist — returns [] directly
     const wl = await apiGet('/api/watchlist');
@@ -196,6 +221,12 @@ async function loadAppState() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadAppState();
+
+    if (_PAGE === 'scanner') {
+        await loadScannerTier();
+        initTimeframePicker();
+    }
+
     restoreControls();
     applyColorsToInputs();
 
@@ -295,7 +326,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             el('cellSizeSlider').addEventListener('input', e => {
                 cellSize = +e.target.value;
                 const lbl = el('sCellSizeVal'); if (lbl) lbl.textContent = cellSize;
-                lsSave();
             });
         }
     }
@@ -327,12 +357,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     initBybit();
 
     if (_PAGE === 'settings') {
-        document.title = 'Settings — ' + (window._appName || 'Monty');
+        document.title = 'Settings — ' + (window._appName || 'SCANR');
         // Tab selection from sessionStorage is handled by the inline script in settings.html
     }
 
     if (_PAGE === 'terminal') {
-        document.title = 'Terminal — ' + (window._appName || 'Monty');
+        document.title = 'Terminal — ' + (window._appName || 'SCANR');
         const _prefill = (() => { try { return JSON.parse(sessionStorage.getItem('bybit_prefill')); } catch { return null; } })();
         sessionStorage.removeItem('bybit_prefill');
         bybitTerminalOpen(_prefill ? _prefill.sym : undefined);
@@ -359,13 +389,202 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function restoreControls() {
-    const tf = el('timeframe'); if (tf && saved.timeframe) tf.value = saved.timeframe;
+    const tf = el('timeframe');
+    if (tf && saved.timeframe && _PAGE !== 'scanner') tf.value = saved.timeframe;
     const ri = el('rsiLen');    if (ri && saved.rsiLen)    ri.value = saved.rsiLen;
     const fa = el('fastLen');   if (fa && saved.fastLen)   fa.value = saved.fastLen;
     const sl = el('slowLen');   if (sl && saved.slowLen)   sl.value = saved.slowLen;
     const sg = el('signalLen'); if (sg && saved.signalLen) sg.value = saved.signalLen;
     if (saved.cellSize) { const cs = el('cellSizeSlider'); if (cs) { cs.value = saved.cellSize; cellSize = saved.cellSize; } }
     if (saved.activeSort) { activeSort = saved.activeSort; }
+}
+
+async function loadScannerTier() {
+    try {
+        const res = await fetch('/api/auth/session-check', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const sessionUserId = (data && data.user && data.user.id) ? String(data.user.id) : 'anon';
+        scannerStorageUserId = sessionUserId || 'anon';
+        const tier = (data && data.user && data.user.accountTier) || data.accountTier || 'free';
+        scannerIsPremium = tier === 'premium';
+    } catch (_) {}
+}
+
+function getTimeframeLabel(v) {
+    const found = SCANNER_TF_OPTIONS.find(x => x.value === v);
+    return found ? found.label : v;
+}
+
+function saveScannerTimeframes() {
+    try { localStorage.setItem(getScannerTimeframesStorageKey(), JSON.stringify(activeTimeframes)); } catch(_) {}
+}
+
+function loadScannerTimeframesFromStorage() {
+    let savedList = null;
+    try {
+        const raw = localStorage.getItem(getScannerTimeframesStorageKey());
+        savedList = raw ? JSON.parse(raw) : null;
+    } catch(_) {}
+
+    const valid = Array.isArray(savedList)
+        ? savedList.filter(v => SCANNER_TF_OPTIONS.some(o => o.value === v))
+        : [];
+
+    if (valid.length) {
+        if (!scannerIsPremium) return valid.slice(0, FREE_TIMEFRAME_LIMIT);
+        return valid;
+    }
+
+    return scannerIsPremium ? ['1h', '4h'] : ['1m', '3m', '15m'];
+}
+
+function syncActiveTimeframeToSelect() {
+    const tfSel = el('timeframe');
+    if (!tfSel) return;
+    tfSel.value = activeScannerTimeframe;
+}
+
+function hideTfDropdownAndTooltip() {
+    const dd = el('tfDropdown');
+    const tip = el('tfLimitTooltip');
+    if (dd) dd.classList.remove('open');
+    if (tip) tip.style.display = 'none';
+}
+
+function showTfLimitTooltip() {
+    const tip = el('tfLimitTooltip');
+    if (!tip) return;
+    tip.innerHTML = `Free users can add up to 3 timeframes.<br>Upgrade to Premium for unlimited timeframes.<br><button class="tf-limit-upgrade" id="tfLimitUpgradeBtn">Upgrade ⚡</button>`;
+    tip.style.display = 'block';
+    const btn = el('tfLimitUpgradeBtn');
+    if (btn) {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof window.showUpgradeModal === 'function') window.showUpgradeModal();
+            else window.location.href = '/pricing';
+        });
+    }
+}
+
+function renderTfPills() {
+    const wrap = el('tfPills');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    activeTimeframes.forEach(tf => {
+        const pill = document.createElement('button');
+        pill.className = 'tf-pill' + (tf === activeScannerTimeframe ? ' active' : '');
+        pill.type = 'button';
+        pill.innerHTML = `<span>${getTimeframeLabel(tf)}</span><span class="tf-pill-remove" title="Remove" role="button" aria-label="Remove timeframe">×</span>`;
+        pill.addEventListener('click', () => {
+            if (activeScannerTimeframe !== tf) {
+                activeScannerTimeframe = tf;
+                syncActiveTimeframeToSelect();
+                renderTfPills();
+                lsSave();
+                refresh();
+            }
+        });
+        const rm = pill.querySelector('.tf-pill-remove');
+        rm.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (activeTimeframes.length <= 1) return;
+            activeTimeframes = activeTimeframes.filter(x => x !== tf);
+            if (activeScannerTimeframe === tf) {
+                activeScannerTimeframe = activeTimeframes[0];
+                syncActiveTimeframeToSelect();
+                lsSave();
+                refresh();
+            }
+            saveScannerTimeframes();
+            renderTfPills();
+            renderTfDropdown();
+        });
+        wrap.appendChild(pill);
+    });
+}
+
+function renderTfDropdown() {
+    const dd = el('tfDropdown');
+    if (!dd) return;
+    dd.innerHTML = '';
+    SCANNER_TF_OPTIONS.forEach(opt => {
+        const isActive = activeTimeframes.includes(opt.value);
+        const canAddMore = scannerIsPremium || activeTimeframes.length < FREE_TIMEFRAME_LIMIT;
+        const locked = !scannerIsPremium && !isActive && !canAddMore;
+
+        const row = document.createElement('div');
+        row.className = 'tf-option' + (isActive ? ' active' : '') + (locked ? ' locked' : '');
+        row.innerHTML = `
+            <span>${opt.label}</span>
+            <span class="tf-opt-right">
+                <span class="tf-opt-check">${isActive ? '✓' : ''}</span>
+                <span>${locked ? '🔒' : ''}</span>
+            </span>
+        `;
+
+        row.addEventListener('click', () => {
+            if (isActive) {
+                if (activeTimeframes.length <= 1) return;
+                activeTimeframes = activeTimeframes.filter(x => x !== opt.value);
+                if (activeScannerTimeframe === opt.value) {
+                    activeScannerTimeframe = activeTimeframes[0];
+                    syncActiveTimeframeToSelect();
+                    lsSave();
+                    refresh();
+                }
+                saveScannerTimeframes();
+                renderTfPills();
+                renderTfDropdown();
+                return;
+            }
+
+            if (!scannerIsPremium && activeTimeframes.length >= FREE_TIMEFRAME_LIMIT) {
+                showTfLimitTooltip();
+                return;
+            }
+
+            activeTimeframes.push(opt.value);
+            saveScannerTimeframes();
+            renderTfPills();
+            renderTfDropdown();
+        });
+
+        dd.appendChild(row);
+    });
+}
+
+function initTimeframePicker() {
+    const tfSel = el('timeframe');
+    if (!tfSel) return;
+
+    activeTimeframes = loadScannerTimeframesFromStorage();
+    activeScannerTimeframe = (saved.timeframe && activeTimeframes.includes(saved.timeframe))
+        ? saved.timeframe
+        : activeTimeframes[0];
+
+    syncActiveTimeframeToSelect();
+    saveScannerTimeframes();
+
+    renderTfPills();
+    renderTfDropdown();
+
+    const plusBtn = el('tfPlusBtn');
+    const dd = el('tfDropdown');
+    if (plusBtn && dd) {
+        plusBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = dd.classList.contains('open');
+            hideTfDropdownAndTooltip();
+            if (!isOpen) dd.classList.add('open');
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        const picker = el('tfPicker');
+        if (!picker) return;
+        if (!picker.contains(e.target)) hideTfDropdownAndTooltip();
+    });
 }
 
 function applyColorsToInputs() {
@@ -384,9 +603,7 @@ function applyColorsToInputs() {
     el('sShowRSI').checked   = visibility.rsi;
     el('sShowMACD').checked  = visibility.macd;
     el('sPriceType').value   = priceType;
-    const _ac = window._accentColor || '#00e5a0';
-    const _acp = el('sAccentColor');    if (_acp) _acp.value = _ac;
-    const _ach = el('sAccentColorHex'); if (_ach) _ach.value = _ac;
+    window._accentColor = '#00e5a0';
 }
 
 function onColorChange() {
@@ -403,8 +620,32 @@ function onColorChange() {
     visibility.rsi   = el('sShowRSI').checked;
     visibility.macd  = el('sShowMACD').checked;
     priceType        = el('sPriceType').value;
-    lsSave(); redrawAll();
+    redrawAll();
     if (el('modal')?.classList.contains('open')) { drawModalPrice(); drawModalRSI(); drawModalMACD(); }
+}
+
+async function saveAppearanceSettings() {
+    // Collect the latest appearance values before persisting.
+    onColorChange();
+
+    const body = {
+        cellSize: +el('cellSizeSlider').value,
+        colors: { ...colors },
+        visibility: { ...visibility },
+        priceType,
+        accentColor: '#00e5a0',
+        clockTimezone: el('sClockTimezone')?.value || 'America/New_York'
+    };
+
+    const res = await apiPost('/api/settings', body);
+    if (!res) return;
+
+    _savedSettings = { ..._savedSettings, ...body };
+    const msg = document.getElementById('appearanceSavedMsg');
+    if (msg) {
+        msg.style.display = 'block';
+        setTimeout(() => { msg.style.display = 'none'; }, 2500);
+    }
 }
 
 // ═══════════════════════════════════════
@@ -481,7 +722,7 @@ function toggleLayout() { setLayout(layout === 'grid' ? 'list' : 'grid'); }
 
 function setLayout(mode) {
     layout = mode;
-    localStorage.setItem('monty_layout', mode);
+    localStorage.setItem('SCANR_layout', mode);
     const lbl = el('layoutBtnLabel');
     if (lbl) lbl.textContent = mode === 'list' ? '☰ List' : '⊞ Grid';
     buildGrid();
@@ -703,8 +944,9 @@ async function fetchAndDraw(sym, tf, rl, fa, sl, sig) {
     sig = sig || +el('signalLen').value||9;
     try {
         const limit = Math.max(sl+sig+rl+150, 200);  // extra bars for pivot divergence
-        const res = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${sym}&interval=${tf}&limit=${limit}`);
-        const klines = await res.json();
+        const res = await fetch(`/api/proxy/binance?path=/fapi/v1/klines&symbol=${sym}&interval=${tf}&limit=${limit}`);
+        const raw = await res.json();
+        const klines = Array.isArray(raw) ? raw : [];
         if (!Array.isArray(klines)||klines.length<10) return;
         const highs   = klines.map(k=>parseFloat(k[2]));
         const lows    = klines.map(k=>parseFloat(k[3]));
@@ -737,7 +979,7 @@ async function fetchAndDraw(sym, tf, rl, fa, sl, sig) {
 }
 
 // ── Last Scanned Coins ────────────────────────────────────────
-const LAST_SCAN_KEY = 'monty-last-scan';
+const LAST_SCAN_KEY = 'SCANR-last-scan';
 
 function saveLastScan() {
     const bar = el('lastScanBar');
@@ -875,6 +1117,14 @@ function drawCell(canvas,data,sym) {
     }
 
     if (data.flags) drawSignalTags(ctx, data.flags, W, H);
+
+    if (_PAGE === 'scanner') {
+        const tfLabel = getTimeframeLabel(el('timeframe') ? el('timeframe').value : activeScannerTimeframe);
+        ctx.font = `bold ${Math.max(7, W * 0.055)}px Inter,sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#f0b90b';
+        ctx.fillText(tfLabel, 4, H - 6);
+    }
 }
 
 function drawSignalTags(ctx, f, W, H) {
@@ -2373,6 +2623,58 @@ function kimiCacheClear(sym, tf) {
     apiDelete('/api/kimi-cache', { key: `${sym}:${tf}` });
 }
 
+let _aiUsage = null;
+function getClientTimezone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+    catch (_) { return 'UTC'; }
+}
+
+async function fetchAiUsage() {
+    try {
+        const res = await fetch('/api/analysis/usage', { cache: 'no-store' });
+        if (!res.ok) return null;
+        _aiUsage = await res.json();
+        renderAiUsageCounter();
+        return _aiUsage;
+    } catch (_) {
+        return null;
+    }
+}
+
+function renderAiUsageCounter() {
+    const elCounter = el('aiUsageCounter');
+    const btn = el('aiAnalyzeBtn');
+    if (!elCounter || !btn || !_aiUsage) return;
+    if (_aiUsage.isPremium) {
+        elCounter.style.display = 'block';
+        elCounter.style.color = '#0ecb81';
+        elCounter.textContent = 'AI ∞';
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.title = 'Analyze with AI (Unlimited)';
+        return;
+    }
+    const used = Number(_aiUsage.used || 0);
+    const limit = Number(_aiUsage.limit || 3);
+    const reached = used >= limit;
+    let color = '#0ecb81';
+    if (used >= limit) color = '#f6465d';
+    else if (used >= limit - 1) color = '#f0b90b';
+    elCounter.style.display = 'block';
+    elCounter.style.color = color;
+    elCounter.textContent = reached ? `${limit}/${limit}` : `${used}/${limit}`;
+    btn.disabled = false;
+    btn.style.opacity = reached ? '0.6' : '1';
+    btn.style.cursor = reached ? 'not-allowed' : 'pointer';
+    btn.title = reached ? 'Daily limit reached (3/3) Resets at midnight your time' : 'Analyze with AI';
+}
+
+function showAiLimitModal() {
+    const md = document.getElementById('aiLimitModal');
+    if (md) md.style.display = 'flex';
+}
+
 function initKimiAI() {
     // Restore saved AI settings into fields (settings page only)
     if (!el('kimiApiKey')) return;
@@ -2413,7 +2715,7 @@ function initKimiAI() {
             testMsg.textContent = `✗ Save failed: ${e.message}`;
         } finally {
             btn.disabled = false;
-            btn.textContent = '💾 Save AI Settings';
+            btn.textContent = '<i class="fa-solid fa-floppy-disk"></i> Save AI Settings';
         }
     });
 
@@ -2447,8 +2749,16 @@ function initKimiAI() {
         }
     });
 
+    fetchAiUsage();
+
     // Analyze button
-    el('aiAnalyzeBtn').addEventListener('click', () => runKimiAnalysis());
+    el('aiAnalyzeBtn').addEventListener('click', () => {
+        if (_aiUsage && !_aiUsage.isPremium && Number(_aiUsage.used || 0) >= Number(_aiUsage.limit || 3)) {
+            showAiLimitModal();
+            return;
+        }
+        runKimiAnalysis();
+    });
 
     // Close AI panel — also clears cache for this coin
     el('aiClosePanel').addEventListener('click', () => {
@@ -2487,6 +2797,11 @@ async function runKimiAnalysis() {
     const panel = el('aiPanel');
     const content = el('aiContent');
     const btn = el('aiAnalyzeBtn');
+
+    if (_aiUsage && !_aiUsage.isPremium && Number(_aiUsage.used || 0) >= Number(_aiUsage.limit || 3)) {
+        showAiLimitModal();
+        return;
+    }
 
     panel.classList.add('open');
     btn.disabled = true;
@@ -2633,9 +2948,14 @@ Respond ONLY in this exact JSON format, no markdown, no extra text:
         const res = await fetch('/api/ai/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt }),
+            body: JSON.stringify({ prompt, timezone: getClientTimezone() }),
         });
         const data = await res.json();
+        if (res.status === 429 || data?.error === 'limit_reached') {
+            await fetchAiUsage();
+            showAiLimitModal();
+            throw new Error(data.message || 'Daily AI analysis limit reached');
+        }
         if (!res.ok) throw new Error(data.error || `Server error ${res.status}`);
 
         let parsed;
@@ -2649,6 +2969,12 @@ Respond ONLY in this exact JSON format, no markdown, no extra text:
         const analyzedAt = new Date().toLocaleString();
         kimiCacheSet(sym, tf, { result: parsed, price, analyzedAt });
         renderAIResult(parsed, sym, tf, price, analyzedAt);
+        if (_aiUsage && !_aiUsage.isPremium) {
+            _aiUsage.used = Number(_aiUsage.used || 0) + 1;
+            renderAiUsageCounter();
+        } else {
+            fetchAiUsage();
+        }
 
     } catch(err) {
         content.innerHTML = `<div class="ai-error">⚠ ${err.message}</div>`;
@@ -2729,7 +3055,7 @@ function renderAIResult(r, sym, tf, price, analyzedAt) {
             <button onclick="bybitOpenFromAI('${sym}','${dir}',${parseFloat(r.entry)||0},${parseFloat(r.sl)||0},${parseFloat(r.tp)||0},${coinMaxLev})"
               style="width:100%;padding:0.65rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:9px;font-weight:800;font-size:13px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px;display:flex;align-items:center;justify-content:center;gap:0.5rem">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              ⚡ Trade on Bybit · ${coinMaxLev}x Max Lev
+              <i class="fa-solid fa-rocket" ></i> Trade on Bybit · ${coinMaxLev}x Max Lev
             </button>` : ''}
         </div>`;
 }
@@ -2847,6 +3173,7 @@ async function bytPollPositionsBackground() {
 
 function initBybit() {
     bybitSyncClock();
+    bytSetQtyMode('cost');
 
     // Load saved credentials into forms + switch account UI (settings page only)
     if (el('bybitLiveKey')) {
@@ -2971,9 +3298,9 @@ let bybitClockOffset = 0;
 async function bybitSyncClock() {
     try {
         // Always use mainnet for time sync — both envs share same server time
-        const res = await fetch('https://api.bybit.com/v5/market/time');
+        const res = await fetch('/api/proxy/binance?path=/fapi/v1/time');
         const data = await res.json();
-        const serverTs = parseInt(data.result?.timeNano ? data.result.timeNano / 1000000 : data.result?.timeSecond * 1000);
+        const serverTs = parseInt(data.serverTime);
         if (serverTs) bybitClockOffset = serverTs - Date.now();
     } catch(_) { bybitClockOffset = 0; }
 }
@@ -3132,17 +3459,8 @@ function bytSetCategory(cat) {
         // Also reset autopilot mode to manual since spot doesn't support autopilot
         if (typeof apSetMode === 'function') apSetMode('manual');
     }
-    // Show only QTY+COST qty-modes in spot; show all 4 in futures
-    document.querySelectorAll('.byt-qty-mode').forEach(b => {
-        const mode = b.dataset.mode;
-        if (mode === 'margin' || mode === 'risk') {
-            b.style.display = cat === 'spot' ? 'none' : '';
-        }
-    });
-    // If current qty mode is margin/risk and switching to spot, reset to qty
-    if (cat === 'spot' && (bytQtyMode === 'margin' || bytQtyMode === 'risk')) {
-        bytSetQtyMode('qty');
-    }
+    // Keep amount handling in USDT cost mode.
+    bytSetQtyMode('cost');
     // Label swap
     const buyBtn = el('bytBuyBtn');
     const selBtn = el('bytSellBtn');
@@ -3152,7 +3470,9 @@ function bytSetCategory(cat) {
     const btnLabel = el('bytPlaceBtnLabel');
     if (btnLabel) btnLabel.textContent = cat === 'spot'
         ? (bytDirection === 'Buy' ? '▲ Place BUY Order' : '▼ Place SELL Order')
-        : (bytDirection === 'Buy' ? '▲ Place LONG Order' : '▼ Place SHORT Order');
+        : (apMode === 'autopilot'
+            ? (bytDirection === 'Buy' ? '<i class="fa-solid fa-robot" ></i> Place LONG + Start Auto Mode' : '<i class="fa-solid fa-robot" ></i> Place SHORT + Start Auto Mode')
+            : (bytDirection === 'Buy' ? '▲ Place LONG Order' : '▼ Place SHORT Order'));
     // Re-fetch symbol info for the new category
     if (bytSymSelected) bytFetchMaxLev(bytSymSelected);
     bytUpdateSummary();
@@ -3162,11 +3482,9 @@ function bytSetCategory(cat) {
 async function bytFetchLivePriceForSym(sym) {
     if (!sym) return;
     try {
-        const creds   = bybitGetCreds();
-        const base    = creds.env === 'testnet' ? 'https://api-demo.bybit.com' : 'https://api.bybit.com';
-        const res     = await fetch(`${base}/v5/market/tickers?category=${bytCategory}&symbol=${sym}`);
+        const res     = await fetch(`/api/proxy/binance?path=/fapi/v1/ticker/24hr&symbol=${sym}`);
         const data    = await res.json();
-        const px      = parseFloat(data?.result?.list?.[0]?.markPrice || data?.result?.list?.[0]?.lastPrice);
+        const px      = parseFloat(data?.lastPrice);
         if (px > 0) {
             bytLivePrice = px;
             // Show as placeholder in entry input so user sees live price for market orders
@@ -3274,23 +3592,19 @@ async function bytFetchMaxLev(sym) {
     el('bytSymInfo').textContent = 'Fetching info…';
     el('bytSymInfo').style.color = '#4a5568';
     try {
-        const creds = bybitGetCreds();
-        const base = creds.env === 'testnet' ? 'https://api-demo.bybit.com' : 'https://api.bybit.com';
-        const res = await fetch(`${base}/v5/market/instruments-info?category=${bytCategory}&symbol=${sym}`);
+        const res = await fetch(`/api/proxy/binance?path=/fapi/v1/exchangeInfo&symbol=${sym}`);
         const data = await res.json();
-        if (data.retCode !== 0) { el('bytSymInfo').textContent = ''; return; }
-        const info = data.result?.list?.[0];
+        const info = data?.symbols?.[0];
         if (!info) { el('bytSymInfo').textContent = ''; return; }
 
         // Spot doesn't have leverage; clamp to 1
-        const maxLev = bytCategory === 'spot' ? 1 : parseFloat(info.leverageFilter?.maxLeverage || 125);
-        const minLev = bytCategory === 'spot' ? 1 : parseFloat(info.leverageFilter?.minLeverage || 1);
-        const tickSize = info.priceFilter?.tickSize || '';
-        const minQty  = info.lotSizeFilter?.minOrderQty || '0';
-        // Spot uses 'basePrecision' for qty decimal precision; futures uses 'qtyStep'
-        const qtyStep = bytCategory === 'spot'
-            ? (info.lotSizeFilter?.basePrecision || info.lotSizeFilter?.minOrderQty || '0.001')
-            : (info.lotSizeFilter?.qtyStep || '0.001');
+        const lot = (info.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
+        const pf  = (info.filters || []).find(f => f.filterType === 'PRICE_FILTER') || {};
+        const maxLev = bytCategory === 'spot' ? 1 : 125;
+        const minLev = 1;
+        const tickSize = pf.tickSize || '';
+        const minQty  = lot.minQty || '0';
+        const qtyStep = lot.stepSize || '0.001';
         bytMaxLev  = maxLev;
         bytQtyStep = parseFloat(qtyStep) || 0.001;
         bytMinQty  = parseFloat(minQty)  || 0;
@@ -3425,10 +3739,10 @@ function bytSetDir(dir) {
     const isSpot = bytCategory === 'spot';
     if (dir === 'Buy') {
         btn.classList.remove('short-mode');
-        el('bytPlaceBtnLabel').textContent = isSpot ? '▲ Place BUY Order' : (isAuto ? '🤖 Place LONG + Start Autopilot' : '▲ Place LONG Order');
+        el('bytPlaceBtnLabel').textContent = isSpot ? '▲ Place BUY Order' : (isAuto ? '<i class="fa-solid fa-robot" ></i> Place LONG + Start Auto Mode' : '▲ Place LONG Order');
     } else {
         btn.classList.add('short-mode');
-        el('bytPlaceBtnLabel').textContent = isSpot ? '▼ Place SELL Order' : (isAuto ? '🤖 Place SHORT + Start Autopilot' : '▼ Place SHORT Order');
+        el('bytPlaceBtnLabel').textContent = isSpot ? '▼ Place SELL Order' : (isAuto ? '<i class="fa-solid fa-robot" ></i> Place SHORT + Start Auto Mode' : '▼ Place SHORT Order');
     }
     if (bytSlMode === 'pnl') bytCalcSlFromPnl();
     if (bytTpMode === 'pnl') bytCalcTpFromPnl();
@@ -3443,29 +3757,13 @@ function bytOrderTypeChange() {
 }
 
 // ── Qty Mode ─────────────────────────────────────────────────
-let bytQtyMode = 'qty';
+let bytQtyMode = 'cost';
 
 function bytSetQtyMode(mode) {
-    bytQtyMode = mode;
-    // Update tab styles
-    document.querySelectorAll('.byt-qty-mode').forEach(b => {
-        const active = b.dataset.mode === mode;
-        b.style.background = active ? '#1a1f2e' : '#0f1319';
-        b.style.color = active ? '#f59e0b' : '#6b7897';
-    });
-    // Show/hide rows
-    ['qty','cost','margin','risk'].forEach(m => {
-        const row = el('bytQtyRow_' + m);
-        if (row) row.style.display = m === mode ? (m === 'risk' ? 'block' : '') : 'none';
-    });
-    // Prefill risk slider from saved settings
-    if (mode === 'risk') {
-        const posS = posGetSettings();
-        const risk = parseFloat(posS.riskPerTrade ?? posS.risk) || 1;
-        el('bytQtyRiskSlider').value = risk;
-        el('bytQtyRiskVal').textContent = risk.toFixed(1) + '%';
-        bytCalcFromRisk();
-    }
+    // Terminal amount input is USDT cost only.
+    bytQtyMode = 'cost';
+    const costRow = el('bytQtyRow_cost');
+    if (costRow) costRow.style.display = '';
     bytUpdateSummary();
 }
 
@@ -3632,7 +3930,7 @@ async function bytPlaceOrder() {
 
     if (!sym) return showMsg('bytOrderMsg', '✗ Enter a symbol', '#f56565');
     if (!qty || qty <= 0) {
-        const modeHints = { cost: 'Enter order cost in USDT', margin: 'Enter margin amount in USDT', risk: 'Enter entry & SL prices for risk calc', qty: 'Enter quantity' };
+        const modeHints = { cost: 'Enter amount in USDT cost', margin: 'Enter amount in USDT cost', risk: 'Enter amount in USDT cost', qty: 'Enter amount in USDT cost' };
         return showMsg('bytOrderMsg', '✗ ' + (modeHints[bytQtyMode] || 'Enter quantity'), '#f56565');
     }
     if (type === 'Limit' && (!entry || entry <= 0)) return showMsg('bytOrderMsg', '✗ Enter entry price', '#f56565');
@@ -3849,8 +4147,8 @@ async function bytLoadPositions() {
                     <div class="byt-pos-item"><div class="byt-pos-label">Liq. Price</div><div class="byt-pos-val" style="color:#f59e0b">${parseFloat(p.liqPrice) > 0 ? parseFloat(p.liqPrice).toFixed(4) : '—'}</div></div>
                 </div>
                 <div class="byt-pos-actions">
-                    <button class="byt-act-btn modify" onclick="bytOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')">✏️ Modify SL/TP</button>
-                    <button class="byt-act-btn autopilot-btn" onclick="bytSwitchToAutopilot('${p.symbol}','${p.side}',${parseFloat(p.avgPrice)},${parseFloat(p.stopLoss)},${parseFloat(p.takeProfit)},${parseFloat(p.size)},this)">🤖 Autopilot</button>
+                    <button class="byt-act-btn modify" onclick="bytOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')"><i class="fa-solid fa-pencil" ></i> Modify SL/TP</button>
+                    <button class="byt-act-btn autopilot-btn" onclick="bytSwitchToAutopilot('${p.symbol}','${p.side}',${parseFloat(p.avgPrice)},${parseFloat(p.stopLoss)},${parseFloat(p.takeProfit)},${parseFloat(p.size)},this)"><i class="fa-solid fa-robot" ></i> Autopilot</button>
                     <button class="byt-act-btn close-half" onclick="bytClosePosition('${p.symbol}','${p.side}',${parseFloat(p.size)/2},'half')">Close 50%</button>
                     <button class="byt-act-btn close-all" onclick="bytClosePosition('${p.symbol}','${p.side}',${parseFloat(p.size)},'all')">Close All</button>
                 </div>
@@ -3941,7 +4239,7 @@ async function bytLoadOrders() {
                     <div style="font-size:10px;color:#374151">${o.orderStatus} · ${new Date(parseInt(o.createdTime)).toLocaleTimeString()}</div>
                 </div>
                 <div class="byt-ord-actions">
-                    <button class="byt-act-btn modify" onclick="bytOpenModifyOrder('${o.orderId}','${o.symbol}','${o.price}','${o.qty}','${o.stopLoss}','${o.takeProfit}')">✏️ Edit</button>
+                    <button class="byt-act-btn modify" onclick="bytOpenModifyOrder('${o.orderId}','${o.symbol}','${o.price}','${o.qty}','${o.stopLoss}','${o.takeProfit}')"><i class="fa-solid fa-pencil" ></i> Edit</button>
                     <button class="byt-act-btn close-all" onclick="bytCancelOrder('${o.orderId}','${o.symbol}')">✗ Cancel</button>
                 </div>
             </div>`;
@@ -4108,7 +4406,7 @@ function apSetMode(mode) {
         const isSpot = typeof bytCategory !== 'undefined' && bytCategory === 'spot';
         const dir = bytDirection === 'Buy' ? (isSpot ? 'BUY' : 'LONG') : (isSpot ? 'SELL' : 'SHORT');
         lbl.textContent = mode === 'autopilot'
-            ? `🤖 Place ${dir} + Start Autopilot`
+            ? `<i class="fa-solid fa-robot" ></i> Place ${dir} + Start Auto Mode`
             : `${bytDirection === 'Buy' ? '▲' : '▼'} Place ${dir} Order`;
     }
 }
@@ -4203,7 +4501,7 @@ async function bytSwitchToAutopilot(sym, side, entry, sl, tp, size, btnEl) {
         apTriggered = { tp40: false, tp50: false, sl60: false };
         apRunning   = true;
         apStartPolling();
-        showMsg('bytMsg', `🤖 Autopilot started for ${sym}`, '#a855f7');
+        showMsg('bytMsg', `<i class="fa-solid fa-robot" ></i> Autopilot started for ${sym}`, '#a855f7');
 
         // Update button to "Stop Autopilot" state
         if (btnEl) {
@@ -4213,11 +4511,11 @@ async function bytSwitchToAutopilot(sym, side, entry, sl, tp, size, btnEl) {
             btnEl.disabled = false;
             btnEl.onclick = () => bytStopAutopilotFromCard(btnEl);
         }
-        // Add "🤖 Autopilot Active" badge to card
+        // Add "<i class="fa-solid fa-robot" ></i> Autopilot Active" badge to card
         if (card && !card.querySelector('.ap-active-badge')) {
             const badge = document.createElement('span');
             badge.className = 'ap-active-badge';
-            badge.textContent = '🤖 Autopilot Active';
+            badge.textContent = '<i class="fa-solid fa-robot" ></i> Autopilot Active';
             badge.style.cssText = 'display:inline-block;background:#3b0764;color:#a855f7;border:1px solid #7e22ce;border-radius:10px;padding:0.15rem 0.55rem;font-size:11px;font-weight:700;margin-bottom:0.5rem';
             card.insertBefore(badge, card.firstChild);
         }
@@ -4226,7 +4524,7 @@ async function bytSwitchToAutopilot(sym, side, entry, sl, tp, size, btnEl) {
         showMsg('bytMsg', `✗ ${e.message}`, '#f56565');
         // Revert button on failure
         if (btnEl) {
-            btnEl.textContent = '🤖 Autopilot';
+            btnEl.textContent = '<i class="fa-solid fa-robot" ></i> Autopilot';
             btnEl.style.background = '';
             btnEl.style.color = '';
             btnEl.disabled = false;
@@ -4238,7 +4536,7 @@ async function bytStopAutopilotFromCard(btnEl) {
     if (!apRunning) return;
     await apStop();
     if (btnEl) {
-        btnEl.textContent = '🤖 Autopilot';
+        btnEl.textContent = '<i class="fa-solid fa-robot" ></i> Autopilot';
         btnEl.style.background = '';
         btnEl.style.color = '';
         btnEl.disabled = false;
@@ -4467,9 +4765,9 @@ function apMilestoneHit(id, text) {
 // ── Fetch mark price (still used for live price placeholder) ──
 async function apFetchMarkPrice(sym) {
     try {
-        const res  = await fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${sym}`);
+        const res  = await fetch(`/api/proxy/binance?path=/fapi/v1/ticker/24hr&symbol=${sym}`);
         const data = await res.json();
-        const mark = parseFloat(data?.result?.list?.[0]?.markPrice);
+        const mark = parseFloat(data?.lastPrice);
         return mark > 0 ? mark : null;
     } catch { return null; }
 }
@@ -4486,4 +4784,5 @@ function apLog(msg, type = '') {
     log.scrollTop = log.scrollHeight;
     if (type === 'action' || type === 'warn') showToast(msg, type === 'warn');
 }
+
 

@@ -277,7 +277,7 @@ async function runHardFilterScan(agentSettings, emitFn) {
         }
     }
 
-    const out = candidates.map(c => ({
+    let out = candidates.map(c => ({
         symbol:    c.symbol,
         direction: c.direction,
         rsi5m:     parseFloat(c.rsiEntry.toFixed(1)),
@@ -285,6 +285,13 @@ async function runHardFilterScan(agentSettings, emitFn) {
         price:     parseFloat(c.ticker?.lastPrice || 0),
         volume:    parseFloat((parseFloat(c.ticker?.quoteVolume || 0) / 1e6).toFixed(1)),
     }));
+
+    // Free tier limit: max 50 coins
+    const isFreeUser = agentSettings?.accountTier === 'free';
+    if (isFreeUser && out.length > 50) {
+        out = out.slice(0, 50);
+        emitFn('setups:log', { message: "⚠️ Free tier limited to 50 results. Upgrade for unlimited results.", level: 'info' });
+    }
 
     emitFn('setups:done', { candidates: out });
     return out;

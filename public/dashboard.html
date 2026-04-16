@@ -16,7 +16,7 @@
   --green-dim:#051a10;--red-dim:#1a0509;--amber-dim:#1a1100;
   --font-ui:'Space Grotesk',system-ui,sans-serif;--font-mono:'JetBrains Mono',monospace;
   --radius:10px;--radius-sm:6px;--radius-lg:14px;
-  --sidebar-w:220px;
+  --sidebar-w:335px;
 }
 html,body{min-height:100%;background:var(--bg);color:var(--text-primary);font-family:var(--font-ui);font-size:clamp(13px,1vw,18px);line-height:1.5;-webkit-font-smoothing:antialiased}
 html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#edf1f8;--border:#cdd5e3;--border-mid:#b4bfcf;--text-primary:#1a2335;--text-secondary:#445068;--text-muted:#7080a0}
@@ -45,13 +45,6 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
 }
 .sb-action-btn:hover{border-color:var(--border-mid);background:var(--bg-raised);color:var(--text-primary)}
 .sb-action-icon{font-size:1rem;line-height:1;flex-shrink:0}
-.sb-action-btn.agent-btn{border-color:rgba(245,166,35,0.25);animation:agentPulse 2.5s ease-in-out infinite}
-.sb-action-btn.agent-btn,.sb-action-btn.agent-btn *{color:var(--amber)}
-.sb-action-btn.agent-btn i{
-  color:var(--amber) !important
-}
-@keyframes agentPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,166,35,0)}50%{box-shadow:0 0 12px 2px rgba(245,166,35,0.18)}}
-
 /* ── Main content ── */
 .db-main{flex:1;min-width:0;padding:1rem 1.25rem 3rem}
 
@@ -85,14 +78,27 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
 .db-manage-btn:hover{color:var(--text-primary);border-color:var(--green)}
 
 /* ── Tabbed section ── */
-.db-tabs-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:1rem}
+.db-tabs-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
 .db-tab-bar{display:flex;border-bottom:1px solid var(--border);background:var(--bg-raised)}
 .db-tab-btn{
   padding:0.55rem 1rem;font-size:0.78rem;font-weight:700;color:var(--text-muted);cursor:pointer;
   border:none;background:none;border-bottom:2px solid transparent;font-family:inherit;
   transition:color .15s;white-space:nowrap;
 }
+.db-tab-btn i{
+  color:var(--text-muted);
+}
+.mainTabs{
+  display: grid;
+  width: 100%;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.mainTabs .db-section-title{
+      padding: 0.55rem 1rem;
+}
 .db-tab-btn.active{color:var(--green);border-bottom-color:var(--green)}
+.db-tab-btn.active i{color:var(--green)}
 .db-tab-pane{display:none;padding:0.75rem 1rem}
 .db-tab-pane.active{display:block}
 .db-tab-empty{color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0;text-align:center}
@@ -104,10 +110,20 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
 .db-tab-table td{padding:0.4rem 0.5rem;border-bottom:1px solid var(--border);color:var(--text-secondary)}
 .db-tab-table tr:last-child td{border-bottom:none}
 .db-tab-table tr:hover td{background:var(--bg-raised)}
+.db-th-sort{cursor:pointer;user-select:none}
+.db-th-sort:hover{color:var(--text-primary)}
+.db-row-action-btn{
+  background:var(--bg-raised);border:1px solid var(--border-mid);border-radius:var(--radius-sm);
+  color:var(--text-secondary);font-size:0.72rem;font-weight:700;padding:0.2rem 0.45rem;
+  cursor:pointer;font-family:inherit;transition:color .15s,border-color .15s,background .15s;
+}
+.db-row-action-btn:hover{color:var(--text-primary);border-color:var(--green)}
+.db-row-action-btn.danger:hover{border-color:var(--red);color:var(--red)}
+.db-row-action-btn:disabled{opacity:0.5;cursor:not-allowed}
 .mono{font-family:var(--font-mono)}
 
 /* ── Watchlist ── */
-.db-watchlist-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.db-watchlist-card{height : 100%;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .db-wl-empty{padding:1.5rem;text-align:center;color:var(--text-muted);font-size:0.88rem}
 .db-wl-row{display:grid;grid-template-columns:1fr auto auto auto auto auto;align-items:center;gap:0.5rem;padding:0.6rem 0.85rem;border-bottom:1px solid var(--border);transition:background .1s}
 .db-wl-row:last-child{border-bottom:none}
@@ -131,6 +147,21 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
 .pos-pnl{font-family:var(--font-mono);font-size:0.82rem;font-weight:700}
 .pos-pnl.profit{color:var(--green)}.pos-pnl.loss{color:var(--red)}
 
+@media(max-width:1640px){
+  :root{--sidebar-w:290px}
+
+}
+@media(max-width:1440px){
+  :root{--sidebar-w:260px}
+
+}
+@media(max-width:1170px){
+  :root{--sidebar-w:225px}
+  .mainTabs{
+    display: flex;
+    flex-direction: column;
+  }
+}
 @media(max-width:860px){
   .db-sidebar{
     position:fixed;left:-240px;top:48px;height:calc(100vh - 48px);
@@ -187,10 +218,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
       <span class="sb-action-icon"><i class="fa-solid fa-trophy" style="color: rgb(255, 255, 255);"></i></span>Prop Firm Challenge
     </a>
     <a class="sb-action-btn" href="/setups">
-      <span class="sb-action-icon"><i class="fa-solid fa-magnifying-glass" style="color: rgb(255, 255, 255);"></i></span>Scan Setups
-    </a>
-    <a class="sb-action-btn agent-btn" href="/agent">
-      <span class="sb-action-icon"><i class="fa-solid fa-robot" style="color: rgb(255, 255, 255);"></i></span>AI Agent (Beta)
+      <span class="sb-action-icon"><i class="fa-solid fa-magnifying-glass" ></i></span>Scan Setups
     </a>
     <a class="sb-action-btn sh-settings-btn" href="/settings" title="Settings"><i class="fa-solid fa-gear" style="color: rgb(255, 255, 255);"></i> Settings</a>
 
@@ -222,12 +250,15 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
 
     </div>
 
+    <div class="mainTabs">
+
+    
     <!-- Tabbed section -->
     <div class="db-tabs-card">
       <div class="db-tab-bar">
-        <button class="db-tab-btn active" data-tab="spot" onclick="dbSwitchTab('spot')">💰 Spot Assets</button>
-        <button class="db-tab-btn" data-tab="futures" onclick="dbSwitchTab('futures')">📊 Futures Positions</button>
-        <button class="db-tab-btn" data-tab="orders" onclick="dbSwitchTab('orders')">📋 Orders</button>
+        <button class="db-tab-btn active" data-tab="spot" onclick="dbSwitchTab('spot')"><i class="fa-solid fa-sack-dollar" ></i> Spot Assets</button>
+        <button class="db-tab-btn" data-tab="futures" onclick="dbSwitchTab('futures')"><i class="fa-solid fa-chart-area" ></i> Futures Positions</button>
+        <button class="db-tab-btn" data-tab="orders" onclick="dbSwitchTab('orders')"><i class="fa-solid fa-clipboard" ></i> Orders</button>
       </div>
 
       <div id="db-tab-spot" class="db-tab-pane active">
@@ -242,10 +273,15 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
     </div>
 
     <!-- Watchlist -->
-    <div class="db-section-title">Watchlist</div>
-    <div class="db-watchlist-card">
+     <div class="wacthlist">
+
+       
+       <div class="db-watchlist-card">
+         <div class="db-tab-bar db-section-title">Watchlist</div>
       <div id="watchlistBody"><div class="db-loading">Loading watchlist</div></div>
     </div>
+  </div>  
+  </div>
 
   </div><!-- .db-main -->
 </div><!-- .db-layout -->
@@ -328,6 +364,149 @@ async function loadSummary() {
 
 // ── Tabs ───────────────────────────────────────────────────────
 let _tabLoaded = {};
+let _spotSort = { key: 'usdValue', dir: 'desc' };
+
+function dbSortArrow(key) {
+  if (_spotSort.key !== key) return '';
+  return _spotSort.dir === 'asc' ? ' ▲' : ' ▼';
+}
+function dbSetSpotSort(key) {
+  if (_spotSort.key === key) _spotSort.dir = _spotSort.dir === 'asc' ? 'desc' : 'asc';
+  else _spotSort = { key, dir: key === 'asset' ? 'asc' : 'desc' };
+  dbLoadTab('spot');
+}
+function dbSortSpotRows(rows) {
+  const sorted = [...rows].sort((a,b) => {
+    let av, bv;
+    if (_spotSort.key === 'asset') { av = a.coin || ''; bv = b.coin || ''; }
+    else if (_spotSort.key === 'walletBalance') { av = a._wallet; bv = b._wallet; }
+    else { av = a._usd; bv = b._usd; }
+    if (typeof av === 'string') return av.localeCompare(bv);
+    return av - bv;
+  });
+  if (_spotSort.dir === 'desc') sorted.reverse();
+  return sorted;
+}
+
+const _dbSpotRuleCache = Object.create(null);
+
+function dbStepDecimals(step) {
+  const s = String(step || '');
+  if (!s || !s.includes('.')) return 0;
+  return s.split('.')[1].replace(/0+$/, '').length;
+}
+
+function dbTrimZeros(numStr) {
+  return String(numStr).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+}
+
+function dbRoundDownToStep(qty, step) {
+  const q = Number(qty);
+  const s = Number(step);
+  if (!Number.isFinite(q) || q <= 0) return 0;
+  if (!Number.isFinite(s) || s <= 0) return q;
+  const units = Math.floor((q + 1e-12) / s);
+  const rounded = units * s;
+  const dec = dbStepDecimals(step);
+  return Number(rounded.toFixed(Math.min(dec + 2, 16)));
+}
+
+async function dbGetSpotQtyRule(symbol) {
+  if (_dbSpotRuleCache[symbol]) return _dbSpotRuleCache[symbol];
+  try {
+    const res = await fetch(`/api/proxy/binance?path=/fapi/v1/exchangeInfo&symbol=${symbol}`);
+    const data = await res.json();
+    const info = data?.symbols?.[0];
+    const lot = (info?.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
+    const rule = {
+      stepSize: Number(lot.stepSize || 0.000001),
+      minQty: Number(lot.minQty || 0),
+      stepStr: String(lot.stepSize || '0.000001'),
+    };
+    _dbSpotRuleCache[symbol] = rule;
+    return rule;
+  } catch (_) {
+    const fallback = { stepSize: 0.000001, minQty: 0, stepStr: '0.000001' };
+    _dbSpotRuleCache[symbol] = fallback;
+    return fallback;
+  }
+}
+
+function dbFormatQty(qty, stepStr) {
+  const dec = Math.max(0, dbStepDecimals(stepStr));
+  const fixed = Number(qty).toFixed(Math.min(dec, 12));
+  return dbTrimZeros(fixed);
+}
+
+async function dbSpotSell(coin, qty) {
+  if (!coin || !qty || qty <= 0) return;
+  try {
+    const symbol = `${coin}USDT`;
+    const rule = await dbGetSpotQtyRule(symbol);
+    const normalizedQty = dbRoundDownToStep(qty, rule.stepSize);
+    if (!normalizedQty || normalizedQty <= 0) {
+      throw new Error('Available quantity is below tradable precision for this symbol');
+    }
+    if (rule.minQty > 0 && normalizedQty < rule.minQty) {
+      throw new Error(`Minimum sell quantity is ${dbFormatQty(rule.minQty, rule.stepStr)}`);
+    }
+
+    const qtyStr = dbFormatQty(normalizedQty, rule.stepStr);
+    if (!confirm(`Sell ${qtyStr} ${coin} at market?`)) return;
+
+    const r = await fetch('/api/bybit/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: '/v5/order/create',
+        body: { category: 'spot', symbol, side: 'Sell', orderType: 'Market', qty: qtyStr },
+      }),
+    });
+    const j = await r.json();
+    if (j.retCode !== 0) throw new Error(j.retMsg || 'Sell failed');
+    dbLoadTab('spot');
+    loadSummary();
+  } catch(e) { alert('Sell failed: ' + e.message); }
+}
+
+async function dbCloseFuturesPosition(symbol, side, size) {
+  if (!symbol || !side || !size || size <= 0) return;
+  if (!confirm(`Close ${size} ${symbol.replace('USDT','')} ${side === 'Buy' ? 'LONG' : 'SHORT'} position?`)) return;
+  try {
+    const closeSide = side === 'Buy' ? 'Sell' : 'Buy';
+    const r = await fetch('/api/bybit/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: '/v5/order/create',
+        body: { category: 'linear', symbol, side: closeSide, orderType: 'Market', qty: size.toString(), reduceOnly: true, timeInForce: 'GTC' },
+      }),
+    });
+    const j = await r.json();
+    if (j.retCode !== 0) throw new Error(j.retMsg || 'Close failed');
+    dbLoadTab('futures');
+    loadSummary();
+  } catch(e) { alert('Close failed: ' + e.message); }
+}
+
+async function dbCancelOrder(symbol, orderId) {
+  if (!symbol || !orderId) return;
+  if (!confirm(`Cancel order ${symbol.replace('USDT','')}?`)) return;
+  try {
+    const r = await fetch('/api/bybit/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        path: '/v5/order/cancel',
+        body: { category: 'linear', symbol, orderId },
+      }),
+    });
+    const j = await r.json();
+    if (j.retCode !== 0) throw new Error(j.retMsg || 'Cancel failed');
+    dbLoadTab('orders');
+  } catch(e) { alert('Cancel failed: ' + e.message); }
+}
+
 function dbSwitchTab(tab) {
   document.querySelectorAll('.db-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.db-tab-pane').forEach(p => p.classList.toggle('active', p.id==='db-tab-'+tab));
@@ -340,21 +519,32 @@ async function dbLoadTab(tab) {
   try {
     if (tab === 'spot') {
       const d = await fetch('/api/dashboard/spot-assets').then(r => r.json());
-      const coins = d.coins || [];
+      const coins = (d.coins || []).map(c => {
+        const bal   = parseFloat(c.walletBalance || 0);
+        const avail = parseFloat(c.availableToWithdraw || c.availableToBorrow || c.free || 0);
+        const usd   = parseFloat(c.usdValue || 0);
+        const sellQty = avail > 0 ? avail : bal;
+        return { ...c, _wallet: bal, _avail: avail, _usd: usd, _sellQty: sellQty };
+      }).filter(c => c._wallet > 0 || c._avail > 0 || c._usd > 0);
       if (!coins.length) { pane.innerHTML = '<div class="db-tab-empty">No spot assets found</div>'; return; }
-      const total = coins.reduce((s,c) => s+parseFloat(c.usdValue||0), 0);
+      const sortedCoins = dbSortSpotRows(coins);
+      const total = sortedCoins.reduce((s,c) => s + c._usd, 0);
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
-        <th>Asset</th><th>Wallet Balance</th><th>Available</th><th>USD Value</th>
+        <th class="db-th-sort" onclick="dbSetSpotSort('asset')">Asset${dbSortArrow('asset')}</th>
+        <th class="db-th-sort" onclick="dbSetSpotSort('walletBalance')">Wallet Balance${dbSortArrow('walletBalance')}</th>
+        <th class="db-th-sort" onclick="dbSetSpotSort('usdValue')">USD Value${dbSortArrow('usdValue')}</th>
+        <th>Action</th>
       </tr></thead><tbody>
-        ${coins.map(c => {
-          const bal   = parseFloat(c.walletBalance||0);
-          const avail = parseFloat(c.availableToWithdraw||c.availableToBorrow||c.free||0);
-          const usd   = parseFloat(c.usdValue||0);
+        ${sortedCoins.map(c => {
+          const bal = c._wallet, usd = c._usd;
+          const canTrade = c.coin !== 'USDT';
           return `<tr>
             <td style="font-weight:700;color:var(--text-primary)">${c.coin}</td>
             <td class="mono">${bal.toFixed(6)}</td>
-            <td class="mono" style="color:var(--green)">${avail.toFixed(6)}</td>
             <td class="mono" style="color:var(--blue)">$${usd.toFixed(2)}</td>
+            <td>${canTrade
+              ? `<button class="db-row-action-btn" onclick="window.location.href='/terminal?symbol=${encodeURIComponent(c.coin + 'USDT')}'">Trade</button>`
+              : `<button class="db-row-action-btn" disabled>—</button>`}</td>
           </tr>`;
         }).join('')}
         <tr style="font-weight:700">
@@ -367,7 +557,7 @@ async function dbLoadTab(tab) {
       const positions = d.positions || [];
       if (!positions.length) { pane.innerHTML = '<div class="db-tab-empty">No open futures positions</div>'; return; }
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
-        <th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>PnL</th><th>Lev</th>
+        <th>Symbol</th><th>Side</th><th>Size</th><th>Entry</th><th>Mark</th><th>PnL</th><th>Lev</th><th>Action</th>
       </tr></thead><tbody>
         ${positions.map(p => {
           const pnl = parseFloat(p.unrealisedPnl||0);
@@ -382,6 +572,7 @@ async function dbLoadTab(tab) {
             <td class="mono">$${parseFloat(p.markPrice).toFixed(2)}</td>
             <td class="mono pos-pnl ${pnlCls}">${fmtPnl(pnl)}</td>
             <td class="mono">${p.leverage}x</td>
+            <td><button class="db-row-action-btn danger" onclick="dbCloseFuturesPosition('${p.symbol}','${p.side}',${parseFloat(p.size)})">Close</button></td>
           </tr>`;
         }).join('')}
       </tbody></table>`;
@@ -390,7 +581,7 @@ async function dbLoadTab(tab) {
       const orders = d.orders || [];
       if (!orders.length) { pane.innerHTML = '<div class="db-tab-empty">No open orders</div>'; return; }
       pane.innerHTML = `<table class="db-tab-table"><thead><tr>
-        <th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th>
+        <th>Symbol</th><th>Side</th><th>Type</th><th>Qty</th><th>Price</th><th>Status</th><th>Action</th>
       </tr></thead><tbody>
         ${orders.map(o => {
           const sc = o.side==='Buy'?'var(--green)':'var(--red)';
@@ -401,6 +592,7 @@ async function dbLoadTab(tab) {
             <td class="mono">${parseFloat(o.qty).toFixed(4)}</td>
             <td class="mono">$${parseFloat(o.price||0).toFixed(2)||'—'}</td>
             <td style="font-size:0.72rem;color:var(--text-muted)">${o.orderStatus}</td>
+            <td><button class="db-row-action-btn danger" onclick="dbCancelOrder('${o.symbol}','${o.orderId}')">Cancel</button></td>
           </tr>`;
         }).join('')}
       </tbody></table>`;
@@ -415,7 +607,9 @@ async function dbLoadTab(tab) {
 // ── Init ──────────────────────────────────────────────────────
 fetch('/api/auth/me')
     .then(r => r.ok ? r.json() : null)
-    .then(u => { if (u && u.firstName) document.getElementById('dbWelcomeName').textContent = u.firstName; })
+    .then(u => {
+        if (u && u.firstName) document.getElementById('dbWelcomeName').textContent = u.firstName;
+    })
     .catch(() => {});
 loadSummary();
 dbLoadTab('spot'); // pre-load first tab

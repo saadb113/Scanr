@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Monty — Admin Panel</title>
+  <title>SCANR — Admin Panel</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -142,7 +142,7 @@
 
 <!-- Header -->
 <div class="hdr">
-  <div class="hdr-logo">Monty<span>.</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin</span></div>
+  <div class="hdr-logo">SCANR<span>.</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin</span></div>
   <div class="hdr-right">
     <a class="hdr-link" href="/dashboard">← Back to App</a>
     <button class="logout-btn" onclick="doLogout()">Sign Out</button>
@@ -154,6 +154,7 @@
   <button class="tab active" onclick="switchTab('licenses',this)">🗝️ Licenses</button>
   <button class="tab" onclick="switchTab('users',this)">👥 Users</button>
   <button class="tab" onclick="switchTab('revenue',this)">💰 Revenue</button>
+  <button class="tab" onclick="switchTab('payments',this)">💳 Payments</button>
   <button class="tab" onclick="switchTab('settings',this)">⚙️ Settings</button>
   <button class="tab" onclick="switchTab('contacts',this)">📬 Contacts <span id="contactsBadge" style="display:none;background:#ef4444;color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:4px"></span></button>
 </div>
@@ -187,6 +188,7 @@
   <div class="page" id="page-users">
     <div class="top-bar">
       <div style="font-size:15px;font-weight:700">Registered Users</div>
+      <div id="usersAiTodayStat" style="font-size:12px;color:var(--muted);margin-left:auto;margin-right:10px">AI Today: —</div>
       <input class="search-inp" id="userSearch" placeholder="Search by name or email…" oninput="filterUsers()"/>
     </div>
     <div class="card" style="padding:0">
@@ -194,12 +196,12 @@
         <table>
           <thead>
             <tr>
-              <th>Name</th><th>Email</th><th>License Key</th>
-              <th>License Status</th><th>Last Login</th><th>Last IP</th>
+              <th>Name</th><th>Email</th><th>Tier</th><th>License Key</th>
+              <th>License Status</th><th>AI Today</th><th>Last Login</th><th>Last IP</th>
               <th>Security</th><th>Joined</th><th>Actions</th>
             </tr>
           </thead>
-          <tbody id="userTbody"><tr class="empty-row"><td colspan="9">Loading...</td></tr></tbody>
+          <tbody id="userTbody"><tr class="empty-row"><td colspan="11">Loading...</td></tr></tbody>
         </table>
       </div>
       <div id="userTbody_pg" class="pg-bar"></div>
@@ -224,18 +226,91 @@
     </div>
   </div>
 
+  <!-- ── TAB: PAYMENTS ── -->
+  <div class="page" id="page-payments">
+    <div style="font-size:15px;font-weight:700;margin-bottom:20px">Payment Submissions</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Pending Verifications</div>
+        <div class="stat-value" id="pendingPaymentsCount">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Pending Value</div>
+        <div class="stat-value" id="totalPendingValue">$0.00</div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;margin-bottom:20px">
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th><th>Email</th><th>Plan</th><th>Amount</th>
+              <th>TxID</th><th>Screenshot</th><th>Submitted</th><th>Status</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="paymentsTbody"><tr class="empty-row"><td colspan="9">Loading...</td></tr></tbody>
+        </table>
+      </div>
+      <div id="paymentsTbody_pg" class="pg-bar"></div>
+    </div>
+  </div>
+
   <!-- ── TAB: SETTINGS ── -->
   <div class="page" id="page-settings">
     <div style="font-size:15px;font-weight:700;margin-bottom:20px">Admin Settings</div>
     <div class="card" style="max-width:520px">
       <div class="form-field">
-        <label>Admin WhatsApp Number</label>
-        <input type="text" id="settingWA" placeholder="e.g. 923001234567 (with country code, no +)"/>
-        <div style="font-size:12px;color:var(--muted);margin-top:6px">Used on the License and Suspended pages for support contact.</div>
+        <label>Admin Email Address</label>
+        <input type="email" id="settingAdminEmail" placeholder="admin@example.com"/>
+        <div style="font-size:12px;color:var(--muted);margin-top:6px">Used for payment confirmations and support contact.</div>
       </div>
+
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:16px">Payment System Settings</div>
+        <div class="form-field">
+          <label>USDT TRC20 Wallet Address</label>
+          <input type="text" id="settingWalletTRC20" placeholder="Tron wallet address"/>
+        </div>
+        <div class="form-field">
+          <label>USDT ERC20 Wallet Address</label>
+          <input type="text" id="settingWalletERC20" placeholder="Ethereum wallet address"/>
+        </div>
+        <div class="form-field">
+          <label>USDT BEP20 Wallet Address</label>
+          <input type="text" id="settingWalletBEP20" placeholder="BSC wallet address"/>
+        </div>
+        <div class="form-field">
+          <label>Plan Price (USD)</label>
+          <input type="number" id="settingPricePlanStandard" placeholder="69" step="0.01"/>
+        </div>
+        <div class="form-field">
+          <label>Plan Price (PKR)</label>
+          <input type="number" id="settingPricePlanPKR" placeholder="19500" step="0.01"/>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+        <div style="font-size:13px;font-weight:700;margin-bottom:16px">Pricing</div>
+        <div class="form-field">
+          <label>Lifetime Original Price (USDT)</label>
+          <input type="number" id="pricingLifetimeOriginal" placeholder="69" step="0.01"/>
+        </div>
+        <div class="form-field">
+          <label>Lifetime Discounted Price (USDT)</label>
+          <input type="number" id="pricingLifetimeDiscounted" placeholder="49" step="0.01"/>
+        </div>
+        <div class="form-field">
+          <label>Discount Label</label>
+          <input type="text" id="pricingDiscountLabel" placeholder="Limited Time Offer"/>
+        </div>
+        <button class="save-btn" type="button" onclick="savePricing()">Save Pricing</button>
+        <div id="pricingPreview" style="margin-top:12px;font-size:12px;color:var(--muted);line-height:1.7;"></div>
+        <div class="form-msg" id="pricingMsg"></div>
+      </div>
+
       <div class="form-field">
         <label>App Name</label>
-        <input type="text" id="settingAppName" placeholder="e.g. Monty"/>
+        <input type="text" id="settingAppName" placeholder="e.g. Scanr"/>
       </div>
       <button class="save-btn" onclick="saveSettings()">Save Settings</button>
       <div class="form-msg" id="settingMsg"></div>
@@ -435,6 +510,7 @@ function switchTab(name, el) {
   if (name === 'licenses') loadLicenses();
   if (name === 'users')    loadUsers();
   if (name === 'revenue')  loadRevenue();
+  if (name === 'payments') loadPayments();
   if (name === 'settings') loadSettings();
   if (name === 'contacts') loadContacts();
 }
@@ -494,11 +570,11 @@ function _doRenderLicenses(slice) {
     }
     const isExpired = l.expiresAt && now > new Date(l.expiresAt);
     let acts = '';
-    if (l.status === 'active')    acts += `<button class="act-btn suspend"    onclick="suspendLicense('${l._id}')">Suspend</button>`;
-    if (l.status === 'suspended') acts += `<button class="act-btn reactivate" onclick="reactivateLicense('${l._id}')">Reactivate</button>`;
-    acts += `<button class="act-btn delete" onclick="deleteLicense('${l._id}','${l.licenseKey}','${l.status}')">Delete</button>`;
+    if (l.status === 'active')    acts += `<button class="act-btn suspend" title="Suspend" aria-label="Suspend" onclick="suspendLicense('${l._id}')">⛔</button>`;
+    if (l.status === 'suspended') acts += `<button class="act-btn reactivate" title="Reactivate" aria-label="Reactivate" onclick="reactivateLicense('${l._id}')">✅</button>`;
+    acts += `<button class="act-btn delete" title="Delete" aria-label="Delete" onclick="deleteLicense('${l._id}','${l.licenseKey}','${l.status}')">🗑️</button>`;
     if ((l.status === 'active' || l.status === 'suspended') && curT < maxT)
-      acts += `<button class="act-btn transfer" onclick="transferLicense('${l._id}')">Transfer</button>`;
+      acts += `<button class="act-btn transfer" title="Transfer" aria-label="Transfer" onclick="transferLicense('${l._id}')">🔁</button>`;
     return `<tr style="${isExpired ? 'opacity:0.5' : ''}">
       <td style="font-family:monospace;font-size:12px;color:var(--success)">${l.licenseKey}</td>
       <td>${l.buyerName || '—'}</td>
@@ -594,34 +670,50 @@ let _users = [];
 
 async function loadUsers() {
   const tbody = document.getElementById('userTbody');
-  tbody.innerHTML = '<tr class="empty-row"><td colspan="8">Loading...</td></tr>';
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="11">Loading...</td></tr>';
   try {
     _users = await api('GET', '/api/admin/users');
+    try {
+      const stats = await api('GET', '/api/admin/analysis/stats');
+      const st = document.getElementById('usersAiTodayStat');
+      if (st) st.textContent = `AI Today: ${stats.totalToday || 0}`;
+    } catch (_) {}
     renderUsers(_users);
   } catch (e) {
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="8" style="color:var(--danger)">${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="11" style="color:var(--danger)">${e.message}</td></tr>`;
   }
 }
 
 function renderUsers(users) {
   pgSetup('userTbody', users, function(slice) {
     const tbody = document.getElementById('userTbody');
-    if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No users yet</td></tr>'; return; }
+    if (!users.length) { tbody.innerHTML = '<tr class="empty-row"><td colspan="11">No users yet</td></tr>'; return; }
     tbody.innerHTML = slice.map(u => {
     const isAdmin = u.role === 'admin';
     const suspBadge = u.suspiciousActivity ? ' <span class="badge badge-warn" title="Suspicious activity detected">⚠️</span>' : '';
+    
+    // Tier display and management
+    const tierBadgeClass = u.accountTier === 'premium' ? 'badge-active' : 'badge-inactive';
+    const tierText = u.accountTier === 'premium' ? '⭐ Premium' : 'Free';
+    const aiUsed = Number(u.aiAnalysisCount || 0);
+    const aiDisplay = u.accountTier === 'premium' ? 'Unlimited' : `${aiUsed}/3`;
+    
     let acts = '';
     if (!isAdmin) {
-      if (u.licenseStatus === 'active')    acts += `<button class="act-btn suspend"    onclick="suspendUser('${u._id}')">Suspend</button>`;
-      if (u.licenseStatus === 'suspended') acts += `<button class="act-btn reactivate" onclick="reactivateUser('${u._id}')">Reactivate</button>`;
-      acts += `<button class="act-btn delete" onclick="deleteUser('${u._id}')">Delete</button>`;
+      if (u.licenseStatus === 'active')    acts += `<button class="act-btn suspend" title="Suspend" aria-label="Suspend" onclick="suspendUser('${u._id}')">⛔</button>`;
+      if (u.licenseStatus === 'suspended') acts += `<button class="act-btn reactivate" title="Reactivate" aria-label="Reactivate" onclick="reactivateUser('${u._id}')">✅</button>`;
+      acts += `<button class="act-btn" style="background:#052e1633;color:var(--success);border-color:#166534" title="Change Tier" aria-label="Change Tier" onclick="upgradeTierModal('${u._id}', '${u.email}', '${u.accountTier}')">⭐</button>`;
+      acts += `<button class="act-btn" style="background:#2a1f0a;color:#f0b90b;border-color:#7c5a12" title="Reset AI Limit" aria-label="Reset AI Limit" onclick="resetAiLimit('${u._id}')">♻️</button>`;
+      acts += `<button class="act-btn delete" title="Delete" aria-label="Delete" onclick="deleteUser('${u._id}')">🗑️</button>`;
     }
-    acts += `<button class="act-btn info" onclick="viewUserDetail('${u._id}')">Security</button>`;
+    acts += `<button class="act-btn info" title="Security" aria-label="Security" onclick="viewUserDetail('${u._id}')">🛡️</button>`;
     return `<tr>
       <td>${u.firstName || ''} ${u.lastName || ''}${isAdmin ? ' <span class="badge badge-active" style="font-size:10px">Admin</span>' : ''}${suspBadge}</td>
       <td>${u.email || ''}</td>
+      <td><span class="badge ${tierBadgeClass}">${tierText}</span></td>
       <td style="font-family:monospace;font-size:12px">${u.licenseKey || '—'}</td>
       <td>${badge(u.licenseStatus || 'inactive')}</td>
+      <td style="font-size:12px;color:${u.accountTier === 'premium' ? 'var(--success)' : 'var(--muted)'}">${aiDisplay}</td>
       <td>${fmtDt(u.lastLogin)}</td>
       <td style="font-size:12px;color:var(--muted)">${u.lastIp || '—'}</td>
       <td>${u.suspiciousActivity ? '<span class="badge badge-warn">⚠️ Flagged</span>' : '<span style="color:var(--muted);font-size:12px">OK</span>'}</td>
@@ -653,6 +745,61 @@ async function deleteUser(id) {
   if (!confirm('Permanently delete this user account?')) return;
   try { await api('DELETE', `/api/admin/users/${id}`); loadUsers(); }
   catch (e) { alert(e.message); }
+}
+
+async function resetAiLimit(id) {
+  if (!confirm('Reset AI daily usage for this user?')) return;
+  try { await api('POST', `/api/admin/users/${id}/reset-ai-limit`, {}); loadUsers(); }
+  catch (e) { alert(e.message); }
+}
+
+// ── Change User Tier ───────────────────────────────────────────
+let _tierModalUserId = null;
+let _tierModalEmail = null;
+
+function upgradeTierModal(id, email, currentTier) {
+  _tierModalUserId = id;
+  _tierModalEmail = email;
+  const modal = document.getElementById('tierModal') || createTierModal();
+  document.getElementById('tierModalEmail').textContent = email;
+  document.getElementById('tierModalCurrent').textContent = currentTier === 'premium' ? '⭐ Premium' : 'Free';
+  document.getElementById('tierModalCurrent').style.color = currentTier === 'premium' ? '#2ecc71' : '#7a8199';
+  modal.style.display = 'flex';
+}
+
+function createTierModal() {
+  const md = document.createElement('div');
+  md.id = 'tierModal';
+  md.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center;padding:24px';
+  md.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:30px;width:100%;max-width:460px">
+      <h3 style="font-size:17px;font-weight:800;margin-bottom:10px">Change Account Tier</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Email: <strong id="tierModalEmail"></strong></p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:20px">Current Tier: <strong id="tierModalCurrent" style="color:#2ecc71">Premium</strong></p>
+      
+      <div style="margin-bottom:20px">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">Set to:</label>
+        <div style="display:flex;gap:10px">
+          <button onclick="setUserTier('free')" style="flex:1;background:#1a1f2e;border:1.5px solid var(--border);color:var(--text);border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s" onmouseover="this.borderColor='var(--muted)'" onmouseout="this.borderColor='var(--border)'">Free</button>
+          <button onclick="setUserTier('premium')" style="flex:1;background:#052e1633;border:1.5px solid #166534;color:var(--success);border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">⭐ Premium</button>
+        </div>
+      </div>
+      
+      <button onclick="document.getElementById('tierModal').style.display='none'" style="width:100%;background:transparent;border:1.5px solid var(--border);color:var(--muted);border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .15s">Cancel</button>
+    </div>`;
+  document.body.appendChild(md);
+  return md;
+}
+
+async function setUserTier(tier) {
+  if (!_tierModalUserId) return;
+  try {
+    await api('POST', `/api/admin/users/${_tierModalUserId}/tier`, { accountTier: tier });
+    document.getElementById('tierModal').style.display = 'none';
+    loadUsers();
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 // ── Transfer License ───────────────────────────────────────────
@@ -799,20 +946,304 @@ async function loadRevenue() {
 async function loadSettings() {
   try {
     const d = await api('GET', '/api/admin/settings');
-    if (d.whatsapp)  document.getElementById('settingWA').value      = d.whatsapp;
+    if (d.emailAdmin)  document.getElementById('settingAdminEmail').value      = d.emailAdmin;
     if (d.appName)   document.getElementById('settingAppName').value  = d.appName;
+    if (d.walletTRC20) document.getElementById('settingWalletTRC20').value = d.walletTRC20;
+    if (d.walletERC20) document.getElementById('settingWalletERC20').value = d.walletERC20;
+    if (d.walletBEP20) document.getElementById('settingWalletBEP20').value = d.walletBEP20;
+    if (d.pricePlanStandard) document.getElementById('settingPricePlanStandard').value = d.pricePlanStandard;
+    if (d.pricePlanPKR) document.getElementById('settingPricePlanPKR').value = d.pricePlanPKR;
+    if (d.pricing_lifetime_original) document.getElementById('pricingLifetimeOriginal').value = d.pricing_lifetime_original;
+    if (d.pricing_lifetime_discounted !== undefined) document.getElementById('pricingLifetimeDiscounted').value = d.pricing_lifetime_discounted;
+    if (d.pricing_discount_label !== undefined) document.getElementById('pricingDiscountLabel').value = d.pricing_discount_label;
+    renderPricingPreview();
   } catch (e) { console.error(e); }
 }
 
 async function saveSettings() {
-  const whatsapp = document.getElementById('settingWA').value.trim();
+  const emailAdmin = document.getElementById('settingAdminEmail').value.trim() || 'support@scanr.me';
   const appName  = document.getElementById('settingAppName').value.trim();
+  const walletTRC20 = document.getElementById('settingWalletTRC20').value.trim();
+  const walletERC20 = document.getElementById('settingWalletERC20').value.trim();
+  const walletBEP20 = document.getElementById('settingWalletBEP20').value.trim();
+  const pricePlanStandard = parseFloat(document.getElementById('settingPricePlanStandard').value) || 49;
+  const pricePlanPKR = parseFloat(document.getElementById('settingPricePlanPKR').value) || 19500;
   const msg      = document.getElementById('settingMsg');
   try {
-    await api('POST', '/api/admin/settings', { whatsapp, appName });
+    await api('POST', '/api/admin/settings', {
+      emailAdmin, appName,
+      walletTRC20, walletERC20, walletBEP20,
+      pricePlanStandard, pricePlanPKR
+    });
     msg.textContent = 'Settings saved!'; msg.className = 'form-msg ok';
     setTimeout(() => msg.textContent = '', 3000);
   } catch (e) { msg.textContent = e.message; msg.className = 'form-msg err'; }
+}
+
+function parseAdminPrice(id, fallback) {
+  const raw = document.getElementById(id).value.trim();
+  if (raw === '') return fallback;
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function parseAdminDiscount(id) {
+  const raw = document.getElementById(id).value.trim();
+  if (raw === '') return null;
+  const n = parseFloat(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatPreview(plan, original, discounted) {
+  if (discounted && discounted > 0 && discounted < original) {
+    const pct = Math.round(((original - discounted) / original) * 100);
+    return `${plan}: <span style="text-decoration:line-through;opacity:.7;">$${original}</span> $${discounted} (${pct}% OFF)`;
+  }
+  return `${plan}: $${original} (no discount)`;
+}
+
+function renderPricingPreview() {
+  const lifetimeOriginal = parseAdminPrice('pricingLifetimeOriginal', 49);
+  const lifetimeDiscounted = parseAdminDiscount('pricingLifetimeDiscounted');
+  const label = document.getElementById('pricingDiscountLabel').value.trim();
+
+  document.getElementById('pricingPreview').innerHTML = `
+    <div>${formatPreview('Lifetime', lifetimeOriginal, lifetimeDiscounted)}</div>
+    <div style="opacity:.8;">Label: ${label || 'None'}</div>
+  `;
+}
+
+['pricingLifetimeOriginal','pricingLifetimeDiscounted','pricingDiscountLabel']
+  .forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', renderPricingPreview);
+  });
+
+async function savePricing() {
+  const msg = document.getElementById('pricingMsg');
+  const lifetimeOriginal = parseAdminPrice('pricingLifetimeOriginal', 49);
+  const lifetimeDiscounted = parseAdminDiscount('pricingLifetimeDiscounted');
+  const pricing_discount_label = document.getElementById('pricingDiscountLabel').value.trim();
+
+  try {
+    await api('POST', '/api/admin/settings', {
+      pricing_lifetime_original: lifetimeOriginal,
+      pricing_lifetime_discounted: lifetimeDiscounted === null ? '' : lifetimeDiscounted,
+      pricing_discount_label
+    });
+    try { sessionStorage.removeItem('scanr_pricing'); } catch (_) {}
+    renderPricingPreview();
+    msg.textContent = 'Pricing saved!';
+    msg.className = 'form-msg ok';
+    setTimeout(() => { msg.textContent = ''; }, 3000);
+  } catch (e) {
+    msg.textContent = e.message;
+    msg.className = 'form-msg err';
+  }
+}
+
+// ── PAYMENTS ──────────────────────────────────────────────────
+async function loadPayments() {
+  const tbody = document.getElementById('paymentsTbody');
+  tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Loading…</td></tr>';
+  try {
+    const data = await api('GET', '/api/admin/payments');
+    const pending = data.payments.filter(p => p.status === 'pending');
+    const totalValue = pending.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    document.getElementById('pendingPaymentsCount').textContent = pending.length;
+    document.getElementById('totalPendingValue').textContent = '$' + totalValue.toFixed(2);
+
+    if (!data.payments || data.payments.length === 0) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No payments yet</td></tr>';
+      return;
+    }
+
+    let html = '';
+    data.payments.forEach(p => {
+      const date = new Date(p.createdAt).toLocaleDateString();
+      const time = new Date(p.createdAt).toLocaleTimeString();
+      const statusClass = p.status === 'pending' ? 'badge-warn' : p.status === 'verified' ? 'badge-ok' : 'badge-danger';
+      const screenshotBtn = p.screenshotPath ?
+        `<a href="${p.screenshotPath}" target="_blank" style="font-size:11px;color:var(--accent)">View</a>` : '—';
+      const planDisplay = (p.planType || 'lifetime').charAt(0).toUpperCase() + (p.planType || 'lifetime').slice(1);
+      const actions = p.status === 'pending' ?
+        `<button class="sm-act-btn" title="Verify & Send Key" aria-label="Verify & Send Key" onclick="toggleVerifyPanel('${p._id}')">✅</button> <button class="sm-act-btn" title="Reject" aria-label="Reject" style="background:#ef4444" onclick="toggleRejectPanel('${p._id}')">❌</button>` :
+        `<span style="color:var(--muted);font-size:12px">${p.status}</span>`;
+
+      html += `<tr id="payment-row-${p._id}">
+        <td>${p.buyerName}</td>
+        <td>${p.buyerEmail}</td>
+        <td>${planDisplay}</td>
+        <td>$${(p.amount || 0).toFixed(2)}</td>
+        <td style="font-size:11px;font-family:monospace;max-width:100px;overflow:hidden;text-overflow:ellipsis">${(p.txId || '').slice(0, 12)}...</td>
+        <td>${screenshotBtn}</td>
+        <td style="font-size:11px">${date}<br>${time}</td>
+        <td><span class="badge ${statusClass}">${p.status}</span></td>
+        <td>${actions}</td>
+      </tr>`;
+
+      // Accordion panel for verification (hidden by default)
+      html += `<tr id="verify-panel-${p._id}" style="display:none">
+        <td colspan="9" style="background:rgba(0,229,160,0.05);padding:20px;border-left:3px solid var(--accent)">
+          <div style="max-width:900px">
+            <h4 style="margin:0 0 16px;font-size:14px;font-weight:700">Generate & Send License Key</h4>
+            
+            <!-- Payment Details Section -->
+            <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px">
+              <h5 style="margin:0 0 12px;font-size:12px;font-weight:700;color:var(--accent)">Payment Details</h5>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px">
+                <div>
+                  <span style="color:var(--muted)">Name:</span> ${p.buyerName || '—'}
+                </div>
+                <div>
+                  <span style="color:var(--muted)">Email:</span> ${p.buyerEmail || '—'}
+                </div>
+                <div>
+                  <span style="color:var(--muted)">Phone:</span> ${p.buyerPhone || '—'}
+                </div>
+                <div>
+                  <span style="color:var(--muted)">Network:</span> ${p.network || '—'}
+                </div>
+                <div>
+                  <span style="color:var(--muted)">TX ID:</span> <code style="background:var(--bg-card);padding:2px 6px;border-radius:3px;font-size:11px">${p.txId || '—'}</code>
+                </div>
+                <div>
+                  <span style="color:var(--muted)">Amount:</span> $${(p.amount || 0).toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            <!-- Screenshot & Message Section -->
+            ${p.screenshotPath || p.message ? `
+            <div style="background:var(--bg-base);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px">
+              <h5 style="margin:0 0 12px;font-size:12px;font-weight:700;color:var(--accent)">User's Evidence</h5>
+              ${p.screenshotPath ? `
+              <div style="margin-bottom:16px">
+                <p style="margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:600">Screenshot:</p>
+                <a href="${p.screenshotPath}" target="_blank" style="display:inline-block;max-width:100%;border-radius:6px;overflow:hidden;border:1px solid var(--border)">
+                  <img src="${p.screenshotPath}" alt="Payment Screenshot" style="max-width:400px;max-height:300px;display:block">
+                </a>
+              </div>
+              ` : ''}
+              ${p.message ? `
+              <div>
+                <p style="margin:0 0 8px;font-size:12px;color:var(--muted);font-weight:600">User's Message:</p>
+                <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;line-height:1.5;color:var(--text);word-wrap:break-word">${p.message}</div>
+              </div>
+              ` : ''}
+            </div>
+            ` : ''}
+
+            <!-- License Key Section -->
+            <div style="margin-bottom:12px">
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">License Key (Auto-generated or Custom)</label>
+              <div style="display:flex;gap:8px">
+                <input type="text" id="license-key-${p._id}" placeholder="SCAN-XXXX-XXXX-XXXX-XXXX" style="flex:1;padding:8px;background:var(--bg-base);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:monospace;font-size:12px"/>
+                <button class="sm-act-btn" onclick="generateLicenseKeyFor('${p._id}')" style="background:var(--accent);color:#000">Generate Key</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <button class="sm-act-btn" onclick="confirmAndSendKey('${p._id}')" style="background:var(--accent);color:#000;font-weight:700">Confirm & Send to User</button>
+              <button class="sm-act-btn" onclick="toggleVerifyPanel('${p._id}')" style="background:var(--border);color:var(--text)">Cancel</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+
+      // Accordion panel for rejection (hidden by default)
+      html += `<tr id="reject-panel-${p._id}" style="display:none">
+        <td colspan="9" style="background:rgba(239,68,68,0.05);padding:20px;border-left:3px solid #ef4444">
+          <div style="max-width:600px">
+            <h4 style="margin:0 0 16px;font-size:14px;font-weight:700;color:#ef4444">Reject Payment</h4>
+            <div style="margin-bottom:12px">
+              <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px">Rejection Reason</label>
+              <textarea id="reject-reason-${p._id}" placeholder="Enter reason for rejection..." style="width:100%;padding:8px;background:var(--bg-base);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;min-height:80px"></textarea>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <button class="sm-act-btn" onclick="confirmReject('${p._id}')" style="background:#ef4444;color:#fff;font-weight:700">Confirm Reject</button>
+              <button class="sm-act-btn" onclick="toggleRejectPanel('${p._id}')" style="background:var(--border);color:var(--text)">Cancel</button>
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    });
+    tbody.innerHTML = html;
+  } catch (e) {
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="9">Error: ${e.message}</td></tr>`;
+  }
+}
+
+function toggleVerifyPanel(paymentId) {
+  const panel = document.getElementById(`verify-panel-${paymentId}`);
+  const rejectPanel = document.getElementById(`reject-panel-${paymentId}`);
+  if (rejectPanel) rejectPanel.style.display = 'none';
+  panel.style.display = panel.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function toggleRejectPanel(paymentId) {
+  const panel = document.getElementById(`reject-panel-${paymentId}`);
+  const verifyPanel = document.getElementById(`verify-panel-${paymentId}`);
+  if (verifyPanel) verifyPanel.style.display = 'none';
+  panel.style.display = panel.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function generateLicenseKeyFor(paymentId) {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const seg = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const licenseKey = `SCAN-${seg()}-${seg()}-${seg()}-${seg()}`;
+  document.getElementById(`license-key-${paymentId}`).value = licenseKey;
+}
+
+async function confirmAndSendKey(paymentId) {
+  const licenseKey = document.getElementById(`license-key-${paymentId}`).value.trim();
+  if (!licenseKey) {
+    alert('Please enter or generate a license key first');
+    return;
+  }
+  if (!confirm(`Confirm sending license key to user?\n\nKey: ${licenseKey}`)) return;
+
+  try {
+    const result = await api('POST', `/api/admin/payment/verify/${paymentId}`, { licenseKey });
+    alert(`✓ License key sent to user:\n${result.licenseKey}`);
+    toggleVerifyPanel(paymentId);
+    loadPayments();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function confirmReject(paymentId) {
+  const reason = document.getElementById(`reject-reason-${paymentId}`).value.trim();
+  if (!reason) {
+    if (!confirm('Reject without providing a reason?')) return;
+  }
+  if (!confirm(`Confirm rejecting this payment?${reason ? '\n\nReason: ' + reason : ''}`)) return;
+
+  try {
+    await api('POST', `/api/admin/payment/reject/${paymentId}`, { reason });
+    alert('Payment rejected. User will be notified.');
+    toggleRejectPanel(paymentId);
+    loadPayments();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// Deprecated - kept for backwards compat
+async function verifyPayment(paymentId) {
+  if (!confirm('Verify this payment and issue license key?')) return;
+  try {
+    const result = await api('POST', `/api/admin/payment/verify/${paymentId}`, {});
+    alert(`✓ License key issued:\n${result.licenseKey}`);
+    loadPayments();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function rejectPayment(paymentId) {
+  const reason = prompt('Enter rejection reason (optional):');
+  if (reason === null) return;
+  try {
+    await api('POST', `/api/admin/payment/reject/${paymentId}`, { reason });
+    alert('Payment rejected. Buyer will be notified.');
+    loadPayments();
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 // ── CONTACTS ──────────────────────────────────────────────────
@@ -842,8 +1273,8 @@ async function loadContacts() {
         <td style="white-space:nowrap">${fmtDt(c.createdAt)}</td>
         <td>${c.read ? '<span class="badge badge-active">Read</span>' : '<span class="badge badge-warn">Unread</span>'}</td>
         <td class="acts">
-          ${!c.read ? `<button class="act-btn info" onclick="markContactRead('${c._id}',this)">Mark Read</button>` : ''}
-          <button class="act-btn delete" onclick="deleteContact('${c._id}',this)">Delete</button>
+          ${!c.read ? `<button class="act-btn info" title="Mark Read" aria-label="Mark Read" onclick="markContactRead('${c._id}',this)">✅</button>` : ''}
+          <button class="act-btn delete" title="Delete" aria-label="Delete" onclick="deleteContact('${c._id}',this)">🗑️</button>
         </td>
       </tr>`).join('');
     });
@@ -889,9 +1320,10 @@ document.querySelectorAll('.modal-bg').forEach(bg => {
 // Dynamic app name
 fetch('/api/public/app-name').then(r => r.ok ? r.json() : null).then(data => {
   const name = data?.appName; if (!name) return;
-  document.title = document.title.replace(/Monty/g, name);
+  document.title = document.title.replace(/SCANR/g, name);
   const logo = document.querySelector('.hdr-logo');
   if (logo) logo.innerHTML = name + '<span>.</span> <span style="font-size:13px;color:var(--muted);font-weight:600">Admin</span>';
 }).catch(() => {});
 </script>
 <script src="/js/session-check.js"></script>
+

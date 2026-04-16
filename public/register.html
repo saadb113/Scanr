@@ -74,9 +74,21 @@
 
   <script src="/js/fingerprint.js"></script>
   <script>
+    // Read optional plan/redirect parameters in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const planParam = urlParams.get('plan');
+    const redirectParam = urlParams.get('redirect');
+
     // Redirect already-logged-in users
     fetch('/api/auth/session-check').then(r => r.ok ? r.json() : null).then(d => {
-      if (d && d.valid) window.location.replace('/dashboard');
+      if (d && d.valid) {
+        // If logged in and trying to register with plan, redirect to payment
+        if (planParam && redirectParam === 'payment') {
+          window.location.replace(`/payment?plan=${planParam}`);
+        } else {
+          window.location.replace('/dashboard');
+        }
+      }
     }).catch(() => {});
 
     const $ = id => document.getElementById(id);
@@ -117,7 +129,14 @@
         const d = await r.json();
         if (!r.ok) { msg.style.color = '#f56565'; msg.textContent = d.error || 'Registration failed.'; return; }
         msg.style.color = '#29ffb8'; msg.textContent = 'Account created! Redirecting...';
-        setTimeout(() => { window.location.href = '/license'; }, 900);
+
+        // Determine redirect destination
+        let redirectUrl = '/dashboard';  // Free users go to dashboard
+        if (planParam && redirectParam === 'payment') {
+          redirectUrl = `/payment?plan=${planParam}`;  // Unless coming from a plan-specific link
+        }
+
+        setTimeout(() => { window.location.href = redirectUrl; }, 900);
       } catch (_) {
         msg.style.color = '#f56565'; msg.textContent = 'Network error. Please try again.';
       } finally {

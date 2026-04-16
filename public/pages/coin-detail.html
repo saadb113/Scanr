@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title id="pageTitle">Coin Detail</title>
 <script src="https://s3.tradingview.com/tv.js"></script>
+ <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -294,8 +295,8 @@ body{
     <span class="cd-price-badge" id="hdPrice">—</span>
     <span class="cd-pct-badge" id="hdPct"></span>
     <div class="cd-nav-links">
-      <button class="cd-nav-btn" onclick="cdOpenAI()" style="color:#a855f7;border-color:#7c3aed3a">🤖 Analyze</button>
-      <a href="/terminal" class="cd-nav-btn">⚡ Trade</a>
+      <button class="cd-nav-btn" onclick="cdOpenAI()" style="color:#a855f7;border-color:#7c3aed3a"><i class="fa-solid fa-robot" ></i> Analyze</button>
+      <a href="/terminal" class="cd-nav-btn"><i class="fa-solid fa-rocket" ></i> Trade</a>
     </div>
   </div>
 
@@ -313,9 +314,9 @@ body{
   <!-- ── BELOW: Positions + Orders ── -->
   <div class="cd-below">
     <div class="cd-below-tabs">
-      <button class="cd-below-tab active" onclick="cdBelowTab('positions',this)">📊 Positions <span class="cd-tab-badge" id="cdPosBadge">0</span></button>
-      <button class="cd-below-tab" onclick="cdBelowTab('orders',this)">📋 Orders <span class="cd-tab-badge" id="cdOrdBadge">0</span></button>
-      <button class="cd-below-tab" onclick="cdBelowTab('assets',this)">💰 Assets</button>
+      <button class="cd-below-tab active" onclick="cdBelowTab('positions',this)"><i class="fa-solid fa-chart-area" ></i> Positions <span class="cd-tab-badge" id="cdPosBadge">0</span></button>
+      <button class="cd-below-tab" onclick="cdBelowTab('orders',this)"><i class="fa-solid fa-clipboard" ></i> Orders <span class="cd-tab-badge" id="cdOrdBadge">0</span></button>
+      <button class="cd-below-tab" onclick="cdBelowTab('assets',this)"><i class="fa-solid fa-sack-dollar" ></i> Assets</button>
     </div>
     <!-- ── POSITIONS PAGE ── -->
     <div class="cd-below-page active" id="cdp-positions">
@@ -340,7 +341,7 @@ body{
 <div class="cd-ai-overlay" id="cdAIOverlay" onclick="cdCloseAI()"></div>
 <div class="cd-ai-drawer" id="cdAIDrawer">
   <div class="cd-ai-drawer-hd">
-    <span class="cd-ai-drawer-title">🤖 AI Analysis</span>
+    <span class="cd-ai-drawer-title"><i class="fa-solid fa-robot" ></i> AI Analysis</span>
     <select id="cdAITf" class="cd-ai-tf-sel">
        <option value="1" selected>1m</option>
             <option value="3">3m</option>
@@ -368,7 +369,7 @@ body{
 <!-- Modify SL/TP modal -->
 <div class="cd-modal-overlay" id="cdModifyOverlay">
   <div class="cd-modal-box">
-    <h4>✏️ Modify SL / TP</h4>
+    <h4><i class="fa-solid fa-pencil" ></i> Modify SL / TP</h4>
     <div class="cd-field">
       <label>Stop Loss</label>
       <input type="number" class="cd-input" id="cdModSL" placeholder="Price" step="any" style="border-color:#7f1d1d"/>
@@ -414,7 +415,7 @@ function cdSetDir(d) { cdDir = d || cdDir; }
 function cdSetCategory(cat) { cdCategory = cat || cdCategory; }
 function cdSymChanged() {}
 // ── TV save/load adapter (localStorage) ───────────────────────
-const TV_CHARTS_KEY = 'monty_tv_charts_v1';
+const TV_CHARTS_KEY = 'SCANR_tv_charts_v1';
 const tvSaveLoadAdapter = {
     getAllCharts: function(cb) {
         try { const d = JSON.parse(localStorage.getItem(TV_CHARTS_KEY)||'[]');
@@ -539,9 +540,9 @@ function hmac256(secret, msg) {
 let clockOff = 0;
 async function syncClock() {
     try {
-        const r = await fetch('https://api.bybit.com/v5/market/time');
+        const r = await fetch('/api/proxy/binance?path=/fapi/v1/time');
         const d = await r.json();
-        const st = parseInt(d.result?.timeNano ? d.result.timeNano/1e6 : d.result?.timeSecond*1000);
+        const st = parseInt(d.serverTime);
         if (st) clockOff = st - Date.now();
     } catch(_) {}
 }
@@ -573,17 +574,17 @@ async function bybitReq(method, path, params, body) {
 // ── Live price ─────────────────────────────────────────────────
 async function fetchLivePrice(s) {
     try {
-        const r = await fetch(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${s}`);
+        const r = await fetch(`/api/proxy/binance?path=/fapi/v1/ticker/24hr&symbol=${s}`);
         if (!r.ok) return;
         const d = await r.json();
-        cdLivePrice = +d.lastPrice;
+        cdLivePrice = +(d?.lastPrice || 0);
         document.getElementById('cdEntry').value = cdLivePrice;
         document.getElementById('cdLiveTag').textContent = '● live';
-        const pct = +d.priceChangePercent;
+        const pct = +(d?.priceChangePercent || 0);
         const pctEl = document.getElementById('hdPct');
         pctEl.textContent = (pct>=0?'+':'')+pct.toFixed(2)+'%';
         pctEl.style.color = pct>=0 ? '#22c55e' : '#ef4444';
-        document.getElementById('hdPrice').textContent = '$' + (+d.lastPrice).toFixed(4);
+        document.getElementById('hdPrice').textContent = '$' + cdLivePrice.toFixed(4);
         cdUpdateSummary();
     } catch(_) {}
 }
@@ -594,17 +595,16 @@ async function fetchLivePrice(s) {
 
 async function cdFetchMaxLev(s) {
     try {
-        const r    = await fetch(`https://api.bybit.com/v5/market/instrument-info?category=${cdCategory}&symbol=${s}`);
+        const r    = await fetch(`/api/proxy/binance?path=/fapi/v1/exchangeInfo&symbol=${s}`);
         const d    = await r.json();
-        const info = d.result?.list?.[0];
+        const info = d.symbols?.[0];
         const ml   = cdCategory === 'spot' ? 1 : (+info?.leverageFilter?.maxLeverage || 100);
         cdMaxLev  = ml;
-        const cdQtyStepRaw = cdCategory === 'spot'
-            ? (info?.lotSizeFilter?.basePrecision || info?.lotSizeFilter?.minOrderQty || '0.001')
-            : (info?.lotSizeFilter?.qtyStep || '0.001');
-        cdQtyStep  = parseFloat(cdQtyStepRaw) || 0.001;
-        cdMinQty   = parseFloat(info?.lotSizeFilter?.minOrderQty || '0.001');
-        cdTickSize = parseFloat(info?.priceFilter?.tickSize       || '0');
+        const lot = (info?.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
+        const pf  = (info?.filters || []).find(f => f.filterType === 'PRICE_FILTER') || {};
+        cdQtyStep  = parseFloat(lot.stepSize || '0.001') || 0.001;
+        cdMinQty   = parseFloat(lot.minQty || '0.001');
+        cdTickSize = parseFloat(pf.tickSize || '0');
         document.getElementById('cdLevSlider').max = ml;
         document.getElementById('cdLevNum').max    = ml;
         document.getElementById('cdMaxLevLabel').textContent = cdCategory === 'spot' ? 'Spot' : 'Max: ' + ml + 'x';
@@ -614,13 +614,14 @@ async function cdFetchMaxLev(s) {
 async function cdFetchSpotInfo(s) {
     if (!s) return;
     try {
-        const r    = await fetch(`https://api.bybit.com/v5/market/instrument-info?category=spot&symbol=${s}`);
+        const r    = await fetch(`/api/proxy/binance?path=/fapi/v1/exchangeInfo&symbol=${s}`);
         const d    = await r.json();
-        const info = d.result?.list?.[0];
-        const cdSpotQtyStepRaw = info?.lotSizeFilter?.basePrecision || info?.lotSizeFilter?.minOrderQty || '0.001';
-        cdQtyStep  = parseFloat(cdSpotQtyStepRaw) || 0.001;
-        cdMinQty   = parseFloat(info?.lotSizeFilter?.minOrderQty || '0.001');
-        cdTickSize = parseFloat(info?.priceFilter?.tickSize       || '0');
+        const info = d.symbols?.[0];
+        const lot = (info?.filters || []).find(f => f.filterType === 'LOT_SIZE') || {};
+        const pf  = (info?.filters || []).find(f => f.filterType === 'PRICE_FILTER') || {};
+        cdQtyStep  = parseFloat(lot.stepSize || '0.001') || 0.001;
+        cdMinQty   = parseFloat(lot.minQty || '0.001');
+        cdTickSize = parseFloat(pf.tickSize || '0');
         document.getElementById('cdMaxLevLabel').textContent = 'Spot';
     } catch(_) {}
 }
@@ -895,7 +896,7 @@ async function cdLoadPositions() {
                 <div class="pos-item"><div class="pi-label">Liq.</div><div class="pi-val" style="color:#f59e0b">${+p.liqPrice>0?(+p.liqPrice).toFixed(4):'—'}</div></div>
               </div>
               <div class="pos-actions">
-                <button class="pos-act modify" onclick="cdOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')">✏️ SL/TP</button>
+                <button class="pos-act modify" onclick="cdOpenModify('${p.symbol}','${p.side}','${p.stopLoss}','${p.takeProfit}')"><i class="fa-solid fa-pencil" ></i> SL/TP</button>
                 <button class="pos-act half"   onclick="cdClosePos('${p.symbol}','${p.side}',${size/2},'50%')">Close 50%</button>
                 <button class="pos-act close"  onclick="cdClosePos('${p.symbol}','${p.side}',${size},'all')">Close All</button>
               </div>
@@ -1205,10 +1206,11 @@ async function cdRunAI() {
     btn.textContent = 'Analyzing…';
     body.innerHTML = '<div style="color:#9aa3b5;font-size:0.82rem;text-align:center;margin-top:2.5rem">Fetching candle data…</div>';
     try {
-        const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${sym}&interval=${tf}&limit=100`);
+        const tfMap = {'5':'5m','15':'15m','60':'1h','240':'4h','D':'1d'};
+        const r = await fetch(`/api/proxy/binance?path=/fapi/v1/klines&symbol=${sym}&interval=${tfMap[tf] || tf}&limit=100`);
         const d = await r.json();
-        if (!d.result?.list?.length) throw new Error('No kline data');
-        const raw     = d.result.list.reverse();
+        if (!Array.isArray(d) || !d.length) throw new Error('No kline data');
+        const raw     = d;
         const opens   = raw.map(c => parseFloat(c[1]));
         const highs   = raw.map(c => parseFloat(c[2]));
         const lows    = raw.map(c => parseFloat(c[3]));
@@ -1314,3 +1316,4 @@ function cdRenderAIResult(r, currentPrice, tfLabel) {
 <script src="/js/session-check.js"></script>
 </body>
 </html>
+

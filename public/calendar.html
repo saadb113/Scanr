@@ -79,6 +79,7 @@ html.light-mode{--bg:#f2f5fb;--bg-card:#ffffff;--bg-raised:#e8edf6;--bg-input:#e
 </head>
 <body>
 <script src="/js/nav.js"></script>
+<div class="page-content">
 <div class="cal-wrap">
 
   <div class="cal-header">
@@ -267,5 +268,11 @@ function renderCalendar() {
 loadCalendar();
 </script>
 <script src="/js/session-check.js"></script>
+<script>
+  (async function checkPremiumAccess() {
+    await window.enforcePremiumAccess(typeof window.initPage === 'function' ? window.initPage : null);
+  })();
+</script>
+</div><!-- /page-content -->
 </body>
 </html>

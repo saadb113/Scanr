@@ -1626,9 +1626,9 @@ async function updateOpenPnl() {
   const prices = {};
   await Promise.all(symbols.map(async sym => {
     try {
-      const r = await fetch(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${sym}`);
+      const r = await fetch(`/api/proxy/binance?path=/fapi/v1/ticker/price&symbol=${sym}`);
       const d = await r.json();
-      const price = parseFloat(d?.result?.list?.[0]?.lastPrice);
+      const price = parseFloat(d?.price);
       if (!isNaN(price)) prices[sym] = price;
     } catch (_) {}
   }));

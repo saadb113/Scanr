@@ -3,7 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Settings — Monty</title>
+  <script>
+    document.documentElement.classList.add('scanr-loading');
+  </script>
+  <style>
+    html.scanr-loading {
+      background: #080b11;
+    }
+
+    html.scanr-loading body {
+      opacity: 0 !important;
+      visibility: hidden !important;
+    }
+
+    html.scanr-loading::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 2147483646;
+      background: #080b11;
+    }
+
+    html.scanr-loading::after {
+      content: '';
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 42px;
+      height: 42px;
+      margin-left: -21px;
+      margin-top: -21px;
+      border-radius: 50%;
+      border: 3px solid rgba(0, 229, 160, 0.25);
+      border-top-color: #00e5a0;
+      z-index: 2147483647;
+      animation: scanrBootSpin 0.75s linear infinite;
+    }
+
+    @keyframes scanrBootSpin { to { transform: rotate(360deg); } }
+  </style>
+  <title>Settings — SCANR</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/styles.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -70,7 +110,7 @@
     <div class="sp-sidebar-label">Preferences</div>
     <div class="sp-tab active" data-tab="appearance"><i class="fa-solid fa-brush" style="color: rgb(255, 255, 255);"></i> Appearance</div>
     <div class="sp-tab" data-tab="indicators"><i class="fa-solid fa-arrow-up-right-dots" style="color: rgb(255, 255, 255);"></i> Indicators</div>
-    <div class="sp-tab" data-tab="filters"><i class="fa-solid fa-magnifying-glass" style="color: rgb(255, 255, 255);"></i> Filters</div>
+    <div class="sp-tab" data-tab="filters"><i class="fa-solid fa-magnifying-glass" ></i> Filters</div>
     <div class="sp-tab" data-tab="coins"><i class="fa-solid fa-coins" style="color: rgb(255, 255, 255);"></i> Coins</div>
     <div class="sp-tab" data-tab="drawings"><i class="fa-solid fa-pencil" style="color: rgb(255, 255, 255);"></i> Drawings</div>
     <div class="sp-sidebar-divider"></div>
@@ -79,7 +119,6 @@
     <div class="sp-sidebar-divider"></div>
     <div class="sp-sidebar-label">Account</div>
     <div class="sp-tab profile-tab" data-tab="profile"><i class="fa-solid fa-user" style="color: rgb(255, 255, 255);"></i> Profile</div>
-    <div class="sp-tab" data-tab="agent"><i class="fa-solid fa-robot" style="color: rgb(255, 255, 255);"></i> Day Agent</div>
   </div>
 
   <!-- Body -->
@@ -92,7 +131,7 @@
         <div class="sp-card">
           <div class="sp-card-title">RSI Colors</div>
           <div class="color-grid">
-            <div class="s-row"><label>RSI Line</label><input type="color" id="sRsiColor" value="#29ffb8"></div>
+            <div class="s-row"><label>RSI Line</label><input type="color" id="sRsiColor" value="#a600ff"></div>
             <div class="s-row"><label>Overbought (70)</label><input type="color" id="sRsiOBColor" value="#f56565"></div>
             <div class="s-row"><label>Oversold (30)</label><input type="color" id="sRsiOSColor" value="#48bb78"></div>
           </div>
@@ -115,7 +154,7 @@
             <label>Chart Type</label>
             <select id="sPriceType" class="s-input-full">
               <option value="line">Line Chart</option>
-              <option value="candle">Candlestick</option>
+              <option value="candle" selected>Candlestick</option>
             </select>
           </div>
           <div class="s-row">
@@ -136,21 +175,33 @@
         </div>
 
         <div class="sp-card">
-          <div class="sp-card-title">Accent Color</div>
-          <div class="s-row" style="align-items:center">
-            <label>Accent Color</label>
-            <div style="display:flex;gap:0.5rem;align-items:center">
-              <input type="color" id="sAccentColor" value="#00e5a0" oninput="onAccentColorChange(this.value)" style="width:2.4rem;height:2rem;border:none;background:none;cursor:pointer;padding:0">
-              <input type="text"  id="sAccentColorHex" value="#00e5a0" maxlength="7" oninput="onAccentHexChange(this.value)" style="width:6rem;background:var(--bg-input,#090c12);border:1px solid var(--border,#1a2030);border-radius:6px;padding:0.35rem 0.5rem;color:var(--text-primary,#e5e9f2);font-family:monospace;font-size:13px;outline:none">
-            </div>
+          <div class="sp-card-title">Clock Timezone</div>
+          <div class="s-row" style="display:flex;align-items:center;justify-content:space-between">
+            <label style="margin-bottom:0">Timezone</label>
+            <select id="sClockTimezone" class="s-input-full" style="max-width:260px">
+              <option value="America/New_York">New York (Default)</option>
+              <option value="America/Chicago">Chicago</option>
+              <option value="America/Los_Angeles">Los Angeles</option>
+              <option value="Europe/London">London</option>
+              <option value="Europe/Berlin">Berlin</option>
+              <option value="Asia/Dubai">Dubai</option>
+              <option value="Asia/Karachi">Karachi</option>
+              <option value="Asia/Kolkata">Kolkata</option>
+              <option value="Asia/Singapore">Singapore</option>
+              <option value="Asia/Tokyo">Tokyo</option>
+              <option value="Australia/Sydney">Sydney</option>
+            </select>
           </div>
           <div style="display:flex;gap:0.5rem;margin-top:0.7rem">
-            <button onclick="saveAccentColor()" style="flex:1;background:linear-gradient(135deg,#065f46,#00c896);color:#000;border:none;border-radius:8px;padding:0.45rem;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font-ui)">💾 Save</button>
-            <button onclick="resetAccentColor()" style="background:none;border:1px solid var(--border,#1a2030);color:var(--text-muted,#6b7897);border-radius:8px;padding:0.45rem 0.75rem;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font-ui)">Reset</button>
+            <span style="font-size:12px;color:var(--text-muted,#6b7897)">Timezone is saved with other Appearance settings.</span>
           </div>
-          <div id="accentSavedMsg" style="display:none;text-align:center;font-size:13px;color:var(--accent-green,#00e5a0);margin-top:0.4rem;font-weight:600">✓ Saved!</div>
         </div>
 
+        
+      </div>
+      <div style="padding:0.5rem 0.1rem 0.2rem">
+        <button onclick="saveAppearanceSettings()" style="background:linear-gradient(135deg,#065f46,#00c896);color:#000;border:none;border-radius:8px;padding:0.55rem 1rem;font-size:13px;font-weight:800;cursor:pointer;font-family:var(--font-ui)"><i class="fa-solid fa-floppy-disk"></i> Save Appearance</button>
+        <div id="appearanceSavedMsg" style="display:none;font-size:13px;color:var(--accent-green,#00e5a0);padding:0 0.2rem 0.2rem 0;font-weight:600">✓ Appearance settings saved!</div>
       </div>
     </div>
 
@@ -224,7 +275,7 @@
       <div class="int-grid">
         <!-- Bybit card -->
         <div class="int-card">
-          <div class="int-icon">⚡</div>
+          <div class="int-icon"><i class="fa-brands fa-bitcoin"></i></div>
           <div class="int-name">Bybit</div>
           <div class="int-status not-set" id="intBybitStatus">Checking…</div>
           <button class="int-cfg-btn" onclick="openIntModal('bybit')">Configure</button>
@@ -238,14 +289,14 @@
         </div>
         <!-- AI Analysis card -->
         <div class="int-card">
-          <div class="int-icon">🤖</div>
+          <div class="int-icon"><i class="fa-solid fa-robot" ></i></div>
           <div class="int-name">AI Models</div>
           <div class="int-status not-set" id="intKimiStatus">Checking…</div>
           <button class="int-cfg-btn" onclick="openIntModal('kimi')">Configure</button>
         </div>
         <!-- Discord card -->
         <div class="int-card">
-          <div class="int-icon">💬</div>
+          <div class="int-icon"><i class="fa-brands fa-discord"></i></div>
           <div class="int-name">Discord</div>
           <div class="int-status not-set" id="intDiscordStatus">Not set ⚪</div>
           <button class="int-cfg-btn" onclick="openIntModal('discord')">Configure</button>
@@ -277,7 +328,7 @@
       </div>
       <div id="drawingsManagerList" style="display:flex;flex-direction:column;gap:0.5rem"></div>
       <div id="drawingsEmptyMsg" style="display:none;text-align:center;padding:3rem;color:#2e3a55;font-size: 15px">
-        ✏️<br><br>No saved drawings yet.<br><span style="font-size: 13px">Open a coin, draw something, and it'll appear here.</span>
+        <i class="fa-solid fa-pencil" ></i><br><br>No saved drawings yet.<br><span style="font-size: 13px">Open a coin, draw something, and it'll appear here.</span>
       </div>
     </div>
 
@@ -311,149 +362,12 @@
         </div>
       </div>
       <div style="margin-top:1rem;display:flex;gap:0.6rem;align-items:center">
-        <button onclick="profSave()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:var(--radius-sm);padding:0.5rem 1.4rem;font-size:0.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">💾 Save Profile</button>
+        <button onclick="profSave()" style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border:none;border-radius:var(--radius-sm);padding:0.5rem 1.4rem;font-size:0.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Profile</button>
         <span id="profSavedMsg" style="display:none;font-size:0.82rem;color:var(--accent-green);font-weight:600">✓ Profile saved!</span>
         <span id="profErrMsg" style="display:none;font-size:0.82rem;color:var(--accent-red);font-weight:600"></span>
       </div>
     </div>
 
-    <!-- ── AGENT SETTINGS ── -->
-    <div class="sp-page" id="sp-agent" style="padding:0.75rem 0 1.5rem">
-    <div style="font-size: 0.82rem;font-weight:700;color:#a855f7;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.9rem">📈 Day Trading Agent</div>
-
-    <!-- Trading Window -->
-    <div style="margin-bottom:0.8rem">
-      <div style="font-size:0.68rem;color:#6b7280;margin-bottom:0.35rem;font-weight:600">Trading Window (PST)</div>
-      <div style="display:flex;gap:0.5rem">
-        <div style="flex:1">
-          <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Start</label>
-          <input type="time" id="agStartTime" class="s-input-full" value="08:00">
-        </div>
-        <div style="flex:1">
-          <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">End (hard stop)</label>
-          <input type="time" id="agEndTime" class="s-input-full" value="18:00">
-        </div>
-      </div>
-    </div>
-
-    <!-- Trade Limits -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Max Trades / Day</label>
-        <input type="number" id="agMaxTrades" class="s-input-full" value="3" min="1" max="20">
-      </div>
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Scan Interval (min)</label>
-        <input type="number" id="agScanInterval" class="s-input-full" value="30" min="5" max="120">
-      </div>
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Cooldown After Trade (min)</label>
-        <input type="number" id="agCooldown" class="s-input-full" value="15" min="0" max="120">
-      </div>
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Min AI Score (0-100)</label>
-        <input type="number" id="agMinScore" class="s-input-full" value="75" min="0" max="100">
-      </div>
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Scan Timeframe</label>
-        <select id="agTimeframe" class="s-input-full">
-          <option value="1m">1m</option>
-          <option value="3m">3m</option>
-          <option value="5m" selected>5m</option>
-          <option value="15m">15m</option>
-          <option value="30m">30m</option>
-          <option value="1h">1h</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Position Sizing -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Base Position (USDT, 0=auto)</label>
-        <input type="number" id="agBaseSize" class="s-input-full" value="0" min="0" step="any">
-      </div>
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Max Loss / Trade (%)</label>
-        <input type="number" id="agMaxLossPct" class="s-input-full" value="1" min="0.1" max="10" step="0.1">
-      </div>
-    </div>
-
-    <!-- Guardrails -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Daily Drawdown Limit (%)</label>
-        <input type="number" id="agDailyDD" class="s-input-full" value="5" min="1" max="50" step="0.5">
-      </div>
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Max Consecutive Losses</label>
-        <input type="number" id="agMaxCL" class="s-input-full" value="3" min="1" max="10">
-      </div>
-    </div>
-
-    <!-- Coin Filters -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;margin-bottom:0.8rem">
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Min Volume (M USDT)</label>
-        <input type="number" id="agMinVol" class="s-input-full" value="30" min="0">
-      </div>
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">ATR Min</label>
-        <input type="number" id="agAtrMin" class="s-input-full" value="0" min="0" step="any">
-      </div>
-      <div>
-        <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">ATR Max</label>
-        <input type="number" id="agAtrMax" class="s-input-full" value="9999999" min="0" step="any">
-      </div>
-    </div>
-
-    <!-- Custom Coin List -->
-    <div style="margin-bottom:0.8rem">
-      <label style="font-size: 0.75rem;color:#4b5563;display:block;margin-bottom:0.2rem">Custom Coin List (blank = use global list)</label>
-      <input type="text" id="agCustomCoins" class="s-input-full" placeholder="e.g. BTCUSDT, ETHUSDT, SOLUSDT">
-    </div>
-
-    <!-- Demo / Live Mode -->
-    <div style="margin-bottom:0.8rem">
-      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.85rem;color:#9ca3af">
-        <input type="checkbox" id="agDemoMode">
-        <span>Demo Mode <span style="color:#f59e0b;font-size:0.75rem">(simulate trades, no real orders placed)</span></span>
-      </label>
-    </div>
-
-    <!-- Email Notifications -->
-    <div style="margin-bottom:0.8rem">
-      <div style="font-size:0.68rem;color:#6b7280;margin-bottom:0.35rem;font-weight:600">Email Notifications</div>
-      <input type="email" id="agEmailRecipient" class="s-input-full" placeholder="Recipient email (e.g. you@gmail.com)" style="margin-bottom:0.4rem">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.35rem">
-        <label style="display:flex;align-items:center;gap:0.4rem;font-size: 0.82rem;color:#9ca3af;cursor:pointer">
-          <input type="checkbox" id="agNotifyStart" checked> Agent Start / Stop
-        </label>
-        <label style="display:flex;align-items:center;gap:0.4rem;font-size: 0.82rem;color:#9ca3af;cursor:pointer">
-          <input type="checkbox" id="agNotifyTrade" checked> Trade Placed
-        </label>
-        <label style="display:flex;align-items:center;gap:0.4rem;font-size: 0.82rem;color:#9ca3af;cursor:pointer">
-          <input type="checkbox" id="agNotifyClose" checked> Trade Closed
-        </label>
-        <label style="display:flex;align-items:center;gap:0.4rem;font-size: 0.82rem;color:#9ca3af;cursor:pointer">
-          <input type="checkbox" id="agNotifySummary" checked> Daily Summary
-        </label>
-      </div>
-    </div>
-
-    <div style="display:flex;gap:0.5rem;margin-top:0.1rem">
-      <button id="saveAgentSettings" onclick="agSaveSettings()"
-        style="flex:1;background:linear-gradient(135deg,#5b21b6,#7c3aed);border:none;border-radius:8px;padding:0.55rem;font-size: 0.9rem;font-weight:700;color:#fff;cursor:pointer;font-family:inherit">
-        💾 Save Agent Settings
-      </button>
-      <button id="testEmailBtn" onclick="agTestEmail()"
-        style="background:#0d1a10;border:1px solid #166534;border-radius:8px;padding:0.55rem 0.75rem;font-size: 0.9rem;font-weight:700;color:#4ade80;cursor:pointer;font-family:inherit;white-space:nowrap">
-        📧 Test Email
-      </button>
-    </div>
-    <div id="agSettingsSavedMsg" style="display:none;text-align:center;font-size: 0.82rem;color:#4ade80;margin-top:0.4rem">Settings saved ✓</div>
-    <div id="agEmailTestMsg" style="display:none;text-align:center;font-size: 0.82rem;margin-top:0.4rem"></div>
-  </div><!-- /sp-agent -->
   </div><!-- /sp-body -->
   </div><!-- /sp-layout -->
 </div><!-- /settingsPanel -->
@@ -461,94 +375,6 @@
 <script src="/js/app.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-// ── Agent Settings Load/Save ──────────────────────────────────
-async function agLoadSettings() {
-    try {
-        const r = await fetch('/api/agent/settings');
-        const j = await r.json();
-        if (!j.ok || !j.settings) return;
-        const s = j.settings;
-        if (s.startTime)             document.getElementById('agStartTime').value      = s.startTime;
-        if (s.endTime)               document.getElementById('agEndTime').value        = s.endTime;
-        if (s.maxTrades)             document.getElementById('agMaxTrades').value      = s.maxTrades;
-        if (s.scanInterval)          document.getElementById('agScanInterval').value   = s.scanInterval;
-        if (s.cooldownMinutes)       document.getElementById('agCooldown').value       = s.cooldownMinutes;
-        if (s.minScore !== undefined) document.getElementById('agMinScore').value      = s.minScore;
-        if (s.basePositionSize !== undefined) document.getElementById('agBaseSize').value = s.basePositionSize;
-        if (s.maxLossPerTradePct)    document.getElementById('agMaxLossPct').value     = s.maxLossPerTradePct;
-        if (s.dailyDrawdownPct)      document.getElementById('agDailyDD').value        = s.dailyDrawdownPct;
-        if (s.maxConsecutiveLosses)  document.getElementById('agMaxCL').value          = s.maxConsecutiveLosses;
-        if (s.minVolume)             document.getElementById('agMinVol').value         = s.minVolume;
-        if (s.atrMin !== undefined)  document.getElementById('agAtrMin').value         = s.atrMin;
-        if (s.atrMax !== undefined)  document.getElementById('agAtrMax').value         = s.atrMax;
-        if (s.timeframe)             document.getElementById('agTimeframe').value      = s.timeframe;
-        if (s.customCoins !== undefined) document.getElementById('agCustomCoins').value = s.customCoins || '';
-        if (s.demoMode !== undefined) document.getElementById('agDemoMode').checked = !!s.demoMode;
-        if (s.emailRecipient)        document.getElementById('agEmailRecipient').value = s.emailRecipient;
-        document.getElementById('agNotifyStart').checked   = s.notifyOnAgentShutdown !== false;
-        document.getElementById('agNotifyTrade').checked   = s.notifyOnTradePlaced   !== false;
-        document.getElementById('agNotifyClose').checked   = s.notifyOnTradeClosed   !== false;
-        document.getElementById('agNotifySummary').checked = s.notifyOnDailySummary  !== false;
-    } catch(e) { console.warn('agLoadSettings', e); }
-}
-
-async function agSaveSettings() {
-    const body = {
-        startTime:              document.getElementById('agStartTime').value,
-        endTime:                document.getElementById('agEndTime').value,
-        maxTrades:              parseInt(document.getElementById('agMaxTrades').value),
-        scanInterval:           parseInt(document.getElementById('agScanInterval').value),
-        cooldownMinutes:        parseInt(document.getElementById('agCooldown').value),
-        minScore:               parseInt(document.getElementById('agMinScore').value),
-        basePositionSize:       parseFloat(document.getElementById('agBaseSize').value) || 0,
-        maxLossPerTradePct:     parseFloat(document.getElementById('agMaxLossPct').value),
-        dailyDrawdownPct:       parseFloat(document.getElementById('agDailyDD').value),
-        maxConsecutiveLosses:   parseInt(document.getElementById('agMaxCL').value),
-        minVolume:              parseFloat(document.getElementById('agMinVol').value),
-        atrMin:                 parseFloat(document.getElementById('agAtrMin').value) || 0,
-        atrMax:                 parseFloat(document.getElementById('agAtrMax').value) || 9999999,
-        timeframe:              document.getElementById('agTimeframe').value || '5m',
-        customCoins:            document.getElementById('agCustomCoins').value.trim(),
-        demoMode:               document.getElementById('agDemoMode').checked,
-        emailRecipient:         document.getElementById('agEmailRecipient').value.trim(),
-        notifyOnAgentShutdown:  document.getElementById('agNotifyStart').checked,
-        notifyOnTradePlaced:    document.getElementById('agNotifyTrade').checked,
-        notifyOnTradeClosed:    document.getElementById('agNotifyClose').checked,
-        notifyOnDailySummary:   document.getElementById('agNotifySummary').checked,
-    };
-    try {
-        const r = await fetch('/api/agent/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-        const j = await r.json();
-        const msg = document.getElementById('agSettingsSavedMsg');
-        if (j.ok) { msg.style.display='block'; setTimeout(()=>msg.style.display='none',2000); }
-    } catch(e) { console.warn('agSaveSettings', e); }
-}
-
-async function agTestEmail() {
-    const btn    = document.getElementById('testEmailBtn');
-    const msgEl  = document.getElementById('agEmailTestMsg');
-    btn.disabled = true;
-    btn.textContent = '⏳ Sending…';
-    msgEl.style.display = 'none';
-    try {
-        const r = await fetch('/api/agent/test-email', { method:'POST' });
-        const j = await r.json();
-        msgEl.style.display = 'block';
-        if (j.ok) { msgEl.style.color = '#4ade80'; msgEl.textContent = '✓ Test email sent!'; }
-        else       { msgEl.style.color = '#f87171'; msgEl.textContent = '✗ ' + (j.error || 'Failed'); }
-    } catch(e) {
-        msgEl.style.display = 'block'; msgEl.style.color = '#f87171'; msgEl.textContent = '✗ ' + e.message;
-    }
-    btn.disabled = false;
-    btn.textContent = '📧 Test Email';
-    setTimeout(() => { msgEl.style.display = 'none'; }, 5000);
-}
-
-// Load agent settings when agent tab clicked
-document.querySelectorAll('.sp-tab[data-tab="agent"]').forEach(el => {
-    el.addEventListener('click', () => { agLoadSettings(); });
-});
-
 // ── Profile Settings ──────────────────────────────────────────
 let _profPfpData = null;
 
@@ -651,7 +477,6 @@ function profClearPfp() {
             const tabPage = document.getElementById('sp-' + _tab);
             if (tabPage) tabPage.classList.add('active');
             if (_tab === 'profile') profLoad();
-            if (_tab === 'agent') agLoadSettings();
             if (_tab === 'integrations') loadIntegrationStatuses();
         }
     } catch(_) {}
@@ -860,7 +685,6 @@ async function discLoadConfig() {
             document.getElementById('discAlertAutopilot').checked = j.alerts.autopilotMilestone !== false;
             document.getElementById('discAlertTpSl').checked      = j.alerts.tpSlHit !== false;
             document.getElementById('discAlertStratBot').checked   = j.alerts.strategyBotAlerts !== false;
-            document.getElementById('discAlertAgent').checked       = j.alerts.aiAgentAlerts !== false;
         }
     } catch(e) { console.warn('discLoadConfig', e); }
 }
@@ -874,7 +698,6 @@ async function discSaveConfig() {
             autopilotMilestone: document.getElementById('discAlertAutopilot').checked,
             tpSlHit:            document.getElementById('discAlertTpSl').checked,
             strategyBotAlerts:  document.getElementById('discAlertStratBot').checked,
-            aiAgentAlerts:      document.getElementById('discAlertAgent').checked,
         },
     };
     try {
@@ -910,35 +733,23 @@ document.querySelectorAll('.sp-tab[data-tab="integrations"]').forEach(el => {
 });
 
 
-function onAccentColorChange(val) {
-    const hex = document.getElementById('sAccentColorHex');
-    if (hex) hex.value = val;
-    window._accentColor = val;
-    if (typeof window.applyAccentColor === 'function') window.applyAccentColor(val);
-}
-function onAccentHexChange(val) {
-    if (/^#[0-9a-fA-F]{6}$/.test(val)) {
-        const picker = document.getElementById('sAccentColor');
-        if (picker) picker.value = val;
-        window._accentColor = val;
-        if (typeof window.applyAccentColor === 'function') window.applyAccentColor(val);
-    }
-}
-async function saveAccentColor() {
-    const val = window._accentColor || '#00e5a0';
-    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accentColor: val }) });
-    const msg = document.getElementById('accentSavedMsg');
+async function saveClockTimezone() {
+    const tz = document.getElementById('sClockTimezone')?.value || 'America/New_York';
+    await fetch('/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clockTimezone: tz }) });
+    const msg = document.getElementById('tzSavedMsg');
     if (msg) { msg.style.display = 'block'; setTimeout(() => msg.style.display = 'none', 2500); }
 }
-function resetAccentColor() {
-    const def = '#00e5a0';
-    window._accentColor = def;
-    const picker = document.getElementById('sAccentColor');
-    const hex    = document.getElementById('sAccentColorHex');
-    if (picker) picker.value = def;
-    if (hex) hex.value = def;
-    if (typeof window.applyAccentColor === 'function') window.applyAccentColor(def);
-}
+
+(function loadClockTimezoneSetting() {
+    fetch('/api/settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(s => {
+          const el = document.getElementById('sClockTimezone');
+          if (!el) return;
+          el.value = s?.clockTimezone || 'America/New_York';
+      })
+      .catch(() => {});
+})();
 </script>
 <!-- ══ INTEGRATION MODALS ══════════════════════════════════════ -->
 
@@ -962,13 +773,13 @@ function resetAccentColor() {
             <div style="font-size:12px;color:#22c55e;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">🟢 Live (Mainnet) Credentials</div>
             <div class="s-row"><label>API Key</label><div style="position:relative"><input type="password" id="bybitLiveKey" class="s-input-full" placeholder="Live API key…" style="padding-right:3rem"><button onclick="toggleVisibility('bybitLiveKey',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size:12px;font-family:inherit">Show</button></div></div>
             <div class="s-row"><label>API Secret</label><div style="position:relative"><input type="password" id="bybitLiveSecret" class="s-input-full" placeholder="Live API secret…" style="padding-right:3rem"><button onclick="toggleVisibility('bybitLiveSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size:12px;font-family:inherit">Show</button></div></div>
-            <button onclick="bybitSaveAccount('mainnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#166534,#22c55e);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">💾 Save Live Credentials</button>
+            <button onclick="bybitSaveAccount('mainnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#166534,#22c55e);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Live Credentials</button>
           </div>
           <div id="bybitDemoCreds" style="display:none">
             <div style="font-size:12px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">🧪 Demo (Testnet) Credentials</div>
             <div class="s-row"><label>API Key</label><div style="position:relative"><input type="password" id="bybitDemoKey" class="s-input-full" placeholder="Demo API key…" style="padding-right:3rem"><button onclick="toggleVisibility('bybitDemoKey',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size:12px;font-family:inherit">Show</button></div></div>
             <div class="s-row"><label>API Secret</label><div style="position:relative"><input type="password" id="bybitDemoSecret" class="s-input-full" placeholder="Demo API secret…" style="padding-right:3rem"><button onclick="toggleVisibility('bybitDemoSecret',this)" style="position:absolute;right:0.5rem;top:50%;transform:translateY(-50%);background:none;border:none;color:#6b7897;cursor:pointer;font-size:12px;font-family:inherit">Show</button></div></div>
-            <button onclick="bybitSaveAccount('testnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit">💾 Save Demo Credentials</button>
+            <button onclick="bybitSaveAccount('testnet')" style="width:100%;margin-top:0.5rem;background:linear-gradient(135deg,#1e3a8a,#3b82f6);color:#fff;border:none;border-radius:8px;padding:0.45rem;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Demo Credentials</button>
           </div>
           <div style="border-top:1px solid #1e2535;margin-top:0.85rem;padding-top:0.85rem;display:flex;gap:0.5rem">
             <button id="testBybitConn" style="flex:1;background:#1a1f2e;border:1px solid #252d3d;color:#e5e9f2;border-radius:8px;padding:0.45rem;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">🔌 Test Active Account</button>
@@ -990,7 +801,7 @@ function resetAccentColor() {
           <div class="s-row"><label>Risk Per Trade (%)</label><div style="display:flex;align-items:center;gap:0.5rem"><input type="range" id="posRiskSlider" min="0.1" max="10" step="0.1" value="1" style="flex:1;accent-color:#f6ad55"><span id="posRiskVal" style="color:#f6ad55;font-weight:700;font-size:14px;min-width:38px;text-align:right">1%</span></div></div>
           <div class="s-row"><label>Fee Rate (%) <span style="color:var(--text-dim);font-size:12px">per side — taker</span></label><input type="number" id="posFeeRate" class="s-input-full" value="0.00" min="0" max="1" step="0.001" placeholder="0.00"></div>
           <div class="s-row"><label>Account Type</label><select id="posAccountType" class="s-input-full"><option value="futures_cross">Futures — Cross Margin</option><option value="futures_iso">Futures — Isolated Margin</option><option value="spot">Spot</option></select></div>
-          <button id="savePosSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:8px;padding:0.55rem;font-weight:800;font-size:14px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px">💾 Save Settings</button>
+          <button id="savePosSettings" style="width:100%;margin-top:0.9rem;background:linear-gradient(135deg,#92400e,var(--accent-amber));color:#0f0700;border:none;border-radius:8px;padding:0.55rem;font-weight:800;font-size:14px;cursor:pointer;font-family:var(--font-ui);letter-spacing:0.2px"><i class="fa-solid fa-floppy-disk"></i> Save Settings</button>
           <div id="posSavedMsg" style="display:none;text-align:center;font-size:13px;color:var(--accent-green);margin-top:0.45rem;font-weight:600">✓ Saved!</div>
         </div>
       </div>
@@ -1035,7 +846,7 @@ function resetAccentColor() {
 <div class="int-modal-bg" id="kimiModal">
   <div class="int-modal">
     <div class="int-modal-hdr">
-      <div class="int-modal-title">🤖 AI Analysis</div>
+      <div class="int-modal-title"><i class="fa-solid fa-robot" ></i> AI Analysis</div>
       <button class="int-modal-close" onclick="closeIntModal('kimi')">✕</button>
     </div>
     <div class="int-modal-body">
@@ -1098,7 +909,7 @@ function resetAccentColor() {
 
       <!-- Actions -->
       <div style="display:flex;gap:0.5rem;margin-top:1.2rem">
-        <button onclick="aiSaveSettings()" style="flex:1;background:linear-gradient(135deg,#6d28d9,#a855f7);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">💾 Save</button>
+        <button onclick="aiSaveSettings()" style="flex:1;background:linear-gradient(135deg,#6d28d9,#a855f7);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save</button>
         <button onclick="aiTestConnection()" style="background:#0f1319;color:#9aa3b5;border:1px solid #1a2030;border-radius:8px;padding:0.5rem 0.9rem;font-weight:600;font-size:13px;cursor:pointer;font-family:inherit">🔌 Test</button>
       </div>
       <div id="aiSavedMsg" style="display:none;text-align:center;font-size:13px;color:#48bb78;margin-top:0.45rem;font-weight:600">✓ Saved!</div>
@@ -1140,7 +951,7 @@ function resetAccentColor() {
         <label class="toggle-switch"><input type="checkbox" id="discAlertOrder" checked><span class="slider"></span></label>
       </div>
       <div class="disc-toggle-row">
-        <div class="disc-toggle-info"><span class="disc-toggle-label">🤖 Autopilot Milestones</span><span class="disc-toggle-desc">When autopilot moves SL or reaches milestone</span></div>
+        <div class="disc-toggle-info"><span class="disc-toggle-label"><i class="fa-solid fa-robot" ></i> Autopilot Milestones</span><span class="disc-toggle-desc">When autopilot moves SL or reaches milestone</span></div>
         <label class="toggle-switch"><input type="checkbox" id="discAlertAutopilot" checked><span class="slider"></span></label>
       </div>
       <div class="disc-toggle-row">
@@ -1148,20 +959,31 @@ function resetAccentColor() {
         <label class="toggle-switch"><input type="checkbox" id="discAlertTpSl" checked><span class="slider"></span></label>
       </div>
       <div class="disc-toggle-row">
-        <div class="disc-toggle-info"><span class="disc-toggle-label">🤖 Strategy Bot Alerts</span><span class="disc-toggle-desc">Trade notifications from the strategy bot</span></div>
+        <div class="disc-toggle-info"><span class="disc-toggle-label"><i class="fa-solid fa-robot" ></i> Strategy Bot Alerts</span><span class="disc-toggle-desc">Trade notifications from the strategy bot</span></div>
         <label class="toggle-switch"><input type="checkbox" id="discAlertStratBot" checked><span class="slider"></span></label>
       </div>
-      <div class="disc-toggle-row">
-        <div class="disc-toggle-info"><span class="disc-toggle-label">🧠 AI Agent Alerts</span><span class="disc-toggle-desc">Trade notifications from the AI Day Trading Agent</span></div>
-        <label class="toggle-switch"><input type="checkbox" id="discAlertAgent" checked><span class="slider"></span></label>
-      </div>
-
-      <button onclick="discSaveConfig()" style="width:100%;margin-top:1.2rem;background:linear-gradient(135deg,#5865f2,#7983f5);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">💾 Save Discord Settings</button>
+      <button onclick="discSaveConfig()" style="width:100%;margin-top:1.2rem;background:linear-gradient(135deg,#5865f2,#7983f5);color:#fff;border:none;border-radius:8px;padding:0.55rem;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit"><i class="fa-solid fa-floppy-disk"></i> Save Discord Settings</button>
       <div id="discSavedMsg" style="display:none;text-align:center;font-size:13px;color:#48bb78;margin-top:0.45rem;font-weight:600">✓ Saved!</div>
     </div>
   </div>
 </div>
 
+<script>
+  (function initSettingsPageLoader() {
+    function hideLoader() {
+      document.documentElement.classList.remove('scanr-loading');
+    }
+
+    if (document.readyState === 'complete') {
+      requestAnimationFrame(() => requestAnimationFrame(hideLoader));
+      return;
+    }
+
+    window.addEventListener('load', () => {
+      requestAnimationFrame(() => requestAnimationFrame(hideLoader));
+    }, { once: true });
+  })();
+</script>
 <script src="/js/session-check.js"></script>
 
 <!-- AI Chatbot Widget -->
@@ -1310,3 +1132,4 @@ window.addEventListener('load', () => {
 </script>
 </body>
 </html>
+

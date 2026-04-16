@@ -48,7 +48,7 @@
 
     <button id="loginBtn" class="auth-btn">Sign In</button>
     <div id="msg" class="auth-msg"></div>
-    <div class="auth-link">Don't have an account? <a href="/register">Register</a></div>
+    <div class="auth-link">Don't have an account? <a href="/register?plan=free">Register</a></div>
   </div>
 
   <script src="/js/fingerprint.js"></script>
@@ -77,7 +77,7 @@
         const d = await r.json();
         if (!r.ok) { msg.style.color = '#f56565'; msg.textContent = d.error || 'Login failed.'; return; }
         if (d.licenseStatus === 'suspended') { window.location.href = '/suspended'; return; }
-        if (d.licenseStatus !== 'active' && d.role !== 'admin') { window.location.href = '/license'; return; }
+        // With free tier system, all users (free and premium) can access the dashboard
         const next = new URLSearchParams(window.location.search).get('next');
         window.location.href = (next && next.startsWith('/') && !next.startsWith('//')) ? next : '/dashboard';
       } catch (_) {

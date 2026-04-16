@@ -222,6 +222,29 @@
       border-radius: 20px;
       margin-bottom: 2rem;
     }
+    .pc-discount-badge {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #ef4444;
+      color: #fff;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      display: none;
+    }
+    .pc-discount-badge.active { display: inline-block; }
+    .pc-original {
+      display: none;
+      margin-bottom: 4px;
+      color: var(--text-secondary);
+      font-size: 18px;
+      text-decoration: line-through;
+      text-decoration-thickness: 1.5px;
+    }
+    .pc-original.active { display: block; }
     .pc-price-row {
       display: flex;
       align-items: flex-start;
@@ -248,6 +271,15 @@
       font-weight: 500;
       margin-bottom: 2rem;
     }
+    .pc-sale-label {
+      display: none;
+      font-size: 12px;
+      color: #fca5a5;
+      font-weight: 700;
+      margin-top: 4px;
+      margin-bottom: 1.5rem;
+    }
+    .pc-sale-label.active { display: block; }
     .pc-divider {
       border: none;
       border-top: 1px solid var(--border);
@@ -286,7 +318,7 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
-      background: #25d366;
+      background: var(--accent);
       color: #fff;
       border: none;
       border-radius: 11px;
@@ -420,6 +452,355 @@
     @media (max-width: 400px) {
       .trust-grid { grid-template-columns: 1fr; }
     }
+
+    /* ─── PAYMENT MODAL ─── */
+    .payment-modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      animation: fadeIn 0.2s;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .payment-modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+      animation: slideUp 0.3s;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .payment-modal-close {
+      position: absolute;
+      top: 16px; right: 16px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 28px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px; height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: all 0.15s;
+    }
+    .payment-modal-close:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--text-primary);
+    }
+
+    .payment-steps {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 32px;
+      position: relative;
+    }
+    .payment-steps::before {
+      content: '';
+      position: absolute;
+      top: 20px; left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+    }
+    .payment-step-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      position: relative;
+      flex: 1;
+    }
+    .payment-step-num {
+      width: 40px; height: 40px;
+      background: var(--bg-base);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--text-secondary);
+      transition: all 0.2s;
+    }
+    .payment-step-item.active .payment-step-num {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #000;
+    }
+    .payment-step-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      text-align: center;
+    }
+    .payment-step-item.active .payment-step-label {
+      color: var(--accent);
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+    .payment-subtext {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+    }
+
+    .payment-networks {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .network-tab {
+      padding: 16px 12px;
+      background: var(--bg-base);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .network-tab:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+    .network-tab.active {
+      background: rgba(0,229,160,0.2);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .network-chain {
+      font-size: 10px;
+      opacity: 0.7;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .wallet-box {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .wallet-box label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .wallet-display {
+      display: flex;
+      gap: 8px;
+    }
+    .wallet-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      outline: none;
+    }
+    .wallet-copy-btn {
+      padding: 8px 14px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 12px;
+      transition: opacity 0.15s;
+    }
+    .wallet-copy-btn:hover { opacity: 0.88; }
+
+    .amount-box {
+      background: rgba(0,229,160,0.1);
+      border: 1px solid rgba(0,229,160,0.2);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .amount-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .amount-display {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .payment-warning {
+      background: rgba(255,193,7,0.1);
+      border: 1px solid rgba(255,193,7,0.3);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 24px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .payment-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .required {
+      color: #ff6b6b;
+    }
+
+    .form-group input,
+    .form-group textarea {
+      background: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: inherit;
+      color: var(--text-primary);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .form-group small {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .file-upload {
+      background: var(--bg-base);
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .file-upload:hover {
+      border-color: var(--accent);
+      background: rgba(0,229,160,0.05);
+    }
+    .file-upload input {
+      display: none;
+    }
+    .file-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      pointer-events: none;
+    }
+
+    .payment-btn-primary {
+      background: linear-gradient(135deg, #00c896, #29ffb8);
+      color: #000;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      width: 100%;
+    }
+    .payment-btn-primary:hover { opacity: 0.9; }
+    .payment-btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .payment-btn-secondary {
+      background: none;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      padding: 12px 28px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+      width: 100%;
+    }
+    .payment-btn-secondary:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .success-message {
+      text-align: center;
+      padding: 32px 24px;
+      background: rgba(16,203,129,0.1);
+      border: 1px solid rgba(16,203,129,0.2);
+      border-radius: 8px;
+    }
+    .success-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+    .success-message h3 {
+      font-size: 1.25rem;
+      margin-bottom: 12px;
+      color: #0ecb81;
+    }
+    .success-message p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .success-message a {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
   </style>
 </head>
 <body>
@@ -436,7 +817,7 @@
     </nav>
     <div class="lp-header-btns">
       <a href="/login" class="lp-btn-outline">Sign In</a>
-      <a href="/register" class="lp-btn-filled">Get Started</a>
+      <a href="/register?plan=free" class="lp-btn-filled">Get Started</a>
     </div>
     <button class="lp-mobile-menu" id="lpMobileMenu">&#9776;</button>
   </div>
@@ -449,40 +830,64 @@
   <p>One payment. Lifetime access to every feature and every future update &mdash; no subscriptions, ever.</p>
 </section>
 
-<!-- PRICING CARD -->
+<!-- PRICING CARDS -->
 <div class="pricing-wrap">
-  <div class="pricing-card fade-in">
-    <div class="pc-badge">Lifetime Access</div>
-    <div class="pc-price-row">
-      <span class="pc-currency">$</span>
-      <span class="pc-amount">30</span>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; width: 100%; max-width: 900px; margin: 0 auto;">
+    <!-- FREE TIER -->
+    <div class="pricing-card fade-in" style="position: relative; opacity: 0.85;">
+      <div class="pc-badge" style="background: rgba(100, 120, 160, 0.2); color: var(--text-secondary);">Free</div>
+      <div style="font-size: 2.25rem; font-weight: 800; color: var(--text-primary); margin: 1rem 0 0.5rem;">$0</div>
+      <p class="pc-period">forever</p>
+      <hr class="pc-divider"/>
+      <ul class="pc-features" style="opacity: 0.8;">
+        <li><span class="pc-check">✓</span>Coin scanner </li>
+        <li><span class="pc-check">✓</span>Price alerts &amp; Discord alerts</li>
+        <li><span class="pc-check">✓</span>Challenge tracker </li>
+        <li><span class="pc-check">✓</span>3 Free AI Analysis/Day</li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Live trading terminal (Spot &amp; Futures)</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Strategy builder</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Strategy automation bot</span></li>
+        <li><span style="text-decoration: line-through; opacity: 0.6;">✗ Apex Setup Scanner</span></li>
+      </ul>
+      <button class="lp-wa-btn" onclick="window.location.href='/register?plan=free'" >
+        Get Started Free
+      </button>
     </div>
-    <p class="pc-period">one time payment</p>
-    <hr class="pc-divider"/>
-    <ul class="pc-features">
-      <li><span class="pc-check">&#10003;</span>All current features</li>
-      <li><span class="pc-check">&#10003;</span>All future updates</li>
-      <li><span class="pc-check">&#10003;</span>Bybit integration (Spot &amp; Futures)</li>
-      <li><span class="pc-check">&#10003;</span>No-code strategy builder</li>
-      <li><span class="pc-check">&#10003;</span>Live strategy bot</li>
-      <li><span class="pc-check">&#10003;</span>AI Trading Agent</li>
-      <li><span class="pc-check">&#10003;</span>Discord alerts + price alerts</li>
-      <li><span class="pc-check">&#10003;</span>3 AI models (GLM free, Kimi, Claude)</li>
-      <li><span class="pc-check">&#10003;</span>Prop firm challenge tracker</li>
-      <li><span class="pc-check">&#10003;</span>Trade journal + PnL calendar</li>
-      <li><span class="pc-check">&#10003;</span>Single license key</li>
-      <li><span class="pc-check">&#10003;</span>WhatsApp support</li>
-    </ul>
-    <a class="lp-wa-btn lp-wa-cta" id="lpWaCard" href="#" target="_blank" rel="noopener noreferrer">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-      Get Access on WhatsApp
-    </a>
+
+    <!-- PREMIUM TIER (Highlighted) -->
+    <div class="pricing-card fade-in" style="position: relative; border: 2px solid var(--accent); box-shadow: 0 0 32px rgba(0, 229, 160, 0.15);">
+      <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--accent), #00d18f); color: #0a0f16; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; letter-spacing: 0.5px;">★ POPULAR</div>
+      <div class="pc-badge">Lifetime Access</div>
+      <div class="pc-discount-badge" id="pcDiscountBadge"></div>
+      <div class="pc-original" id="pcOriginalPrice">$69</div>
+      <div class="pc-price-row">
+        <span class="pc-currency">$</span>
+        <span class="pc-amount" data-price="lifetime">49</span>
+      </div>
+      <div class="pc-sale-label" id="pcSaleLabel"></div>
+      <p class="pc-period">one time payment</p>
+      <hr class="pc-divider"/>
+      <ul class="pc-features">
+        <li><span class="pc-check">✓</span>Coin scanner </li>
+        <li><span class="pc-check">✓</span>Price alerts &amp; Discord alerts</li>
+        <li><span class="pc-check">✓</span>Challenge tracker </li>
+        <li><span class="pc-check">✓</span>Unlimited AI Analysis</li>
+        <li><span class="pc-check">✓</span>Live trading terminal (Spot &amp; Futures)</li>
+        <li><span class="pc-check">✓</span>Strategy builder</li>
+        <li><span class="pc-check">✓</span>Strategy automation bot</li>
+        <li><span class="pc-check">✓</span>Apex Setup Scanner</li>
+        <li><span class="pc-check">✓</span>All future updates</li>
+      </ul>
+      <button class="lp-wa-btn" id="buyNowBtn" onclick="redirectToPayment();" style="background: linear-gradient(135deg, var(--accent), #00d18f); font-weight: 900;">
+        🚀 Upgrade to Premium
+      </button>
+    </div>
   </div>
 
   <div class="pricing-below fade-in">
     <p class="pc-signin">Already have a license key? <a href="/login">Sign in &rarr;</a></p>
     <div class="pc-note">
-      Have questions before purchasing? Contact us on WhatsApp &mdash; we're happy to help.
+      Have questions before purchasing? Email us at support@scanr.me &mdash; we're happy to help.
     </div>
   </div>
 </div>
@@ -508,9 +913,139 @@
       <p>Device fingerprinting, single-session enforcement, and encrypted API keys protect you.</p>
     </div>
     <div class="trust-item fade-in">
-      <div class="trust-icon">&#128172;</div>
+      <div class="trust-icon">📧</div>
       <h4>Direct Support</h4>
-      <p>WhatsApp support from the team. Fast responses, hands-on help through setup and beyond.</p>
+      <p>Email support from the team. Fast responses, hands-on help through setup and beyond.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div id="paymentModal" class="payment-modal-overlay" style="display:none;">
+  <div class="payment-modal">
+    <!-- Close button -->
+    <button class="payment-modal-close" onclick="closePaymentModal()">&times;</button>
+
+    <!-- Step indicator -->
+    <div class="payment-steps">
+      <div class="payment-step-item active" id="step-indicator-1">
+        <div class="payment-step-num">1</div>
+        <div class="payment-step-label">Payment Details</div>
+      </div>
+      <div class="payment-step-item" id="step-indicator-2">
+        <div class="payment-step-num">2</div>
+        <div class="payment-step-label">Confirm Payment</div>
+      </div>
+    </div>
+
+    <!-- STEP 1: Payment Details -->
+    <div id="step1-content" class="payment-step-content">
+      <h2>Pay with USDT</h2>
+      <p class="payment-subtext">Select a blockchain network and send the exact amount</p>
+
+      <!-- Network tabs -->
+      <div class="payment-networks">
+        <button class="network-tab active" onclick="selectNetwork('TRC20')" data-network="TRC20">
+          TRC20
+          <br><span class="network-chain">Tron</span>
+        </button>
+        <button class="network-tab" onclick="selectNetwork('ERC20')" data-network="ERC20">
+          ERC20
+          <br><span class="network-chain">Ethereum</span>
+        </button>
+        <button class="network-tab" onclick="selectNetwork('BEP20')" data-network="BEP20">
+          BEP20
+          <br><span class="network-chain">BSC</span>
+        </button>
+      </div>
+
+      <!-- Wallet address box -->
+      <div class="wallet-box">
+        <label>Wallet Address</label>
+        <div class="wallet-display">
+          <input type="text" id="walletAddressDisplay" class="wallet-input" readonly>
+          <button class="wallet-copy-btn" onclick="copyWalletAddress()">Copy</button>
+        </div>
+      </div>
+
+      <!-- Amount to send -->
+      <div class="amount-box">
+        <div class="amount-label">Amount to Send</div>
+        <div class="amount-display">
+          <strong id="amountDisplay">$49.00</strong> USDT
+        </div>
+      </div>
+
+      <!-- Warning -->
+      <div class="payment-warning">
+        ⚠️ Send the <strong>exact amount</strong>. Double-check the network before sending.
+      </div>
+
+      <!-- Buttons -->
+      <button class="payment-btn-primary" onclick="goToStep(2)">
+        Next → I've Sent Payment
+      </button>
+      <button class="payment-btn-secondary" onclick="closePaymentModal()">
+        Cancel
+      </button>
+    </div>
+
+    <!-- STEP 2: Payment Proof -->
+    <div id="step2-content" class="payment-step-content" style="display:none;">
+      <h2>Submit Payment Proof</h2>
+      <p class="payment-subtext">Fill this form after sending payment</p>
+
+      <form id="paymentProofForm" class="payment-form">
+        <div class="form-group">
+          <label>Full Name <span class="required">*</span></label>
+          <input type="text" name="name" id="proofName" required placeholder="Your name">
+        </div>
+
+        <div class="form-group">
+          <label>Email <span class="required">*</span></label>
+          <input type="email" name="email" id="proofEmail" required placeholder="your@email.com">
+          <small>License key will be sent here</small>
+        </div>
+
+        <div class="form-group">
+          <label>Transaction ID / Hash <span class="required">*</span></label>
+          <input type="text" name="txId" id="proofTxId" required placeholder="Transaction ID from blockchain">
+        </div>
+
+        <div class="form-group">
+          <label>Screenshot <span class="required">*</span></label>
+          <div class="file-upload">
+            <input type="file" name="screenshot" id="proofScreenshot" accept="image/jpeg,image/png,image/webp" required>
+            <div class="file-label">Click to upload or drag here</div>
+            <div id="filePreview" style="margin-top:10px; display:none;">
+              <img id="previewImg" style="max-width:100%; max-height:200px; border-radius:8px;">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Message (Optional)</label>
+          <textarea name="message" id="proofMessage" placeholder="Any notes for us..." rows="3"></textarea>
+        </div>
+
+        <button type="submit" class="payment-btn-primary" id="submitProofBtn">
+          Submit Payment Proof
+        </button>
+        <button type="button" class="payment-btn-secondary" onclick="goToStep(1)">
+          ← Back
+        </button>
+      </form>
+
+      <!-- Success message (hidden by default) -->
+      <div id="successMessage" style="display:none;" class="success-message">
+        <div class="success-icon">✅</div>
+        <h3>Payment Proof Submitted!</h3>
+        <p>We'll verify and send your license key to <strong id="successEmail"></strong> within 24 hours.</p>
+        <p style="margin-top:1rem; font-size:13px;">Need urgent help? <a href="mailto:support@scanr.me">Email us at support@scanr.me</a></p>
+        <button class="payment-btn-primary" onclick="closePaymentModal()" style="margin-top:1rem;">
+          Close
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -532,13 +1067,80 @@
       <a href="/refund">Refund Policy</a>
     </nav>
     <div class="lp-footer-right">
-      <a class="lp-wa-cta" id="lpWaFooter" href="#" target="_blank" rel="noopener noreferrer">&#128172; WhatsApp</a>
+      <a class="lp-wa-cta" href="mailto:support@scanr.me?subject=Pricing%20Inquiry">📧 Email Us</a>
       <p class="lp-copy">&copy; 2025 <span class="lp-logo-text">Scanr</span>. All rights reserved.</p>
     </div>
   </div>
 </footer>
 
 <script>
+  const PRICING_CACHE_KEY = 'scanr_pricing';
+  const PRICING_CACHE_TTL_MS = 5 * 60 * 1000;
+
+  function readPricingCache() {
+    try {
+      const raw = sessionStorage.getItem(PRICING_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.ts || !parsed?.data) return null;
+      if (Date.now() - parsed.ts > PRICING_CACHE_TTL_MS) return null;
+      return parsed.data;
+    } catch (_) { return null; }
+  }
+
+  function writePricingCache(data) {
+    try {
+      sessionStorage.setItem(PRICING_CACHE_KEY, JSON.stringify({ ts: Date.now(), data }));
+    } catch (_) {}
+  }
+
+  async function loadPricingData() {
+    try {
+      const res = await fetch('/api/settings/pricing', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to fetch pricing');
+      const data = await res.json();
+      writePricingCache(data);
+      return data;
+    } catch (e) {
+      const cached = readPricingCache();
+      if (cached) return cached;
+      throw e;
+    }
+  }
+
+  function applyPricingToPage(pricing) {
+    const lifetime = pricing?.lifetime || { original: 49, discounted: null, displayPrice: 49, discountPct: null };
+    const display = Number(lifetime.displayPrice || lifetime.original || 49);
+    document.querySelectorAll('[data-price]').forEach(el => {
+      if (el.dataset.price === 'lifetime') el.textContent = String(display);
+    });
+    const amountEl = document.getElementById('amountDisplay');
+    if (amountEl) amountEl.textContent = `$${display.toFixed(2)}`;
+
+    const hasDiscount = lifetime.discounted !== null && lifetime.discountPct !== null;
+    const originalEl = document.getElementById('pcOriginalPrice');
+    const badgeEl = document.getElementById('pcDiscountBadge');
+    const labelEl = document.getElementById('pcSaleLabel');
+    if (hasDiscount) {
+      if (originalEl) {
+        originalEl.textContent = `$${Number(lifetime.original).toFixed(2)}`;
+        originalEl.classList.add('active');
+      }
+      if (badgeEl) {
+        badgeEl.textContent = `${lifetime.discountPct}% OFF`;
+        badgeEl.classList.add('active');
+      }
+      if (labelEl) {
+        labelEl.textContent = pricing.discountLabel || 'Limited Time Offer';
+        labelEl.classList.add('active');
+      }
+    } else {
+      if (originalEl) originalEl.classList.remove('active');
+      if (badgeEl) badgeEl.classList.remove('active');
+      if (labelEl) labelEl.classList.remove('active');
+    }
+  }
+
   // App name
   fetch('/api/public/app-name').then(r=>r.ok?r.json():null).then(d=>{
     if(!d?.appName)return;
@@ -560,14 +1162,31 @@
     document.getElementById('lpHeader').classList.toggle('nav-open');
   });
 
-  // WhatsApp
-  fetch('/api/public/whatsapp').then(r=>r.ok?r.json():null).then(d=>{
-    if(!d?.whatsapp)return;
-    const num=d.whatsapp.replace(/\D/g,'');
-    const msg=encodeURIComponent('Hi, I want to purchase Scanr lifetime access ($30)');
-    const url=`https://wa.me/${num}?text=${msg}`;
-    document.querySelectorAll('.lp-wa-cta').forEach(el=>{el.href=url;});
-  }).catch(()=>{});
+  // WhatsApp (deprecated, kept for backward compat)
+  fetch('/api/public/whatsapp').then(r=>r.ok?r.json():null).catch(()=>{});
+
+  // Redirect to payment page
+  function redirectToPayment() {
+    // Check if user is logged in
+    fetch('/api/auth/me')
+      .then(r => {
+        if (r.ok) {
+          // User is logged in, show upgrade modal
+          if (typeof window.showUpgradeModal === 'function') {
+            window.showUpgradeModal();
+          } else {
+            window.location.href = '/payment?plan=lifetime';
+          }
+        } else {
+          // User not logged in, go to free registration
+          window.location.href = '/register?plan=free';
+        }
+      })
+      .catch(() => {
+        // Error checking auth, go to free registration
+        window.location.href = '/register?plan=free';
+      });
+  }
 
   // Scroll fade-in
   const obs=new IntersectionObserver(entries=>{
@@ -579,6 +1198,8 @@
   window.addEventListener('scroll',()=>{
     document.getElementById('lpHeader').classList.toggle('scrolled',window.scrollY>10);
   },{passive:true});
+
+  loadPricingData().then(applyPricingToPage).catch(()=>{});
 </script>
 </body>
 </html>

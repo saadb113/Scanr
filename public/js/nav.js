@@ -13,6 +13,14 @@
     document.head.appendChild(link);
   }
 
+  if (!document.querySelector('link[rel="icon"]')) {
+    const favicon = document.createElement('link');
+    favicon.rel = 'icon';
+    favicon.type = 'image/svg+xml';
+    favicon.href = '/favicon.svg';
+    document.head.appendChild(favicon);
+  }
+
   // ── Build header HTML ──────────────────────────────────────
   const headerEl = document.createElement('header');
   headerEl.className = 'site-header';
@@ -20,20 +28,21 @@
   headerEl.innerHTML = `
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <div class="sh-left">
-      <a class="sh-logo" href="/">Monty<span>.</span></a>
+      <a class="sh-logo" href="/">SCANR<span>.</span></a>
       <span class="sh-clock" id="shClock"></span>
     </div>
     <nav class="sh-nav" id="shNav">
       <a class="sh-link" href="/dashboard">Dashboard</a>
       <a class="sh-link" href="/scanner">Scanner</a>
-      <a class="sh-link" href="/strategy">Strategy</a>
-      <a class="sh-link" href="/terminal">Trade</a>
       <a class="sh-link" href="/challenge">Challenge</a>
+      <a class="sh-link" href="/terminal">Trade</a>
       <a class="sh-link" href="/setups">Setups</a>
-      <a class="sh-link" href="/agent">AI Agent(Beta)</a>
+      <a class="sh-link" href="/strategy">Strategy</a>
     
       <a class="sh-link sh-admin-link" href="/admin" id="shAdminLink" style="display:none">Admin</a>
       
+      <!-- Upgrade button for free users (hidden by default until tier loads) -->
+      <button class="sh-upgrade-btn" id="shUpgradeBtn" style="display:none" onclick="window.showUpgradeModal({ forceAllBenefits: true })"><i class="fa-solid fa-rocket" ></i> Upgrade to Premium</button>
       
       <div class="sh-pfp-wrap" style="margin-left: 5px;" id="shPfpWrap">
         <span class="sh-pfp" id="shPfp" title="Profile">👤</span>
@@ -62,20 +71,26 @@
     setTimeout(() => loaderEl.remove(), 320);
   });
 
-  // ── PST clock (UTC+5) ──────────────────────────────────────
+  let __clockTimezone = 'America/New_York';
   function updateClock() {
-    const d    = new Date(Date.now() + 5 * 60 * 60 * 1000);
-    const day  = d.getUTCDate();
-    const mon  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
-    let   hr   = d.getUTCHours();
-    const ampm = hr >= 12 ? 'PM' : 'AM';
-    hr = hr % 12 || 12;
-    const mm   = String(d.getUTCMinutes()).padStart(2, '0');
-    const el   = document.getElementById('shClock');
-    if (el) el.textContent = `${day} ${mon}, ${hr}:${mm}${ampm} PKT`;
+    const d = new Date();
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: __clockTimezone,
+      day: '2-digit',
+      month: 'short',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    }).formatToParts(d);
+    const day = parts.find(p => p.type === 'day')?.value || '';
+    const mon = parts.find(p => p.type === 'month')?.value || '';
+    const hr = parts.find(p => p.type === 'hour')?.value || '';
+    const mm = parts.find(p => p.type === 'minute')?.value || '';
+    const ampm = parts.find(p => p.type === 'dayPeriod')?.value || '';
+    const tz = (__clockTimezone || 'America/New_York').split('/').pop().replace('_', ' ');
+    const el = document.getElementById('shClock');
+    if (el) el.textContent = `${day} ${mon}, ${hr}:${mm}${ampm} ${tz}`;
   }
-  updateClock();
-  setInterval(updateClock, 1000);
 
   // ── Active link highlight ──────────────────────────────────
   const path = window.location.pathname;
@@ -92,7 +107,7 @@
   });
 
   // ── Theme toggle ───────────────────────────────────────────
-  const THEME_KEY = 'monty-theme';
+  const THEME_KEY = 'SCANR-theme';
   const root      = document.documentElement;
   const themeBtn  = document.getElementById('shThemeBtn');
 
@@ -138,7 +153,7 @@
       const logo = document.querySelector('.sh-logo');
       if (logo) logo.innerHTML = name + '<span>.</span>';
       if (document.title) {
-        document.title = document.title.replace(/Monty/g, name);
+        document.title = document.title.replace(/SCANR/g, name);
       }
     })
     .catch(() => {});
@@ -170,7 +185,7 @@
 
   // ── Accent color — applied to all CSS vars on every page ──────
   window.applyAccentColor = function(color) {
-    const c = color || '#00e5a0';
+    const c = '#00e5a0';
     document.documentElement.style.setProperty('--accent-green', c);
     document.documentElement.style.setProperty('--green', c);
     document.documentElement.style.setProperty('--accent', c);
@@ -179,8 +194,14 @@
   // Apply on load for pages that don't use app.js
   fetch('/api/settings')
     .then(r => r.ok ? r.json() : null)
-    .then(s => { if (s && s.accentColor) window.applyAccentColor(s.accentColor); })
+    .then(s => {
+      window.applyAccentColor('#00e5a0');
+      __clockTimezone = s?.clockTimezone || 'America/New_York';
+      updateClock();
+    })
     .catch(() => {});
+  updateClock();
+  setInterval(updateClock, 1000);
 
   // ── Hamburger mobile menu ─────────────────────────────────────
   const hamburger = document.getElementById('shHamburger');
@@ -195,5 +216,33 @@
     }
   });
 
+  // ── Upgrade button visibility (show only for free users) ───
+  const upgradeBtn = document.getElementById('shUpgradeBtn');
+
+  function applyUpgradeButtonVisibility(tier) {
+    if (!upgradeBtn) return;
+    upgradeBtn.style.display = tier === 'premium' ? 'none' : '';
+  }
+
+  // Keep button hidden until we know the user's current tier.
+  if (upgradeBtn) upgradeBtn.style.display = 'none';
+
+  // Initial tier read from session-check API (works even before session-check.js finishes).
+  fetch('/api/auth/session-check', { credentials: 'include' })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const tier = (data.user && data.user.accountTier) || data.accountTier || 'free';
+      applyUpgradeButtonVisibility(tier);
+    })
+    .catch(() => {});
+
+  // Live updates from session-check.js after login/upgrade/session refresh.
+  window.addEventListener('scanr:tier-updated', (ev) => {
+    const tier = ev && ev.detail ? ev.detail.accountTier : null;
+    if (tier) applyUpgradeButtonVisibility(tier);
+  });
+
   // ── Sign out ───────────────────────────────────────────────────
 })();
+

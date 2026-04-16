@@ -269,8 +269,8 @@ async function boot() {
     renderHeader();
     initTVChart('BTCUSDT');
     // Prefetch price for default symbol so RR works right away
-    fetch('https://fapi.binance.com/fapi/v1/ticker/price?symbol=BTCUSDT')
-      .then(r=>r.json()).then(d=>{ if(d.price) _previewPrice = parseFloat(d.price); }).catch(()=>{});
+    fetch('/api/proxy/binance?path=/fapi/v1/ticker/price&symbol=BTCUSDT')
+      .then(r=>r.json()).then(d=>{ if(d?.price) _previewPrice = parseFloat(d.price); }).catch(()=>{});
     loadTrades();
     document.getElementById('cdLoading').style.display = 'none';
     document.getElementById('cdPage').style.display = '';
@@ -406,9 +406,9 @@ async function refreshOpenPositions() {
     const priceMap = {};
     await Promise.all(symbols.map(async sym => {
       try {
-        const pr = await fetch('https://fapi.binance.com/fapi/v1/ticker/price?symbol=' + sym);
+        const pr = await fetch('/api/proxy/binance?path=/fapi/v1/ticker/price&symbol=' + sym);
         const pd = await pr.json();
-        priceMap[sym] = parseFloat(pd.price);
+        priceMap[sym] = parseFloat(pd?.price);
       } catch(_) {}
     }));
     renderOpenPositions(d.trades, priceMap);
@@ -564,9 +564,9 @@ document.getElementById('ofSymbol').addEventListener('input', e => {
     const sym = e.target.value.trim().toUpperCase();
     if (sym.length < 3) return;
     try {
-      const r = await fetch('https://fapi.binance.com/fapi/v1/ticker/price?symbol=' + sym);
+      const r = await fetch('/api/proxy/binance?path=/fapi/v1/ticker/price&symbol=' + sym);
       const d = await r.json();
-      if (d.price) { _previewPrice = parseFloat(d.price); ofCalcRR(); }
+      if (d?.price) { _previewPrice = parseFloat(d.price); ofCalcRR(); }
     } catch(_) {}
   }, 600);
 });
@@ -590,9 +590,9 @@ function ofCalcRR() {
     const sym = document.getElementById('ofSymbol').value.trim().toUpperCase();
     if (sym.length >= 3) {
       try {
-        const r = await fetch('https://fapi.binance.com/fapi/v1/ticker/price?symbol=' + sym);
+        const r = await fetch('/api/proxy/binance?path=/fapi/v1/ticker/price&symbol=' + sym);
         const d = await r.json();
-        if (d.price) _previewPrice = parseFloat(d.price);
+        if (d?.price) _previewPrice = parseFloat(d.price);
       } catch(_) {}
     }
   }
