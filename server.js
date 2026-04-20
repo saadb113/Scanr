@@ -7,6 +7,7 @@ const session  = require('express-session');
 const bcrypt   = require('bcrypt');
 const { Server } = require('socket.io');
 const { connectDB } = require('./db');
+const tgBot = require('./telegramBot');
 const {
     User, License, AppSettings,
     Settings, Watchlist, FilterVis, PosSettings,
@@ -16,11 +17,12 @@ const {
     Strategy, BotTrade, PriceAlert,
 } = require('./models');
 const autopilot      = require('./autopilot');
-
+const agentRoutes    = require('./agent_day_routes');
 const dayAgent       = require('./dayAgent');
 const strategyRoutes = require('./strategy_routes');
 const strategyBot    = require('./strategyBot');
 const { sendDiscordAlert, orderSummaryEmbed, priceAlertEmbed } = require('./discordNotifier');
+const { sendTelegramMessage, orderSummaryText, priceAlertText } = require('./telegramNotifier');
 const { analyzeWithAI, testAIProvider }                        = require('./aiAnalysis');
 
 const app        = express();
@@ -487,9 +489,14 @@ app.get('/api/admin/settings', requireAdmin, async (req, res) => {
 
 app.post('/api/admin/settings', requireAdmin, async (req, res) => {
     try {
-        const { whatsapp, appName } = req.body;
+        const { whatsapp, appName, telegramBotToken } = req.body;
         await AppSettings.findOneAndUpdate({ key: 'whatsapp' }, { key: 'whatsapp', value: whatsapp || '' }, { upsert: true });
         await AppSettings.findOneAndUpdate({ key: 'appName'  }, { key: 'appName',  value: appName  || '' }, { upsert: true });
+        if (telegramBotToken !== undefined) {
+            await AppSettings.findOneAndUpdate({ key: 'telegramBotToken' }, { key: 'telegramBotToken', value: telegramBotToken.trim() }, { upsert: true });
+            tgBot.stopTelegramPolling();
+            tgBot.startTelegramPolling();
+        }
         res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -545,7 +552,7 @@ app.delete('/api/admin/contacts/:id', requireAdmin, async (req, res) => {
 //  ALL OTHER /api/* ROUTES REQUIRE ACTIVE AUTH
 // ═══════════════════════════════════════════════════════════════
 app.use('/api/', requireActiveAuth);
-
+app.use('/api/agent', agentRoutes);
 app.use('/api/strategy', strategyRoutes);
 
 // ─────────────────────────────────────────────────────────────
@@ -1250,6 +1257,53 @@ app.post('/api/discord/test', requireActiveAuth, async (req, res) => {
     } catch(e) { res.json({ ok: false, error: e.message }); }
 });
 
+app.get('/api/telegram/config', requireActiveAuth, async (req, res) => {
+    try {
+        const doc = await Settings.findOne({ userId: req.appUserId }).lean();
+        const botUsername = tgBot.getBotUsername();
+        res.json({ telegram: doc?.telegram || {}, botUsername });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/telegram/config', requireActiveAuth, async (req, res) => {
+    try {
+        const { alerts } = req.body;
+        const doc = await Settings.findOne({ userId: req.appUserId }).lean();
+        const currentTg = doc?.telegram || {};
+        await upsert(Settings, { telegram: { ...currentTg, alerts: alerts || currentTg.alerts || {} } }, req.appUserId);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/telegram/disconnect', requireActiveAuth, async (req, res) => {
+    try {
+        const doc = await Settings.findOne({ userId: req.appUserId }).lean();
+        const currentTg = doc?.telegram || {};
+        currentTg.chatId = null; // Unlink
+        await upsert(Settings, { telegram: currentTg }, req.appUserId);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/telegram/test', requireActiveAuth, async (req, res) => {
+    try {
+        const doc = await Settings.findOne({ userId: req.appUserId }).lean();
+        const chatId = doc?.telegram?.chatId;
+        const botToken = tgBot.getBotToken();
+        if (!botToken) return res.json({ ok: false, error: 'Admin has not configured Telegram' });
+        if (!chatId) return res.json({ ok: false, error: 'Link your Telegram account first' });
+        const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        const text = '✅ <b>Scanr Notifications Connected</b>\n\nTelegram alerts are working correctly.\nYou will receive trade notifications here.';
+        const resp = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' }),
+        });
+        if (!resp.ok) throw new Error(`Telegram API returned ${resp.status}`);
+        res.json({ ok: true });
+    } catch(e) { res.json({ ok: false, error: e.message }); }
+});
+
 // Called from frontend after placing an order to send Discord notification (server-side only)
 app.post('/api/discord/notify/order', requireActiveAuth, async (req, res) => {
     res.json({ ok: true }); // respond instantly
@@ -1257,6 +1311,9 @@ app.post('/api/discord/notify/order', requireActiveAuth, async (req, res) => {
         const doc = await Settings.findOne({ userId: req.appUserId }).lean();
         if (doc?.discord?.webhookUrl && doc?.discord?.alerts?.orderSummary !== false) {
             sendDiscordAlert(doc.discord.webhookUrl, orderSummaryEmbed(req.body));
+        }
+        if (doc?.telegram?.botToken && doc?.telegram?.chatId && doc?.telegram?.alerts?.orderSummary !== false) {
+            sendTelegramMessage(doc.telegram.botToken, doc.telegram.chatId, orderSummaryText(req.body));
         }
     } catch(_) {}
 });
@@ -1437,6 +1494,9 @@ async function checkPriceAlerts() {
                 if (settings?.discord?.webhookUrl && settings?.discord?.alerts?.priceAlert !== false) {
                     sendDiscordAlert(settings.discord.webhookUrl, priceAlertEmbed({ symbol: alert.symbol, targetPrice: alert.targetPrice, currentPrice, direction: alert.direction }));
                 }
+                if (settings?.telegram?.botToken && settings?.telegram?.chatId && settings?.telegram?.alerts?.priceAlert !== false) {
+                    sendTelegramMessage(settings.telegram.botToken, settings.telegram.chatId, priceAlertText({ symbol: alert.symbol, targetPrice: alert.targetPrice, currentPrice, direction: alert.direction }));
+                }
             } catch(_) {}
         }
     } catch(e) { console.error('[PriceAlerts] checker error:', e.message); }
@@ -1447,6 +1507,7 @@ connectDB()
         // Drop stale singleton_1 index from AppSettings (leftover from old schema)
         try { await AppSettings.collection.dropIndex('singleton_1'); } catch (_) {}
         await createAdminIfNeeded();
+        tgBot.startTelegramPolling();
         httpServer.listen(PORT, () => {
             console.log(`RSI + MACD Scanner running at http://localhost:${PORT}`);
         });

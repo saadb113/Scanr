@@ -6,7 +6,7 @@ const { Strategy, BotTrade, BybitStore } = require('./models');
 const { Settings, BotLog }               = require('./models');
 const notifier                            = require('./notifier');
 const { sendStrategyBotAlert }            = require('./discordNotifier');
-const { sendStrategyBotAlert: sendTelegramStrategyBotAlert } = {} //;
+const { sendStrategyBotAlert: sendTelegramStrategyBotAlert } = require('./telegramNotifier');
 const {
     calcEMASeries,
     calcSMASeries,

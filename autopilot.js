@@ -16,6 +16,7 @@ const crypto   = require('crypto');
 const WebSocket = require('ws');
 const { BybitStore, AutopilotState, Settings } = require('./models');
 const { sendDiscordAlert, positionClosedEmbed, autopilotMilestoneEmbed } = require('./discordNotifier');
+const { sendTelegramMessage, positionClosedText, autopilotMilestoneText } = require('./telegramNotifier');
 
 // One engine instance per user
 const engines = {};
@@ -121,7 +122,12 @@ async function getDiscordSettings(userId) {
         return doc?.discord || null;
     } catch { return null; }
 }
-
+async function getTelegramSettings(userId) {
+    try {
+        const doc = await Settings.findOne({ userId }).lean();
+        return doc?.telegram || null;
+    } catch(_) { return null; }
+}
 // ── Logging ───────────────────────────────────────────────────
 
 async function apLog(userId, msg, type = '') {
@@ -193,6 +199,10 @@ async function onPrice(userId, eng, price) {
                     if (d?.webhookUrl && d?.alerts?.autopilotMilestone !== false)
                         sendDiscordAlert(d.webhookUrl, autopilotMilestoneEmbed({ symbol: p.sym, milestone: '50% to TP reached', action: 'SL moved to half-risk', newSl, newTp: null }));
                 });
+                getTelegramSettings(userId).then(t => {
+                    if (t?.chatId && t?.alerts?.autopilotMilestone !== false)
+                        sendTelegramMessage(t.botToken, t.chatId, autopilotMilestoneText({ symbol: p.sym, milestone: '50% to TP reached', action: 'SL moved to half-risk', newSl, newTp: null }));
+                });
             }
         }
 
@@ -208,6 +218,10 @@ async function onPrice(userId, eng, price) {
                     if (d?.webhookUrl && d?.alerts?.autopilotMilestone !== false)
                         sendDiscordAlert(d.webhookUrl, autopilotMilestoneEmbed({ symbol: p.sym, milestone: '60% to TP reached', action: 'SL moved to breakeven', newSl: be, newTp: null }));
                 });
+                getTelegramSettings(userId).then(t => {
+                    if (t?.chatId && t?.alerts?.autopilotMilestone !== false)
+                        sendTelegramMessage(t.botToken, t.chatId, autopilotMilestoneText({ symbol: p.sym, milestone: '60% to TP reached', action: 'SL moved to breakeven', newSl: be, newTp: null }));
+                });
             }
         }
 
@@ -222,6 +236,10 @@ async function onPrice(userId, eng, price) {
                 getDiscordSettings(userId).then(d => {
                     if (d?.webhookUrl && d?.alerts?.autopilotMilestone !== false)
                         sendDiscordAlert(d.webhookUrl, autopilotMilestoneEmbed({ symbol: p.sym, milestone: '60% toward SL', action: 'TP moved to breakeven', newSl: null, newTp: be }));
+                });
+                getTelegramSettings(userId).then(t => {
+                    if (t?.chatId && t?.alerts?.autopilotMilestone !== false)
+                        sendTelegramMessage(t.botToken, t.chatId, autopilotMilestoneText({ symbol: p.sym, milestone: '60% toward SL', action: 'TP moved to breakeven', newSl: null, newTp: be }));
                 });
             }
         }
@@ -256,6 +274,14 @@ async function checkPositionClosed(userId, eng) {
                     const exitPrice = eng._lastSaved || p.tp || p.entry;
                     const pnl = p.isLong ? (exitPrice - p.entry) * p.size : (p.entry - exitPrice) * p.size;
                     sendDiscordAlert(d.webhookUrl, positionClosedEmbed({ symbol: p.sym, side: p.side || (p.isLong ? 'Long' : 'Short'), entryPrice: p.entry, exitPrice, pnl, closeReason: 'TP/SL Hit' }));
+                }
+            });
+            getTelegramSettings(userId).then(t => {
+                if (t?.chatId && t?.alerts?.tpSlHit !== false) {
+                    const p = eng.position;
+                    const exitPrice = eng._lastSaved || p.tp || p.entry;
+                    const pnl = p.isLong ? (exitPrice - p.entry) * p.size : (p.entry - exitPrice) * p.size;
+                    sendTelegramMessage(t.botToken, t.chatId, positionClosedText({ symbol: p.sym, side: p.side || (p.isLong ? 'Long' : 'Short'), entryPrice: p.entry, exitPrice, pnl, closeReason: 'TP/SL Hit' }));
                 }
             });
             apStop(userId);

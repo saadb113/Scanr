@@ -33,6 +33,18 @@ const SettingsSchema = new mongoose.Schema({
             aiAgentAlerts:       { type: Boolean, default: true },
         },
     },
+    telegram: {
+        botToken: { type: String, default: '' },
+        chatId: { type: String, default: '' },
+        alerts: {
+            priceAlert:          { type: Boolean, default: true },
+            orderSummary:        { type: Boolean, default: true },
+            autopilotMilestone:  { type: Boolean, default: true },
+            tpSlHit:             { type: Boolean, default: true },
+            strategyBotAlerts:   { type: Boolean, default: true },
+            aiAgentAlerts:       { type: Boolean, default: true },
+        },
+    },
     ai: {
         provider:     { type: String, default: 'glm' },   // 'glm' | 'kimi' | 'claude'
         kimiApiKey:   { type: String, default: '' },
@@ -270,7 +282,7 @@ const UserSchema = new mongoose.Schema({
     blockedAttempts:     { type: [{ timestamp: Date, ip: String, fingerprint: String }], default: [] },
     suspiciousActivity:  { type: Boolean, default: false },
 }, { timestamps: true });
-
+UserSchema.index({ email: 1 }, { unique: true });
 
 // ── Auth: Licenses ──
 const LicenseSchema = new mongoose.Schema({
@@ -292,7 +304,7 @@ const LicenseSchema = new mongoose.Schema({
     maxTransfers:        { type: Number, default: 2 },
     transferHistory:     { type: [{ date: Date, adminId: mongoose.Schema.Types.ObjectId, oldFingerprint: String }], default: [] },
 }, { timestamps: true });
-
+LicenseSchema.index({ licenseKey: 1 }, { unique: true });
 
 // ── Auth: Admin app-level settings (key/value store) ──
 const AppSettingsSchema = new mongoose.Schema({

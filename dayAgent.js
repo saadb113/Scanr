@@ -16,7 +16,7 @@ const { AgentState, AgentSession, AgentTrade, AgentSettings, KimiSettings, Bybit
 const { runScan } = require('./coinScanner');
 const notifier        = require('./notifier');
 const discordNotifier = require('./discordNotifier');
-const telegramNotifier = { sendAgentAlert: () => {} } //;
+const telegramNotifier = require('./telegramNotifier');
 
 const PST_OFFSET_MS = 5 * 60 * 60 * 1000; // UTC+5
 
