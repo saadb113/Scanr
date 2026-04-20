@@ -17,7 +17,6 @@ const {
     Strategy, BotTrade, PriceAlert,
 } = require('./models');
 const autopilot      = require('./autopilot');
-const agentRoutes    = require('./agent_day_routes');
 const dayAgent       = require('./dayAgent');
 const strategyRoutes = require('./strategy_routes');
 const strategyBot    = require('./strategyBot');
@@ -552,7 +551,6 @@ app.delete('/api/admin/contacts/:id', requireAdmin, async (req, res) => {
 //  ALL OTHER /api/* ROUTES REQUIRE ACTIVE AUTH
 // ═══════════════════════════════════════════════════════════════
 app.use('/api/', requireActiveAuth);
-app.use('/api/agent', agentRoutes);
 app.use('/api/strategy', strategyRoutes);
 
 // ─────────────────────────────────────────────────────────────

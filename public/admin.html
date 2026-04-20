@@ -948,6 +948,7 @@ async function loadSettings() {
     const d = await api('GET', '/api/admin/settings');
     if (d.emailAdmin)  document.getElementById('settingAdminEmail').value      = d.emailAdmin;
     if (d.appName)   document.getElementById('settingAppName').value  = d.appName;
+
     if (d.walletTRC20) document.getElementById('settingWalletTRC20').value = d.walletTRC20;
     if (d.walletERC20) document.getElementById('settingWalletERC20').value = d.walletERC20;
     if (d.walletBEP20) document.getElementById('settingWalletBEP20').value = d.walletBEP20;
@@ -957,21 +958,24 @@ async function loadSettings() {
     if (d.pricing_lifetime_discounted !== undefined) document.getElementById('pricingLifetimeDiscounted').value = d.pricing_lifetime_discounted;
     if (d.pricing_discount_label !== undefined) document.getElementById('pricingDiscountLabel').value = d.pricing_discount_label;
     renderPricingPreview();
+if (d.telegramBotToken) document.getElementById('settingTelegramBotToken').value = d.telegramBotToken;
   } catch (e) { console.error(e); }
 }
 
 async function saveSettings() {
   const emailAdmin = document.getElementById('settingAdminEmail').value.trim() || 'support@scanr.me';
   const appName  = document.getElementById('settingAppName').value.trim();
+  const telegramBotToken = document.getElementById('settingTelegramBotToken').value.trim();
   const walletTRC20 = document.getElementById('settingWalletTRC20').value.trim();
   const walletERC20 = document.getElementById('settingWalletERC20').value.trim();
   const walletBEP20 = document.getElementById('settingWalletBEP20').value.trim();
   const pricePlanStandard = parseFloat(document.getElementById('settingPricePlanStandard').value) || 49;
   const pricePlanPKR = parseFloat(document.getElementById('settingPricePlanPKR').value) || 19500;
   const msg      = document.getElementById('settingMsg');
+  
   try {
     await api('POST', '/api/admin/settings', {
-      emailAdmin, appName,
+      emailAdmin, appName, telegramBotToken,
       walletTRC20, walletERC20, walletBEP20,
       pricePlanStandard, pricePlanPKR
     });
