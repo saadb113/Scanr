@@ -1,8 +1,8 @@
-require('dotenv').config();
+const path     = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const express  = require('express');
 const http     = require('http');
-const path     = require('path');
 const session  = require('express-session');
 const bcrypt   = require('bcrypt');
 const { Server } = require('socket.io');
