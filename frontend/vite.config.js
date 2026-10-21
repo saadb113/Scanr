@@ -18,9 +18,9 @@ export default defineConfig({
       '/payment': 'http://localhost:3000',
     },
   },
-  build: {
-    // Builds straight into the backend's static-serve directory.
-    outDir: '../backend/public-react',
-    emptyOutDir: true,
-  },
+  // Default build.outDir ('dist') — the frontend is deployed on its own
+  // (e.g. Vercel, building straight from this directory) against the
+  // backend's API (e.g. Render), not bundled together. For local
+  // single-origin testing, point this at '../backend/public-react' instead
+  // and the backend will pick it up automatically if present.
 })

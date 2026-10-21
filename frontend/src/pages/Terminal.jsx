@@ -12,7 +12,7 @@ import { useBybitCreds } from '../hooks/useBybitCreds';
 import { useAutopilot } from '../hooks/useAutopilot';
 import { useAiAnalysis } from '../hooks/useAiAnalysis';
 import { useTradingViewWidget } from '../hooks/useTradingViewWidget';
-import { api } from '../api/client';
+import { api, API_BASE } from '../api/client';
 import { TF_LABELS } from '../utils/bybit';
 import '../components/trading/trading.css';
 import './Terminal.css';
@@ -108,7 +108,7 @@ function TerminalContent() {
   // Price-alert trigger notifications via socket.io.
   useEffect(() => {
     if (typeof window.io !== 'function') return;
-    const sock = window.io();
+    const sock = window.io(API_BASE || undefined, { withCredentials: true });
     sock.on('price_alert:triggered', (data) => {
       loadAlerts();
       showToast(`💰 Price Alert: ${data.symbol} hit ${data.targetPrice}`);

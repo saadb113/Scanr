@@ -3,3 +3,7 @@ node_modules/
 .env
 .enc
 public-react/
+
+# frontend/.env holds no secrets — just a committed default (empty) for
+# VITE_API_URL so local/CI builds resolve correctly without one.
+!frontend/.env

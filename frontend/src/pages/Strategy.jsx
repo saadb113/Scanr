@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../api/client';
+import { api, API_BASE } from '../api/client';
 import PremiumGate from '../components/PremiumGate';
 import Pagination from '../components/Pagination';
 import './Strategy.css';
@@ -716,7 +716,7 @@ function StrategyContent() {
   // ── Socket.io — bot log / trade events ──
   useEffect(() => {
     if (typeof window.io !== 'function') return;
-    const sock = window.io();
+    const sock = window.io(API_BASE || undefined, { withCredentials: true });
     const push = (level, message) => setLogs((prev) => {
       const next = [...prev, { level, message, timestamp: Date.now() }];
       return next.length > 100 ? next.slice(next.length - 100) : next;

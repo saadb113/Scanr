@@ -1,7 +1,16 @@
 // Thin fetch wrapper. The Express backend still owns auth via session cookies,
-// so every request must carry credentials for the proxy (dev) / same-origin (prod) cookie to work.
+// so every request must carry credentials for the proxy (dev) / cross-origin
+// (prod, when the frontend and backend are on different hosts — e.g.
+// Vercel + Render) cookie to work.
+//
+// VITE_API_URL points at the backend's own origin when it's deployed
+// separately (set in Vercel's project env vars). Left unset, requests stay
+// relative — same-origin in a single-origin deploy, or proxied by Vite in
+// local dev (see vite.config.js).
+export const API_BASE = import.meta.env.VITE_API_URL || '';
+
 async function request(path, options = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
     ...options,

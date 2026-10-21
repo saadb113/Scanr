@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../api/client';
+import { api, API_BASE } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import PremiumGate from '../components/PremiumGate';
 import './Setups.css';
@@ -57,7 +57,7 @@ function SetupsContent() {
 
   useEffect(() => {
     if (typeof window.io !== 'function') return;
-    const sock = window.io();
+    const sock = window.io(API_BASE || undefined, { withCredentials: true });
     socketRef.current = sock;
 
     sock.on('setups:start', ({ total }) => {

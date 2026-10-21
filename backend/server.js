@@ -1,10 +1,12 @@
 const path     = require('path');
+const fs       = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const express  = require('express');
 const http     = require('http');
 const session  = require('express-session');
 const bcrypt   = require('bcrypt');
+const cors     = require('cors');
 const { Server } = require('socket.io');
 const { connectDB } = require('./db');
 const tgBot = require('./telegramBot');
@@ -26,18 +28,51 @@ const { analyzeWithAI, testAIProvider }                        = require('./aiAn
 
 const app        = express();
 const httpServer = http.createServer(app);
-const io         = new Server(httpServer, { cors: { origin: '*' } });
-dayAgent.setIO(io);
-strategyBot.setIO(io);
 const PORT  = process.env.PORT || 3000;
 const USER  = 'default';
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+// Frontend origin(s) allowed to call this API cross-origin (Vercel frontend
+// talking to this Render backend). Comma-separated for multiple (e.g. a
+// preview deployment URL alongside the production one). Same-origin/local
+// dev (Vite proxy) never needs this — it's only for split hosting.
+const ALLOWED_ORIGINS = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+// In production, reflecting any origin while allowing credentials is a real
+// CSRF-style hole — only do that in local dev (convenient, and same-origin
+// requests don't hit CORS at all anyway). Production with no FRONTEND_URL
+// configured just has cross-origin calls denied, same-origin unaffected.
+const corsOptions = {
+    origin: ALLOWED_ORIGINS.length ? ALLOWED_ORIGINS : !IS_PRODUCTION,
+    credentials: true,
+};
+if (IS_PRODUCTION && !ALLOWED_ORIGINS.length) {
+    console.warn('[CORS] FRONTEND_URL is not set — cross-origin requests will be denied.');
+}
 
+// Render terminates TLS in front of this app, so trust its proxy headers —
+// required for `cookie.secure` below to work correctly.
+if (IS_PRODUCTION) app.set('trust proxy', 1);
+
+const io = new Server(httpServer, { cors: corsOptions });
+dayAgent.setIO(io);
+strategyBot.setIO(io);
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '4mb' }));
 const sessionMW = session({
     secret:            process.env.SESSION_SECRET || 'monty-fallback-secret',
     resave:            false,
     saveUninitialized: false,
-    cookie:            { maxAge: 7 * 24 * 60 * 60 * 1000, httpOnly: true },
+    cookie: {
+        maxAge:   7 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        // Cross-origin (Vercel <-> Render) cookies require SameSite=None + Secure,
+        // which in turn requires HTTPS — true in production, not in local dev.
+        sameSite: IS_PRODUCTION ? 'none' : 'lax',
+        secure:   IS_PRODUCTION,
+    },
 });
 app.use(sessionMW);
 
@@ -1409,17 +1444,23 @@ app.post('/api/ai/analyze', requireActiveAuth, async (req, res) => {
 
 // ═══════════════════════════════════════════════════════════════
 //  SPA PAGE ROUTES
-//  The frontend is now a React SPA (frontend/, built to public-react/).
-//  Express just serves the built static assets and, for any other GET
-//  request not already handled above (API/socket routes), hands back
-//  index.html so React Router can resolve the route client-side. Auth
-//  gating for app pages now happens client-side via ProtectedRoute.
+//  The frontend (frontend/) is normally deployed separately (e.g. Vercel)
+//  against this backend's API, so public-react/ won't exist here in that
+//  setup — only API/socket routes above apply, and any other GET 404s as
+//  JSON. If public-react/ IS present (a local single-origin build, built
+//  via `npm run build` in frontend/), serve it with an SPA fallback so
+//  React Router can resolve client-side routes too.
 // ═══════════════════════════════════════════════════════════════
 const REACT_BUILD = path.join(__dirname, 'public-react');
 const REACT_INDEX = path.join(REACT_BUILD, 'index.html');
+const hasReactBuild = fs.existsSync(REACT_INDEX);
 
-app.use(express.static(REACT_BUILD, { index: false }));
-app.get('*', (req, res) => res.sendFile(REACT_INDEX));
+if (hasReactBuild) {
+    app.use(express.static(REACT_BUILD, { index: false }));
+    app.get('*', (req, res) => res.sendFile(REACT_INDEX));
+} else {
+    app.get('*', (req, res) => res.status(404).json({ error: 'Not found' }));
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  BOOT
