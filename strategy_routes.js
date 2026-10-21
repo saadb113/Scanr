@@ -79,7 +79,7 @@ router.delete('/trades/clear', async (req, res) => {
 // POST /api/strategy — create new
 router.post('/', async (req, res) => {
     try {
-        const { name, blocks, pineScript, coins, timeframe, scanInterval, maxTradesPerDay, exchange } = req.body;
+        const { name, blocks, pineScript, coins, timeframe, scanInterval, maxTradesPerDay, dailyDrawdownLimit, exchange } = req.body;
         const s = await Strategy.create({
             userId: req.session.userId,
             name: name || 'My Strategy',
@@ -89,6 +89,10 @@ router.post('/', async (req, res) => {
             timeframe: timeframe || '5m',
             scanInterval: scanInterval || 30,
             maxTradesPerDay: maxTradesPerDay || 3,
+            // Bug fix (Strategy Builder React migration): dailyDrawdownLimit was accepted by
+            // PUT (which $sets the raw body) but silently dropped on create, so new strategies
+            // always fell back to the schema default of 50 regardless of what the UI sent.
+            dailyDrawdownLimit: dailyDrawdownLimit || 50,
             exchange: exchange === 'binance' ? 'binance' : 'bybit',
         });
         res.json({ ok: true, strategy: s });

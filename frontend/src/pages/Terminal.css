@@ -1,0 +1,67 @@
+/* Terminal page layout. Scoped under .terminal-page (rather than :root, as
+   the original terminal.html did) since Vite keeps this stylesheet loaded
+   even after navigating to another route — defining --byt-* custom
+   properties on :root would otherwise leak into every other page. */
+.terminal-page {
+  --term-bg: var(--bg-base);
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 0;
+  min-height: calc(100vh - 56px);
+  background: var(--term-bg);
+  color: var(--text-primary);
+  position: relative;
+}
+
+.term-top-layout { display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--border-dim); }
+.term-chart-col { display: flex; flex-direction: column; }
+.term-sym-bar { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border-dim); background: var(--bg-surface); }
+.term-sym-label { font-size: 15px; font-weight: 700; color: var(--text-primary); }
+.term-tv-chart { min-height: 550px; flex: 1; }
+
+.term-bottom-section { border-top: 1px solid var(--border-dim); background: var(--bg-surface); display: flex; flex-direction: column; }
+.term-page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.65rem; font-size: 11px; color: var(--text-muted); }
+
+.term-order-sidebar { padding: 0.85rem; overflow-y: auto; background: var(--bg-surface); border-left: 1px solid var(--border-dim); }
+
+.term-ai-panel { border-top: 1px solid var(--border-dim); margin-top: 0.85rem; padding-top: 0.75rem; }
+.term-ai-head { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
+.term-ai-btn { width: 100%; padding: 0.5rem; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.35); border-radius: 4px; color: #a855f7; font-size: 12px; font-weight: 700; cursor: pointer; font-family: var(--font-ui); margin-top: 0.5rem; }
+.term-ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.term-ai-usage { margin-top: 6px; font-size: 11px; font-weight: 700; text-align: center; }
+.term-ai-info { font-size: 11px; color: var(--text-dim); margin-top: 0.3rem; text-align: center; }
+.term-ai-result { margin-top: 0.55rem; background: var(--bg-input); border: 1px solid var(--border-dim); border-radius: 6px; padding: 0.6rem; }
+.term-ai-metric { background: var(--bg-raised); border-radius: 4px; padding: 0.25rem 0.35rem; }
+.term-ai-metric div:first-child { font-size: 9px; color: var(--text-dim); text-transform: uppercase; }
+.term-ai-metric div:last-child { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-primary); }
+.term-ai-apply { width: 100%; padding: 0.3rem; background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.4); color: #a855f7; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font-ui); }
+
+.term-alert-form { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.5rem; align-items: end; margin-bottom: 0.85rem; }
+.term-set-alert-btn { background: var(--accent-green); color: #04140f; border: none; border-radius: 4px; padding: 0.4rem 1rem; font-weight: 800; font-size: 12px; cursor: pointer; font-family: var(--font-ui); white-space: nowrap; height: 32px; }
+.term-dir-pill { flex: 1; padding: 0.35rem 0.4rem; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: var(--font-ui); background: var(--bg-input); color: var(--text-muted); border: 1px solid var(--border-mid); }
+.term-dir-pill.above.active { background: var(--green-dim); color: var(--accent-green); border-color: var(--accent-green); }
+.term-dir-pill.below.active { background: var(--red-dim); color: var(--accent-red); border-color: var(--accent-red); }
+.term-alert-row { display: flex; align-items: center; gap: 0.75rem; background: var(--bg-raised); border: 1px solid var(--border-dim); border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 12px; }
+.term-alert-sym { font-weight: 700; color: var(--text-primary); min-width: 80px; font-family: var(--font-mono); }
+.term-alert-price { color: var(--accent-amber); font-weight: 700; font-family: var(--font-mono); }
+.term-alert-dir { font-size: 11px; padding: 0.12rem 0.45rem; border-radius: 3px; font-weight: 700; }
+.term-alert-dir.above { background: var(--green-dim); color: var(--accent-green); }
+.term-alert-dir.below { background: var(--red-dim); color: var(--accent-red); }
+.term-alert-date { color: var(--text-dim); font-size: 11px; margin-left: auto; }
+.term-alert-del { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 15px; line-height: 1; padding: 0.1rem 0.25rem; }
+
+.term-toast {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 500;
+  padding: 0.4rem 1rem; border-radius: 6px; font-size: 13px; font-weight: 700;
+  background: var(--bg-elevated); border: 1px solid var(--border-mid); color: var(--text-primary);
+  min-width: 200px; text-align: center; pointer-events: none;
+}
+.term-no-creds-hint {
+  grid-column: 1 / -1; padding: 0.5rem 1rem; background: var(--amber-dim); color: var(--accent-amber);
+  font-size: 12px; text-align: center; border-top: 1px solid rgba(245,166,35,0.3);
+}
+
+@media (max-width: 900px) {
+  .terminal-page { grid-template-columns: 1fr; }
+  .term-order-sidebar { border-left: none; border-top: 1px solid var(--border-dim); }
+}

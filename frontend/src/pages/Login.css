@@ -1,0 +1,25 @@
+.auth-card {
+  background: #0c1017;
+  border: 1px solid #1a2030;
+  border-radius: 16px;
+  padding: 2.2rem 2rem;
+  width: 100%;
+  max-width: 400px;
+  margin: 1rem;
+}
+.auth-title { font-size: 1.25rem; font-weight: 700; color: #e5e9f2; text-align: center; margin-bottom: 0.35rem; }
+.auth-sub { font-size: 0.875rem; color: #6b7897; text-align: center; margin-bottom: 1.8rem; }
+.auth-field { margin-bottom: 1.1rem; }
+.auth-field label { display: block; font-size: 0.78rem; font-weight: 700; color: #7a8499; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.4rem; }
+.auth-input { width: 100%; background: #090c12; border: 1px solid #1e2535; border-radius: 9px; padding: 0.7rem 0.9rem; color: #e5e9f2; font-size: 0.95rem; font-family: inherit; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+.auth-input:focus { border-color: #29ffb8; }
+.auth-btn { width: 100%; padding: 0.75rem; background: linear-gradient(135deg, #00c896, #29ffb8); color: #000; border: none; border-radius: 9px; font-size: 1rem; font-weight: 800; cursor: pointer; font-family: inherit; margin-top: 0.4rem; transition: opacity 0.15s; }
+.auth-btn:hover { opacity: 0.9; }
+.auth-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.auth-msg { font-size: 0.875rem; font-weight: 600; text-align: center; margin-top: 0.9rem; min-height: 1.2rem; color: #f56565; }
+.auth-link { text-align: center; margin-top: 1.4rem; font-size: 0.875rem; color: #6b7897; }
+.auth-link a { color: #29ffb8; text-decoration: none; font-weight: 600; }
+.auth-link a:hover { text-decoration: underline; }
+.kicked-banner { background: #451a03; border: 1px solid #92400e; border-radius: 10px; padding: 0.85rem 1rem; margin-bottom: 1.2rem; font-size: 0.845rem; color: #fcd34d; line-height: 1.5; text-align: center; }
+.kicked-banner-icon { font-size: 1.1rem; margin-bottom: 0.3rem; }
+.pw-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #6b7897; cursor: pointer; font-size: 12px; font-family: inherit; font-weight: 600; }

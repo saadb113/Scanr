@@ -1,1 +1,0 @@
-require('dotenv').config(); const mongoose = require('mongoose'); const { Settings } = require('./models'); mongoose.connect(process.env.MONGODB_URI).then(async () => { const s = await Settings.findOne({}); console.log('Current DB settings:', s); s.defaultExchange = 'binance'; await s.save(); console.log('After DB save:', await Settings.findOne({})); process.exit(0); });

@@ -249,8 +249,8 @@ async function runScan(creds, agentSettings, userSettings, emitFn) {
 
 // ── Hard-filter-only scan (no AI scoring) ────────────────────
 
-async function runHardFilterScan(agentSettings, emitFn) {
-    const settingsDoc = await Settings.findOne({ userId: 'default' }).lean();
+async function runHardFilterScan(agentSettings, emitFn, uid) {
+    const settingsDoc = await Settings.findOne({ userId: uid || 'default' }).lean();
     const symbols     = (settingsDoc?.symbols || []).filter(Boolean);
 
     if (!symbols.length) {

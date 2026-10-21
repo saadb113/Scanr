@@ -1,0 +1,36 @@
+.lic-card {
+  background: #0c1017; border: 1px solid #1a2030; border-radius: 16px;
+  padding: 2.8rem 2rem; width: 100%; max-width: 420px; text-align: center; margin: 1rem;
+}
+.lic-icon { font-size: 48px; margin-bottom: 16px; }
+.lic-card h1 { font-size: 1.4rem; font-weight: 800; color: #e5e9f2; margin-bottom: 10px; }
+.lic-sub { font-size: 0.875rem; color: #6b7897; margin-bottom: 2rem; line-height: 1.6; }
+.lic-card label { display: block; font-size: 0.78rem; font-weight: 700; color: #7a8499; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; text-align: left; }
+.key-input {
+  width: 100%; background: #090c12; border: 1px solid #1e2535; border-radius: 9px;
+  padding: 0.85rem 1rem; color: #29ffb8; font-size: 1.05rem; font-weight: 700;
+  font-family: 'Courier New', monospace; letter-spacing: 1.5px; text-transform: uppercase;
+  outline: none; transition: border-color 0.15s; text-align: center; box-sizing: border-box;
+}
+.key-input:focus { border-color: #29ffb8; }
+.key-input::placeholder { color: #2a3545; font-size: 0.95rem; letter-spacing: 1px; font-weight: 500; }
+.lic-msg { font-size: 0.875rem; font-weight: 600; margin-top: 0.9rem; min-height: 1.2rem; }
+.lic-divider { border: none; border-top: 1px solid #1a2030; margin: 2rem 0 1.5rem; }
+.lic-wa-text { font-size: 0.875rem; color: #6b7897; margin-bottom: 0.85rem; }
+.wa-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #25d366; color: #000; border: none; border-radius: 9px;
+  padding: 0.6rem 1.2rem; font-size: 0.88rem; font-weight: 800; cursor: pointer;
+  font-family: inherit; text-decoration: none; transition: opacity 0.15s;
+}
+.wa-btn:hover { opacity: 0.88; }
+.lic-signin-link { display: block; text-align: center; margin-top: 1rem; font-size: 0.82rem; color: #6b7897; }
+.lic-signin-link a { color: #29ffb8; font-weight: 700; text-decoration: none; }
+.lic-signin-link a:hover { text-decoration: underline; }
+.licensesignout {
+  font-size: 0.82rem; font-weight: 600; color: var(--green, #00e5a0);
+  text-decoration: none; padding: 0.28rem 0.6rem; border-radius: 6px;
+  transition: all 0.15s; cursor: pointer; font-family: inherit; white-space: nowrap;
+  margin-top: 15px; border: 1px solid rgba(0, 229, 160, 0.3); background: rgba(0, 229, 160, 0.06);
+  line-height: 1.4;
+}

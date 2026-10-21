@@ -1,0 +1,46 @@
+/* Distinct name from MarketingDoc.css's .page-hero (the plain doc-page hero) —
+   this is the bigger "feature page" hero with the radial-gradient backdrop.
+   Vite doesn't unload CSS on route change in this SPA, so reusing the same
+   class name with different rules across pages would cause style bleed
+   depending on visit order. */
+.feat-hero { padding: 80px 28px 68px; text-align: center; background: var(--bg-surface); border-bottom: 1px solid var(--border); position: relative; overflow: hidden; }
+.feat-hero::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(0,229,160,0.09) 0%, transparent 62%);
+  pointer-events: none;
+}
+.feat-hero-inner { position: relative; z-index: 1; max-width: 720px; margin: 0 auto; }
+.lp-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 0.875rem; display: block; }
+.feat-hero h1 { font-size: clamp(1.875rem, 4vw, 2.875rem); font-weight: 800; line-height: 1.15; letter-spacing: -0.03em; margin-bottom: 1.125rem; }
+.feat-hero p { font-size: 1.05rem; color: var(--text-secondary); max-width: 540px; margin: 0 auto; line-height: 1.75; }
+
+.fg-wrap { padding: 64px 28px; }
+.fg-wrap.alt { background: var(--bg-surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.fg-inner { max-width: 1100px; margin: 0 auto; }
+
+.fg-head { display: flex; align-items: flex-start; gap: 1.25rem; margin-bottom: 2.5rem; }
+.fg-icon { width: 52px; height: 52px; border-radius: 14px; background: rgba(0,229,160,0.08); border: 1px solid rgba(0,229,160,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.6rem; flex-shrink: 0; }
+.fg-title { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 3px; }
+.fg-subtitle { font-size: 14px; color: var(--text-secondary); }
+
+.fg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1rem; }
+.fg-item { display: flex; gap: 1rem; align-items: flex-start; background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color 0.2s, transform 0.2s; }
+.fg-item:hover { border-color: rgba(0,229,160,0.2); transform: translateY(-2px); }
+.fg-item-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1.3; margin-top: 1px; }
+.fg-item-body h4 { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+.fg-item-body p { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+
+@media (max-width: 640px) {
+  .fg-head { flex-direction: column; gap: 0.875rem; }
+  .fg-grid { grid-template-columns: 1fr; }
+}
+
+.cta-section { text-align: center; padding: 88px 28px; background: var(--bg-surface); border-top: 1px solid var(--border); }
+.cta-section h2 { font-size: clamp(1.75rem, 3.5vw, 2.5rem); font-weight: 800; letter-spacing: -0.025em; margin-bottom: 1rem; }
+.cta-section p { font-size: 1.05rem; color: var(--text-secondary); max-width: 480px; margin: 0 auto 2.5rem; line-height: 1.75; }
+.cta-btns { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+.btn-lg { display: inline-flex; align-items: center; gap: 6px; padding: 14px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all 0.2s; border: none; }
+.btn-lg.filled { background: var(--accent); color: #000; }
+.btn-lg.filled:hover { opacity: 0.88; transform: translateY(-2px); }
+.btn-lg.outline { background: none; border: 1.5px solid var(--border); color: var(--text-primary); }
+.btn-lg.outline:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); }

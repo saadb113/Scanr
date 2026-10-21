@@ -1,0 +1,41 @@
+/* Shared design tokens — ported from the inline <style> block duplicated across every
+   public/*.html page. Centralized here once instead of repeating it per React page. */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #080b11; --bg-card: #0d1117; --bg-raised: #121820; --bg-input: #0a0f16;
+  --border: #1c2435; --border-mid: #243044;
+  --text-primary: #dde4f0; --text-secondary: #9aa3b5; --text-muted: #5a6478;
+  --green: #00e5a0; --red: #ff4d6a; --amber: #f5a623; --blue: #4da8ff; --purple: #a78bfa;
+  --green-dim: #051a10; --red-dim: #1a0509; --amber-dim: #1a1100;
+  --font-ui: 'Space Grotesk', system-ui, sans-serif; --font-mono: 'JetBrains Mono', monospace;
+  --radius: 10px; --radius-sm: 6px; --radius-lg: 14px;
+  --sidebar-w: 335px;
+}
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: clamp(13px, 1vw, 18px);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.light-mode {
+  --bg: #f2f5fb; --bg-card: #ffffff; --bg-raised: #e8edf6; --bg-input: #edf1f8;
+  --border: #cdd5e3; --border-mid: #b4bfcf;
+  --text-primary: #1a2335; --text-secondary: #445068; --text-muted: #7080a0;
+}
+
+/* Shared centered-card layout used by the standalone auth pages (login, register,
+   license activation, suspended). */
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050711;
+  font-family: 'Space Grotesk', sans-serif;
+}

@@ -1,0 +1,75 @@
+.mkt-root {
+  --bg-base: #0a0e1a;
+  --bg-surface: #0f1422;
+  --bg-card: #131929;
+  --accent: #00e5a0;
+  --text-primary: #e5e9f2;
+  --text-secondary: #9aa3b5;
+  --border: #1e2a3a;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.mkt-root a { color: inherit; text-decoration: none; }
+
+.lp-header {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(10,14,26,0.92);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border);
+  transition: box-shadow .2s;
+}
+.lp-header.scrolled { box-shadow: 0 4px 32px rgba(0,0,0,0.45); }
+.lp-inner { max-width: 1180px; margin: 0 auto; padding: 0 28px; height: 68px; display: flex; align-items: center; gap: 2rem; }
+.lp-logo { font-size: 1.35rem; font-weight: 800; color: var(--text-primary); flex-shrink: 0; letter-spacing: -0.02em; }
+.lp-dot { color: var(--accent); }
+.lp-nav { display: flex; gap: 1.75rem; margin-right: auto; }
+.lp-nav-a { font-size: 14px; font-weight: 600; color: var(--text-secondary); transition: color 0.15s; position: relative; padding-bottom: 2px; }
+.lp-nav-a::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 0; height: 2px; background: var(--accent); border-radius: 2px; transition: width .2s; }
+.lp-nav-a:hover { color: var(--text-primary); }
+.lp-nav-a:hover::after, .lp-nav-a.active::after { width: 100%; }
+.lp-nav-a.active { color: var(--text-primary); }
+.lp-header-btns { display: flex; gap: 0.75rem; align-items: center; }
+.lp-btn-outline { padding: 8px 20px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--text-secondary); transition: all 0.15s; }
+.lp-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.lp-btn-filled { padding: 8px 20px; border: none; border-radius: 8px; font-size: 14px; font-weight: 700; color: #000; background: var(--accent); transition: opacity 0.15s; }
+.lp-btn-filled:hover { opacity: 0.88; }
+.lp-mobile-menu { display: none; background: none; border: 1.5px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 18px; padding: 5px 11px; cursor: pointer; line-height: 1.4; }
+.lp-header.nav-open .lp-nav {
+  display: flex !important; flex-direction: column; gap: 0;
+  position: absolute; top: 68px; left: 0; right: 0;
+  background: var(--bg-surface); border-bottom: 1px solid var(--border);
+  padding: 0.5rem 28px 1.25rem; z-index: 201;
+}
+.lp-header.nav-open .lp-nav .lp-nav-a { padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 15px; }
+.lp-header.nav-open .lp-nav .lp-nav-a:last-child { border-bottom: none; }
+@media (max-width: 768px) {
+  .lp-nav { display: none; }
+  .lp-mobile-menu { display: block; }
+  .lp-btn-outline { display: none; }
+}
+
+.lp-footer { border-top: 1px solid var(--border); padding: 52px 28px 32px; }
+.lp-footer .lp-inner { height: auto; flex-wrap: wrap; gap: 2rem; align-items: flex-start; padding-bottom: 2rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; }
+.lp-footer-brand { flex: 1; min-width: 200px; }
+.lp-footer-brand .lp-logo { font-size: 1.25rem; font-weight: 800; }
+.lp-footer-brand p { font-size: 13px; color: var(--text-secondary); margin-top: 0.65rem; max-width: 240px; line-height: 1.7; }
+.lp-footer-nav { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center; }
+.lp-footer-nav a { font-size: 14px; color: var(--text-secondary); transition: color 0.15s; font-weight: 500; }
+.lp-footer-nav a:hover { color: var(--text-primary); }
+.lp-footer-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
+.lp-wa-btn { display: inline-flex; align-items: center; gap: 8px; background: #128c7e; color: #fff; border-radius: 8px; padding: 9px 18px; font-size: 14px; font-weight: 700; transition: opacity 0.15s; }
+.lp-wa-btn:hover { opacity: 0.88; }
+.lp-copy { font-size: 12px; color: var(--text-secondary); }
+/* The footer "Email Us" link is defined once here since the footer itself lives
+   in this shared layout. The source pages were inconsistent — terms/privacy/refund
+   never actually defined .lp-wa-cta (so it rendered as plain unstyled text), only
+   features.html did (as a styled pill button). We use the styled version everywhere
+   since it's clearly the intended design, not a one-off. */
+.lp-wa-cta { display: inline-flex; align-items: center; gap: 8px; background: #128c7e; color: #fff; border-radius: 8px; padding: 9px 18px; font-size: 14px; font-weight: 700; transition: opacity 0.15s; }
+.lp-wa-cta:hover { opacity: 0.88; }
+@media (max-width: 640px) {
+  .lp-footer-right { align-items: flex-start; }
+}

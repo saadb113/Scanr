@@ -82,7 +82,7 @@ function _recordAttempt(ip) {
 // Requires logged-in session only (no license check)
 function requireAuth(req, res, next) {
     if (!req.session.userId) {
-        if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
+        if (req.originalUrl.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
         return res.redirect('/login');
     }
     req.appUserId = req.session.userId;
@@ -91,29 +91,34 @@ function requireAuth(req, res, next) {
 
 // Requires logged-in + active license (or admin)
 async function requireActiveAuth(req, res, next) {
+    // req.originalUrl (not req.path) because this is also mounted via
+    // app.use('/api/', requireActiveAuth) — inside that middleware, req.path is
+    // relative to the mount point (e.g. '/dashboard/summary'), which always failed
+    // the '/api/' prefix check and silently redirected API callers to HTML pages
+    // instead of returning JSON errors. req.originalUrl keeps the full request path.
     if (!req.session.userId) {
-        if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
+        if (req.originalUrl.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
         return res.redirect('/login');
     }
     try {
         const user = await User.findById(req.session.userId).lean();
         if (!user) {
             req.session.destroy(() => {});
-            if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
+            if (req.originalUrl.startsWith('/api/')) return res.status(401).json({ error: 'Not authenticated' });
             return res.redirect('/login');
         }
         // Single-session enforcement: check session token (skip for admin)
         if (user.role !== 'admin' && req.session.sessionToken && user.activeSessionToken) {
             if (user.activeSessionToken !== req.session.sessionToken) {
                 req.session.destroy(() => {});
-                if (req.path.startsWith('/api/')) return res.status(401).json({ error: 'session_ended', message: 'Your session was ended because your account was accessed from another location.' });
+                if (req.originalUrl.startsWith('/api/')) return res.status(401).json({ error: 'session_ended', message: 'Your session was ended because your account was accessed from another location.' });
                 return res.redirect('/login');
             }
         }
         req.appUserId = req.session.userId;
         if (user.role === 'admin') return next();
         if (user.licenseStatus === 'suspended') {
-            if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License suspended' });
+            if (req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: 'License suspended' });
             return res.redirect('/suspended');
         }
         if (user.licenseStatus === 'active' && user.licenseExpiresAt && new Date() > new Date(user.licenseExpiresAt)) {
@@ -121,11 +126,11 @@ async function requireActiveAuth(req, res, next) {
                 User.findByIdAndUpdate(req.session.userId, { licenseStatus: 'suspended' }),
                 License.findOneAndUpdate({ licenseKey: user.licenseKey }, { status: 'suspended' }),
             ]);
-            if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License expired' });
+            if (req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: 'License expired' });
             return res.redirect('/suspended?reason=expired');
         }
         if (user.licenseStatus !== 'active') {
-            if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'License not active' });
+            if (req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: 'License not active' });
             return res.redirect('/license');
         }
         next();
@@ -135,7 +140,7 @@ async function requireActiveAuth(req, res, next) {
 // Requires admin role
 function requireAdmin(req, res, next) {
     if (!req.session.userId || req.session.role !== 'admin') {
-        if (req.path.startsWith('/api/')) return res.status(403).json({ error: 'Admin only' });
+        if (req.originalUrl.startsWith('/api/')) return res.status(403).json({ error: 'Admin only' });
         return res.redirect('/');
     }
     next();
@@ -1213,7 +1218,7 @@ app.post('/api/scan/setups', async (req, res) => {
         res.json({ ok: true });
         runHardFilterScan(agDoc || {}, (event, data) => {
             io.to(uid).emit(event, data);
-        }).catch(e => {
+        }, uid).catch(e => {
             io.to(uid).emit('setups:done', { error: e.message, candidates: [] });
         }).finally(() => { setupsScanRunning.delete(uid); });
     } catch (e) {
@@ -1404,45 +1409,17 @@ app.post('/api/ai/analyze', requireActiveAuth, async (req, res) => {
 
 // ═══════════════════════════════════════════════════════════════
 //  SPA PAGE ROUTES
+//  The frontend is now a React SPA (frontend/, built to public-react/).
+//  Express just serves the built static assets and, for any other GET
+//  request not already handled above (API/socket routes), hands back
+//  index.html so React Router can resolve the route client-side. Auth
+//  gating for app pages now happens client-side via ProtectedRoute.
 // ═══════════════════════════════════════════════════════════════
-const PUB = (name) => path.join(__dirname, 'public', name);
+const REACT_BUILD = path.join(__dirname, 'public-react');
+const REACT_INDEX = path.join(REACT_BUILD, 'index.html');
 
-// Public auth pages
-app.get('/login',    (req, res) => res.sendFile(PUB('login.html')));
-app.get('/register', (req, res) => res.sendFile(PUB('register.html')));
-
-// Public landing pages (no auth required)
-app.get('/',            (req, res) => res.sendFile(PUB('home.html')));
-app.get('/features',    (req, res) => res.sendFile(PUB('features.html')));
-app.get('/pricing',     (req, res) => res.sendFile(PUB('pricing.html')));
-app.get('/setup-guide', (req, res) => res.sendFile(PUB('setup-guide.html')));
-app.get('/terms',       (req, res) => res.sendFile(PUB('terms.html')));
-app.get('/privacy',     (req, res) => res.sendFile(PUB('privacy.html')));
-app.get('/refund',      (req, res) => res.sendFile(PUB('refund.html')));
-
-// Requires login but not active license
-app.get('/license',   requireAuth, (req, res) => res.sendFile(PUB('license.html')));
-app.get('/suspended', requireAuth, (req, res) => res.sendFile(PUB('suspended.html')));
-
-// Admin only
-app.get('/admin', requireAdmin, (req, res) => res.sendFile(PUB('admin.html')));
-
-// App pages — require active license
-const DASHBOARD = PUB('dashboard.html');
-const SETTINGS  = PUB('settings.html');
-const TERMINAL  = PUB('terminal.html');
-app.get('/dashboard',  requireActiveAuth, (req, res) => res.sendFile(DASHBOARD));
-app.get('/scanner',    requireActiveAuth, (req, res) => res.sendFile(PUB('index.html')));
-app.get('/settings',   requireActiveAuth, (req, res) => res.sendFile(SETTINGS));
-app.get('/terminal',   requireActiveAuth, (req, res) => res.sendFile(TERMINAL));
-app.get('/agent',      requireActiveAuth, (req, res) => res.sendFile(PUB('agent.html')));
-app.get('/setups',     requireActiveAuth, (req, res) => res.sendFile(PUB('setups.html')));
-app.get('/coin-detail',requireActiveAuth, (req, res) => res.sendFile(PUB('pages/coin-detail.html')));
-app.get('/calendar',   requireActiveAuth, (req, res) => res.sendFile(PUB('calendar.html')));
-app.get('/challenge',  requireActiveAuth, (req, res) => res.sendFile(PUB('challenge.html')));
-app.get('/challenge/:id', requireActiveAuth, (req, res) => res.sendFile(PUB('challenge-detail.html')));
-app.get('/strategy',  requireActiveAuth, (req, res) => res.sendFile(PUB('strategy.html')));
-app.get('*',           requireActiveAuth, (req, res) => res.sendFile(PUB('index.html')));
+app.use(express.static(REACT_BUILD, { index: false }));
+app.get('*', (req, res) => res.sendFile(REACT_INDEX));
 
 // ═══════════════════════════════════════════════════════════════
 //  BOOT

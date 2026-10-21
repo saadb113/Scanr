@@ -1,0 +1,48 @@
+/* Make the settings panel a full inline page instead of a fixed overlay. */
+.settings-panel {
+  position: static !important;
+  display: flex !important;
+  z-index: auto !important;
+  min-height: calc(100vh - 52px);
+  width: 100%;
+  overflow-y: auto;
+}
+
+.int-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+@media (max-width: 900px) { .int-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .int-grid { grid-template-columns: 1fr; } }
+.int-card { background: #0f1319; border: 1px solid #1e2535; border-radius: 12px; padding: 1.25rem 1rem; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; text-align: center; }
+.int-icon { font-size: 2rem; }
+.int-name { font-size: 0.95rem; font-weight: 700; color: #e5e9f2; }
+.int-status { font-size: 0.78rem; font-weight: 600; padding: 0.22rem 0.65rem; border-radius: 20px; }
+.int-status.connected { background: rgba(0,229,160,0.12); color: #00e5a0; }
+.int-status.not-set { background: rgba(100,116,139,0.15); color: #64748b; }
+.int-cfg-btn { margin-top: 0.3rem; background: #1a1f2e; border: 1px solid #252d3d; color: #e5e9f2; border-radius: 8px; padding: 0.38rem 1rem; font-size: 0.82rem; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.15s; width: 100%; }
+.int-cfg-btn:hover { border-color: #29ffb8; color: #29ffb8; }
+
+.int-modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 9990; align-items: center; justify-content: center; }
+.int-modal-bg.open { display: flex; }
+.int-modal { background: #0f1319; border: 1px solid #1e2535; border-radius: 14px; width: min(680px, 94vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+.int-modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid #1e2535; }
+.int-modal-title { font-size: 1rem; font-weight: 700; color: #e5e9f2; }
+.int-modal-close { background: none; border: none; color: #6b7897; font-size: 1.3rem; cursor: pointer; line-height: 1; padding: 0.1rem 0.3rem; border-radius: 4px; }
+.int-modal-close:hover { color: #e5e9f2; }
+.int-modal-body { padding: 1.1rem 1.25rem; overflow-y: auto; }
+.int-modal-body .sp-grid { margin: 0; }
+
+.disc-section { font-size: 0.72rem; font-weight: 700; color: #6b7897; text-transform: uppercase; letter-spacing: 0.6px; margin: 1rem 0 0.55rem; }
+.disc-toggle-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid #111827; }
+.disc-toggle-row:last-child { border-bottom: none; }
+.disc-toggle-info { flex: 1; }
+.disc-toggle-label { font-size: 0.87rem; font-weight: 600; color: #e5e9f2; display: block; }
+.disc-toggle-desc { font-size: 0.75rem; color: #6b7897; margin-top: 0.15rem; }
+
+/* The Telegram modal in the source page used tg-section/tg-toggle-* classes with no
+   matching CSS anywhere (copy-pasted from the Discord modal, renamed, styles never
+   added) — it rendered unstyled. Aliasing them to the disc-* rules above fixes that. */
+.tg-section { font-size: 0.72rem; font-weight: 700; color: #6b7897; text-transform: uppercase; letter-spacing: 0.6px; margin: 1rem 0 0.55rem; }
+.tg-toggle-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 0.65rem 0; border-bottom: 1px solid #111827; }
+.tg-toggle-row:last-child { border-bottom: none; }
+.tg-toggle-info { flex: 1; }
+.tg-toggle-label { font-size: 0.87rem; font-weight: 600; color: #e5e9f2; display: block; }
+.tg-toggle-desc { font-size: 0.75rem; color: #6b7897; margin-top: 0.15rem; }

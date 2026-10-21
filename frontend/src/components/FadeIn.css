@@ -1,0 +1,5 @@
+/* Canonical "fade in on scroll" timing, shared by every page using <FadeIn>,
+   instead of each page redefining .fade-in slightly differently (which would
+   collide since this SPA doesn't unload per-page CSS on route change). */
+.fade-in { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+.fade-in.visible { opacity: 1; transform: translateY(0); }
