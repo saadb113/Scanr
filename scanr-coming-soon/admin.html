@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090d"><meta name="robots" content="noindex, nofollow">
+  <title>Site Admin — Scanr</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/admin.css">
+</head>
+<body>
+  <main class="admin-shell">
+    <header class="admin-header"><a class="brand" href="/"><span>Scanr</span><i></i></a><div><span class="admin-label">SITE ADMIN</span><button id="logout" class="quiet-button" hidden>Sign out</button></div></header>
+    <section id="login-view" class="login-wrap" hidden>
+      <form id="login-form" class="login-card">
+        <span class="eyebrow">PRIVATE DASHBOARD</span><h1>Welcome back.</h1><p>Sign in to view launch subscribers and site analytics.</p>
+        <label for="admin-password">Admin password</label><input id="admin-password" name="password" type="password" autocomplete="current-password" required>
+        <button class="button button-primary" type="submit">Sign in <span>→</span></button><p id="login-message" class="form-message" aria-live="polite"></p>
+      </form>
+    </section>
+    <section id="dashboard" hidden>
+      <div class="dashboard-title"><div><span class="eyebrow">SCANR LAUNCH SITE</span><h1>Overview</h1><p>Subscriber signups and page visits recorded by the website.</p></div><button id="refresh" class="button button-secondary">↻ Refresh</button></div>
+      <div class="stat-grid">
+        <article class="stat-card"><span>NEWSLETTER SUBSCRIBERS</span><strong id="subscriber-total">—</strong><small>Saved launch emails</small></article>
+        <article class="stat-card"><span>ALL-TIME PAGE VIEWS</span><strong id="views-total">—</strong><small>Since tracking was enabled</small></article>
+        <article class="stat-card"><span>LAST 30 DAYS</span><strong id="views-month">—</strong><small>Page visits</small></article>
+        <article class="stat-card"><span>COUNTRIES</span><strong id="country-total">—</strong><small>Identified visitor countries</small></article>
+      </div>
+      <div class="analytics-grid">
+        <article class="panel chart-panel"><div class="panel-heading"><div><span class="eyebrow plain">TRAFFIC</span><h2>Page views</h2></div><span class="range-label">Last 30 days</span></div><div class="chart-wrap"><svg id="views-chart" viewBox="0 0 720 210" preserveAspectRatio="none" role="img" aria-label="Page views by day"></svg></div><div class="chart-legend"><span><i></i> Page views per day</span><span id="views-week">— in the last 7 days</span></div></article>
+        <article class="panel table-panel"><div class="panel-heading"><div><span class="eyebrow plain">CONTENT</span><h2>Views by page</h2></div></div><div class="data-table" id="page-table"></div></article>
+        <article class="panel table-panel"><div class="panel-heading"><div><span class="eyebrow plain">AUDIENCE</span><h2>Visitors by country</h2></div><small>Country is approximate</small></div><div class="data-table" id="country-table"></div></article>
+      </div>
+      <article class="panel subscribers-panel"><div class="panel-heading subscriber-heading"><div><span class="eyebrow plain">LAUNCH UPDATES</span><h2>Email subscribers</h2><p>Emails submitted through the newsletter form.</p></div><div class="subscriber-tools"><input id="subscriber-search" type="search" placeholder="Search email…" aria-label="Search subscribers"><button id="export-csv" class="button button-secondary">Export CSV</button></div></div><div class="data-table subscriber-table" id="subscriber-table"></div><p id="admin-message" class="admin-message" aria-live="polite"></p></article>
+      <footer class="admin-foot"><span>Subscriber and analytics data is private to this dashboard.</span><a href="/privacy">Privacy notice</a></footer>
+    </section>
+  </main>
+  <script src="/admin.js?v=2"></script>
+</body>
+</html>

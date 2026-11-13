@@ -1,0 +1,8 @@
+{
+  "name": "scanr-coming-soon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Scanr's responsive coming-soon and launch-update website",
+  "scripts": { "start": "node server.js", "dev": "node --watch server.js" },
+  "engines": { "node": ">=18" }
+}

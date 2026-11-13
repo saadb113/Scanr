@@ -1,0 +1,4 @@
+data/subscribers.json
+data/analytics.json
+.env
+npm-debug.log*

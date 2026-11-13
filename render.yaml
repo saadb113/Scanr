@@ -21,3 +21,23 @@ services:
         sync: false
       - key: FRONTEND_URL
         sync: false
+  - type: web
+    name: scanr-coming-soon
+    runtime: node
+    rootDir: scanr-coming-soon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: SUBSCRIBE_WEBHOOK_URL
+        sync: false
+      - key: SUBSCRIBE_WEBHOOK_TOKEN
+        sync: false
+      - key: REQUIRE_SUBSCRIBE_WEBHOOK
+        value: "true"
